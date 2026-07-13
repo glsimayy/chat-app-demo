@@ -9,6 +9,7 @@
 - Swagger UI `/api/docs` altinda acildi.
 - Health check endpointi eklendi: `GET /api/health`.
 - Global validation pipe, exception filter ve response interceptor eklendi.
+- Request id ve request logging middleware eklendi.
 - CORS, Helmet ve Compression aktif edildi.
 - Env validation guclendirildi.
 - Auth modulu eklendi:

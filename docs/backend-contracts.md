@@ -31,6 +31,8 @@ npm run test:smoke
 
 ## Genel Response Formati
 
+Her HTTP response `x-request-id` header'i dondurur. Client isterse request'e kendi `x-request-id` header'ini verebilir, verilmezse backend uretir.
+
 Basarili response:
 
 ```json
