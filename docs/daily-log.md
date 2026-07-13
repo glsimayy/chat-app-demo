@@ -33,6 +33,7 @@
   - Conversation summary
   - Read tracking
   - Participant add/remove
+  - Group leave
   - System message
 - Socket.IO realtime chat modulu eklendi:
   - JWT ile socket auth

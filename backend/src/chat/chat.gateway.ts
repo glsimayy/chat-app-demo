@@ -185,6 +185,31 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return response;
   }
 
+  @SubscribeMessage("conversation:leave")
+  async leaveConversation(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: ConversationEventPayload,
+    @Ack() ack?: (response: unknown) => void,
+  ) {
+    const user = this.getUser(client);
+    const leftState = await this.conversationsService.leaveConversation(
+      payload.conversationId,
+      user.id,
+    );
+    const room = this.conversationRoom(payload.conversationId);
+
+    client.to(room).emit("participant:left", leftState);
+    await client.leave(room);
+    client.data.conversationIds?.delete(payload.conversationId);
+    client.emit("conversation:left", leftState);
+
+    const response = { success: true, data: leftState };
+
+    ack?.(response);
+
+    return response;
+  }
+
   @SubscribeMessage("conversation:update")
   async updateConversation(
     @ConnectedSocket() client: AuthenticatedSocket,

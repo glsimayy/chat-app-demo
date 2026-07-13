@@ -325,6 +325,39 @@ export class ConversationsService {
     );
   }
 
+  async leaveConversation(conversationId: string, userId: string) {
+    const conversation = await this.findOneForUser(conversationId, userId);
+    this.ensureGroupConversation(conversation);
+
+    const participant = conversation.participants.find(
+      (item) => item.userId === userId && !item.leftAt,
+    );
+
+    if (!participant) {
+      throw new NotFoundException("Participant not found");
+    }
+
+    if (participant.role === ParticipantRole.Owner) {
+      throw new BadRequestException("Group owner cannot leave the group");
+    }
+
+    const user = await this.usersService.findById(userId);
+    const now = new Date();
+    participant.leftAt = now;
+    conversation.updatedAt = now;
+    this.addSystemMessage(
+      conversation.id,
+      `${user?.username ?? "A user"} left the group.`,
+      now,
+    );
+
+    return {
+      conversationId,
+      userId,
+      leftAt: now,
+    };
+  }
+
   async addParticipant(
     conversationId: string,
     currentUserId: string,

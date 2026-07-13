@@ -156,6 +156,15 @@ export class ConversationsController {
     return this.conversationsService.markAsRead(conversationId, user.id);
   }
 
+  @Post(":conversationId/leave")
+  @ApiOkResponse({ description: "Current user left the group conversation" })
+  leaveConversation(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("conversationId") conversationId: string,
+  ) {
+    return this.conversationsService.leaveConversation(conversationId, user.id);
+  }
+
   @Get(":conversationId/participants")
   @ApiOkResponse({ description: "Conversation participants" })
   findParticipants(

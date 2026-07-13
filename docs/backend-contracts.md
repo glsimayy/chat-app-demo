@@ -215,6 +215,10 @@ Sadece mesaji atan kullanici kendi mesajini silebilir. Silme soft delete olarak 
 
 Konusmayi mevcut kullanici icin okundu isaretler.
 
+`POST /api/conversations/{conversationId}/leave`
+
+Mevcut kullaniciyi grup konusmasindan cikarir. Sadece member kullanici ayrilabilir; owner icin henuz ownership transfer yoktur.
+
 `GET /api/conversations/{conversationId}/participants`
 
 `POST /api/conversations/{conversationId}/participants`
@@ -386,6 +390,38 @@ conversation:updated
 ```
 
 Payload guncellenmis conversation objesidir.
+
+### conversation:leave
+
+Client event:
+
+```json
+{
+  "conversationId": "conversation-uuid"
+}
+```
+
+Ayrilan client'a server push:
+
+```text
+conversation:left
+```
+
+Room'daki diger client'lara server push:
+
+```text
+participant:left
+```
+
+Payload:
+
+```json
+{
+  "conversationId": "conversation-uuid",
+  "userId": "user-uuid",
+  "leftAt": "2026-07-13T17:00:00.000Z"
+}
+```
 
 ### message:send
 

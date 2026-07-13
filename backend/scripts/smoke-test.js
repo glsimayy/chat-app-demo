@@ -30,6 +30,24 @@ async function request(method, path, body, options = {}) {
   return json.data;
 }
 
+async function requestExpectError(method, path, body, options = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers: {
+      "content-type": "application/json",
+      ...(options.token ? { authorization: `Bearer ${options.token}` } : {}),
+      ...(options.botSecret ? { "x-bot-secret": options.botSecret } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (response.ok) {
+    throw new Error(`${method} ${path} unexpectedly succeeded`);
+  }
+
+  return response.status;
+}
+
 function emitWithAck(socket, eventName, payload) {
   return new Promise((resolve) => socket.emit(eventName, payload, resolve));
 }
@@ -211,6 +229,22 @@ async function main() {
     "Group rename failed",
   );
 
+  const ownerLeaveStatus = await requestExpectError(
+    "POST",
+    `/conversations/${botGroup.id}/leave`,
+    undefined,
+    { token: alpha.accessToken },
+  );
+  assert(ownerLeaveStatus === 400, "Group owner leave should fail");
+
+  const leftGroup = await request(
+    "POST",
+    `/conversations/${botGroup.id}/leave`,
+    undefined,
+    { token: beta.accessToken },
+  );
+  assert(leftGroup.userId === beta.user.id, "Group member leave failed");
+
   console.log(
     JSON.stringify(
       {
@@ -226,6 +260,7 @@ async function main() {
           "socket presence",
           "bot group create",
           "group rename",
+          "group leave",
         ],
       },
       null,
