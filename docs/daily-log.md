@@ -16,6 +16,7 @@
   - Register
   - Login
   - Current user endpoint
+  - Change password endpoint
   - JWT token uretimi
   - JWT guard
   - Role guard

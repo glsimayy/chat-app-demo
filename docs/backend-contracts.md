@@ -88,6 +88,17 @@ Authorization: Bearer <jwt>
 
 JWT token ile mevcut kullaniciyi dondurur.
 
+`PATCH /api/auth/password`
+
+JWT token ile mevcut kullanicinin sifresini degistirir.
+
+```json
+{
+  "currentPassword": "Password123!",
+  "newPassword": "NewPassword123!"
+}
+```
+
 ### Users
 
 `GET /api/users`

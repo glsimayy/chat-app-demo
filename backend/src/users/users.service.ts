@@ -47,6 +47,22 @@ export class UsersService {
     return this.findByIdSync(id);
   }
 
+  async findRecordById(id: string): Promise<UserRecord | undefined> {
+    return this.users.get(id);
+  }
+
+  async updatePasswordHash(id: string, passwordHash: string) {
+    const user = this.users.get(id);
+
+    if (!user) {
+      return undefined;
+    }
+
+    user.passwordHash = passwordHash;
+
+    return this.toPublicUser(user);
+  }
+
   findByIdSync(id: string): PublicUser | undefined {
     const user = this.users.get(id);
     return user ? this.toPublicUser(user) : undefined;

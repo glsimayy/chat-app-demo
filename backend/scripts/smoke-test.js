@@ -101,6 +101,31 @@ async function main() {
   });
   assert(me.id === alpha.user.id, "auth/me returned the wrong user");
 
+  const changedPassword = await request(
+    "PATCH",
+    "/auth/password",
+    {
+      currentPassword: "Password123!",
+      newPassword: "NewPassword123!",
+    },
+    { token: alpha.accessToken },
+  );
+  assert(
+    changedPassword.user.id === alpha.user.id,
+    "Password change returned the wrong user",
+  );
+  const oldPasswordStatus = await requestExpectError(
+    "POST",
+    "/auth/login",
+    { email: alpha.user.email, password: "Password123!" },
+  );
+  assert(oldPasswordStatus === 401, "Old password should fail after change");
+  const alphaLogin = await request("POST", "/auth/login", {
+    email: alpha.user.email,
+    password: "NewPassword123!",
+  });
+  alpha.accessToken = alphaLogin.accessToken;
+
   const directConversation = await request(
     "POST",
     "/conversations/direct",
@@ -292,6 +317,7 @@ async function main() {
         checked: [
           "health",
           "auth",
+          "change password",
           "direct conversations",
           "conversation filtering",
           "message pagination",
