@@ -112,12 +112,35 @@ async function main() {
   const betaSocket = await connectSocket(beta.accessToken);
 
   try {
+    const alphaSnapshotPromise = waitFor(alphaSocket, "presence:snapshot");
     await emitWithAck(alphaSocket, "conversation:join", {
       conversationId: directConversation.id,
     });
+    const alphaSnapshot = await alphaSnapshotPromise;
+    assert(
+      alphaSnapshot.users.some(
+        (item) => item.userId === alpha.user.id && item.online === true,
+      ),
+      "Presence snapshot did not include alpha as online",
+    );
+
+    const betaOnlinePromise = waitFor(alphaSocket, "presence:online");
+    const betaSnapshotPromise = waitFor(betaSocket, "presence:snapshot");
     await emitWithAck(betaSocket, "conversation:join", {
       conversationId: directConversation.id,
     });
+    const betaOnline = await betaOnlinePromise;
+    const betaSnapshot = await betaSnapshotPromise;
+    assert(
+      betaOnline.userId === beta.user.id,
+      "presence:online did not include beta",
+    );
+    assert(
+      betaSnapshot.users.some(
+        (item) => item.userId === alpha.user.id && item.online === true,
+      ),
+      "Presence snapshot did not include alpha for beta",
+    );
 
     const newMessagePromise = waitFor(betaSocket, "message:new");
     const sent = await emitWithAck(alphaSocket, "message:send", {
@@ -151,6 +174,14 @@ async function main() {
     });
     const deletedMessage = await deletePromise;
     assert(Boolean(deletedMessage.deletedAt), "Socket message delete failed");
+
+    const betaOfflinePromise = waitFor(alphaSocket, "presence:offline");
+    betaSocket.disconnect();
+    const betaOffline = await betaOfflinePromise;
+    assert(
+      betaOffline.userId === beta.user.id,
+      "presence:offline did not include beta",
+    );
   } finally {
     alphaSocket.disconnect();
     betaSocket.disconnect();
@@ -192,6 +223,7 @@ async function main() {
           "direct conversations",
           "message pagination",
           "socket message send/update/delete",
+          "socket presence",
           "bot group create",
           "group rename",
         ],

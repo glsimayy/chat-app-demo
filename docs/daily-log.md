@@ -38,6 +38,7 @@
   - Realtime conversation update
   - Realtime message push
   - Realtime message edit/delete
+  - Online presence
   - Typing indicator
   - Realtime read receipt
 - Java/bot entegrasyonu icin endpoint eklendi:

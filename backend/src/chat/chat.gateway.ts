@@ -3,6 +3,7 @@ import {
   ConnectedSocket,
   MessageBody,
   OnGatewayConnection,
+  OnGatewayDisconnect,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -19,6 +20,7 @@ import { UpdateMessageDto } from "../conversations/dto/update-message.dto";
 
 interface AuthenticatedSocket extends Socket {
   data: {
+    conversationIds?: Set<string>;
     user?: AuthenticatedUser;
   };
 }
@@ -65,9 +67,11 @@ interface JwtPayload {
     credentials: true,
   },
 })
-export class ChatGateway implements OnGatewayConnection {
+export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   private readonly server!: Server;
+
+  private readonly onlineUserSockets = new Map<string, Set<string>>();
 
   constructor(
     private readonly conversationsService: ConversationsService,
@@ -87,10 +91,35 @@ export class ChatGateway implements OnGatewayConnection {
         email: payload.email,
         role: payload.role,
       };
+      client.data.conversationIds = new Set<string>();
 
+      this.trackOnlineSocket(payload.sub, client.id);
       await client.join(this.userRoom(payload.sub));
     } catch {
       client.disconnect(true);
+    }
+  }
+
+  handleDisconnect(client: AuthenticatedSocket) {
+    const user = client.data.user;
+
+    if (!user) {
+      return;
+    }
+
+    const userStillOnline = this.untrackOnlineSocket(user.id, client.id);
+
+    if (userStillOnline) {
+      return;
+    }
+
+    for (const conversationId of client.data.conversationIds ?? []) {
+      this.server
+        .to(this.conversationRoom(conversationId))
+        .emit("presence:offline", {
+          conversationId,
+          userId: user.id,
+        });
     }
   }
 
@@ -107,11 +136,27 @@ export class ChatGateway implements OnGatewayConnection {
     );
 
     await client.join(this.conversationRoom(conversation.id));
+    client.data.conversationIds?.add(conversation.id);
+
+    const presenceSnapshot = {
+      conversationId: conversation.id,
+      users: conversation.participants
+        .filter((participant) => !participant.leftAt)
+        .map((participant) => ({
+          userId: participant.userId,
+          online: this.isUserOnline(participant.userId),
+        })),
+    };
 
     const response = { success: true, data: conversation };
 
     ack?.(response);
     client.emit("conversation:joined", conversation);
+    client.emit("presence:snapshot", presenceSnapshot);
+    client.to(this.conversationRoom(conversation.id)).emit("presence:online", {
+      conversationId: conversation.id,
+      userId: user.id,
+    });
 
     return response;
   }
@@ -324,6 +369,33 @@ export class ChatGateway implements OnGatewayConnection {
       .emit(eventName, eventPayload);
 
     return { success: true, data: eventPayload };
+  }
+
+  private trackOnlineSocket(userId: string, socketId: string) {
+    const socketIds = this.onlineUserSockets.get(userId) ?? new Set<string>();
+    socketIds.add(socketId);
+    this.onlineUserSockets.set(userId, socketIds);
+  }
+
+  private untrackOnlineSocket(userId: string, socketId: string) {
+    const socketIds = this.onlineUserSockets.get(userId);
+
+    if (!socketIds) {
+      return false;
+    }
+
+    socketIds.delete(socketId);
+
+    if (socketIds.size === 0) {
+      this.onlineUserSockets.delete(userId);
+      return false;
+    }
+
+    return true;
+  }
+
+  private isUserOnline(userId: string) {
+    return this.onlineUserSockets.has(userId);
   }
 
   private conversationRoom(conversationId: string) {

@@ -20,7 +20,7 @@ npm run build
 npm run test:smoke
 ```
 
-`test:smoke` server acikken calisir ve auth, direct chat, pagination, Socket.IO, bot group ve group rename akislarini kontrol eder.
+`test:smoke` server acikken calisir ve auth, direct chat, pagination, Socket.IO, presence, bot group ve group rename akislarini kontrol eder.
 
 ## Genel Response Formati
 
@@ -307,6 +307,56 @@ Server push:
 
 ```text
 conversation:joined
+```
+
+Ayni join sonrasinda client'a mevcut online durumlari da gonderilir:
+
+```text
+presence:snapshot
+```
+
+Payload:
+
+```json
+{
+  "conversationId": "conversation-uuid",
+  "users": [
+    {
+      "userId": "user-uuid",
+      "online": true
+    }
+  ]
+}
+```
+
+Room'daki diger client'lara kullanicinin online oldugu bildirilir:
+
+```text
+presence:online
+```
+
+Payload:
+
+```json
+{
+  "conversationId": "conversation-uuid",
+  "userId": "user-uuid"
+}
+```
+
+Kullanici tum socket baglantilarini kapatinca:
+
+```text
+presence:offline
+```
+
+Payload:
+
+```json
+{
+  "conversationId": "conversation-uuid",
+  "userId": "user-uuid"
+}
 ```
 
 ### conversation:update
