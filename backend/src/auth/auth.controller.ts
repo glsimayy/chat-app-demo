@@ -1,8 +1,16 @@
-import { Body, Controller, Post } from "@nestjs/common";
-import { ApiCreatedResponse, ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiTags,
+} from "@nestjs/swagger";
+import { AuthenticatedUser } from "./authenticated-user.interface";
 import { AuthService } from "./auth.service";
+import { CurrentUser } from "./current-user.decorator";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
+import { JwtAuthGuard } from "./jwt-auth.guard";
 
 @ApiTags("auth")
 @Controller("auth")
@@ -19,5 +27,13 @@ export class AuthController {
   @ApiOkResponse({ description: "User logged in successfully" })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Get("me")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({ description: "Current authenticated user" })
+  me(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.getMe(user.id);
   }
 }

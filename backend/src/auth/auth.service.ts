@@ -48,6 +48,16 @@ export class AuthService {
     return this.buildAuthResponse(this.usersService.toPublicUser(userRecord));
   }
 
+  async getMe(userId: string): Promise<PublicUser> {
+    const userRecord = await this.usersService.findById(userId);
+
+    if (!userRecord) {
+      throw new UnauthorizedException("User no longer exists");
+    }
+
+    return userRecord;
+  }
+
   private async buildAuthResponse(user: PublicUser): Promise<AuthResponse> {
     const accessToken = await this.jwtService.signAsync({
       sub: user.id,
