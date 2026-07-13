@@ -31,6 +31,7 @@
   - Message create/list
   - Message edit/delete
   - Message pagination
+  - Message search
   - Conversation summary
   - Conversation filtering
   - Read tracking

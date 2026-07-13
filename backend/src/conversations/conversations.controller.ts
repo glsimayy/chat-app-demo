@@ -28,6 +28,7 @@ import { CreateGroupConversationDto } from "./dto/create-group-conversation.dto"
 import { CreateMessageDto } from "./dto/create-message.dto";
 import { FindConversationsQueryDto } from "./dto/find-conversations-query.dto";
 import { FindMessagesQueryDto } from "./dto/find-messages-query.dto";
+import { SearchMessagesQueryDto } from "./dto/search-messages-query.dto";
 import { TransferGroupOwnerDto } from "./dto/transfer-group-owner.dto";
 import { UpdateGroupConversationDto } from "./dto/update-group-conversation.dto";
 import { UpdateMessageDto } from "./dto/update-message.dto";
@@ -131,6 +132,20 @@ export class ConversationsController {
     @Query() query: FindMessagesQueryDto,
   ) {
     return this.conversationsService.findMessages(
+      conversationId,
+      user.id,
+      query,
+    );
+  }
+
+  @Get(":conversationId/messages/search")
+  @ApiOkResponse({ description: "Search messages in conversation" })
+  searchMessages(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("conversationId") conversationId: string,
+    @Query() query: SearchMessagesQueryDto,
+  ) {
+    return this.conversationsService.searchMessages(
       conversationId,
       user.id,
       query,

@@ -14,6 +14,7 @@ import { CreateGroupConversationDto } from "./dto/create-group-conversation.dto"
 import { CreateMessageDto } from "./dto/create-message.dto";
 import { FindConversationsQueryDto } from "./dto/find-conversations-query.dto";
 import { FindMessagesQueryDto } from "./dto/find-messages-query.dto";
+import { SearchMessagesQueryDto } from "./dto/search-messages-query.dto";
 import { TransferGroupOwnerDto } from "./dto/transfer-group-owner.dto";
 import { UpdateGroupConversationDto } from "./dto/update-group-conversation.dto";
 import { UpdateMessageDto } from "./dto/update-message.dto";
@@ -330,6 +331,29 @@ export class ConversationsService {
             ? pageItems[0].createdAt.toISOString()
             : null,
         hasMore,
+      },
+    };
+  }
+
+  async searchMessages(
+    conversationId: string,
+    userId: string,
+    query: SearchMessagesQueryDto,
+  ) {
+    await this.findOneForUser(conversationId, userId);
+    const search = query.q.trim().toLowerCase();
+    const limit = query.limit ?? 20;
+    const matches = (this.messages.get(conversationId) ?? [])
+      .filter((message) => !message.deletedAt)
+      .filter((message) => message.content.toLowerCase().includes(search))
+      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+      .slice(0, limit);
+
+    return {
+      items: matches,
+      pageInfo: {
+        limit,
+        total: matches.length,
       },
     };
   }

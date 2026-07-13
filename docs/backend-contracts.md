@@ -221,6 +221,21 @@ Response:
 }
 ```
 
+`GET /api/conversations/{conversationId}/messages/search`
+
+Query parametreleri:
+
+- `q`: aranacak metin.
+- `limit`: 1-50 arasi sonuc sayisi. Default `20`.
+
+Soft delete edilmis mesajlar arama sonucuna dahil edilmez.
+
+Ornek:
+
+```http
+GET /api/conversations/{conversationId}/messages/search?q=merhaba&limit=10
+```
+
 `PATCH /api/conversations/{conversationId}/messages/{messageId}`
 
 Sadece mesaji atan kullanici kendi mesajini duzenleyebilir.
