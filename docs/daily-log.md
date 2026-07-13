@@ -34,6 +34,8 @@
   - JWT ile socket auth
   - Conversation room join
   - Realtime message push
+  - Typing indicator
+  - Realtime read receipt
 - Java/bot entegrasyonu icin endpoint eklendi:
   - `POST /api/bot/groups`
   - `x-bot-secret` korumasi

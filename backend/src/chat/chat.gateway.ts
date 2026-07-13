@@ -30,6 +30,10 @@ interface SendMessagePayload {
   content: string;
 }
 
+interface ConversationEventPayload {
+  conversationId: string;
+}
+
 interface JwtPayload {
   sub: string;
   email: string;
@@ -118,6 +122,68 @@ export class ChatGateway implements OnGatewayConnection {
     return response;
   }
 
+  @SubscribeMessage("typing:start")
+  async startTyping(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: ConversationEventPayload,
+    @Ack() ack?: (response: unknown) => void,
+  ) {
+    const response = await this.emitConversationUserEvent(
+      client,
+      payload,
+      "typing:started",
+    );
+
+    ack?.(response);
+
+    return response;
+  }
+
+  @SubscribeMessage("typing:stop")
+  async stopTyping(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: ConversationEventPayload,
+    @Ack() ack?: (response: unknown) => void,
+  ) {
+    const response = await this.emitConversationUserEvent(
+      client,
+      payload,
+      "typing:stopped",
+    );
+
+    ack?.(response);
+
+    return response;
+  }
+
+  @SubscribeMessage("message:read")
+  async markMessageRead(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: ConversationEventPayload,
+    @Ack() ack?: (response: unknown) => void,
+  ) {
+    const user = this.getUser(client);
+    const readState = await this.conversationsService.markAsRead(
+      payload.conversationId,
+      user.id,
+    );
+    const eventPayload = {
+      conversationId: payload.conversationId,
+      userId: user.id,
+      readAt: readState.readAt,
+    };
+
+    this.server
+      .to(this.conversationRoom(payload.conversationId))
+      .emit("message:read", eventPayload);
+
+    const response = { success: true, data: readState };
+
+    ack?.(response);
+
+    return response;
+  }
+
   private extractToken(client: Socket) {
     const authToken = client.handshake.auth?.token;
 
@@ -142,6 +208,29 @@ export class ChatGateway implements OnGatewayConnection {
     }
 
     return user;
+  }
+
+  private async emitConversationUserEvent(
+    client: AuthenticatedSocket,
+    payload: ConversationEventPayload,
+    eventName: "typing:started" | "typing:stopped",
+  ) {
+    const user = this.getUser(client);
+    await this.conversationsService.findOneForUser(
+      payload.conversationId,
+      user.id,
+    );
+
+    const eventPayload = {
+      conversationId: payload.conversationId,
+      userId: user.id,
+    };
+
+    client
+      .to(this.conversationRoom(payload.conversationId))
+      .emit(eventName, eventPayload);
+
+    return { success: true, data: eventPayload };
   }
 
   private conversationRoom(conversationId: string) {

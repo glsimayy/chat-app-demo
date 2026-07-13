@@ -286,6 +286,82 @@ Server push:
 message:new
 ```
 
+### typing:start
+
+Client event:
+
+```json
+{
+  "conversationId": "conversation-uuid"
+}
+```
+
+Diger client'lara server push:
+
+```text
+typing:started
+```
+
+Payload:
+
+```json
+{
+  "conversationId": "conversation-uuid",
+  "userId": "user-uuid"
+}
+```
+
+### typing:stop
+
+Client event:
+
+```json
+{
+  "conversationId": "conversation-uuid"
+}
+```
+
+Diger client'lara server push:
+
+```text
+typing:stopped
+```
+
+Payload:
+
+```json
+{
+  "conversationId": "conversation-uuid",
+  "userId": "user-uuid"
+}
+```
+
+### message:read
+
+Client event:
+
+```json
+{
+  "conversationId": "conversation-uuid"
+}
+```
+
+Server push:
+
+```text
+message:read
+```
+
+Payload:
+
+```json
+{
+  "conversationId": "conversation-uuid",
+  "userId": "user-uuid",
+  "readAt": "2026-07-13T17:00:00.000Z"
+}
+```
+
 ## Database Tarafi Icin Beklenen Modeller
 
 Main Backend su an in-memory calisiyor. Database entegrasyonunda beklenen ana tablolar:
