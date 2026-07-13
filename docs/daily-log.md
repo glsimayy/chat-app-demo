@@ -49,6 +49,7 @@
 
 - `npm run typecheck` basarili.
 - `npm run build` basarili.
+- `npm run test:smoke` eklendi.
 - `npm audit --audit-level=moderate` temiz.
 - REST auth/direct conversation/message flow test edildi.
 - Socket.IO join/send/message push flow test edildi.

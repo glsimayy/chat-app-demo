@@ -10,6 +10,18 @@ Bu dokuman Main Backend, Java ve Database tarafinin ayni kontrata gore calismasi
 - Swagger JSON: `GET /api/docs-json`
 - Socket.IO namespace: `/chat`
 
+## Local Kontrol Komutlari
+
+Backend klasorunde:
+
+```bash
+npm run typecheck
+npm run build
+npm run test:smoke
+```
+
+`test:smoke` server acikken calisir ve auth, direct chat, pagination, Socket.IO, bot group ve group rename akislarini kontrol eder.
+
 ## Genel Response Formati
 
 Basarili response:

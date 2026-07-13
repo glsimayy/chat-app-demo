@@ -10,6 +10,7 @@
         "start:debug": "nest start --debug --watch",
         "start:prod": "node dist/main.js",
         "typecheck": "tsc --noEmit -p tsconfig.json",
+        "test:smoke": "node scripts/smoke-test.js",
         "format": "prettier --write \"src/**/*.ts\""
     },
     "keywords": [],
