@@ -24,6 +24,7 @@ Backend klasorunde:
 ```bash
 npm run typecheck
 npm run build
+npm run prisma:validate
 npm run test:smoke
 ```
 
@@ -587,6 +588,8 @@ Payload:
 ## Database Tarafi Icin Beklenen Modeller
 
 Main Backend su an in-memory calisiyor. Database entegrasyonunda beklenen ana tablolar:
+
+Prisma taslagi `backend/prisma/schema.prisma` icinde tutulur. Ilk DB gecisinde bu dosya uzerinden migration alinabilir.
 
 ### users
 

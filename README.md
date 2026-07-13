@@ -37,6 +37,7 @@ Server acikken:
 ```bash
 npm run typecheck
 npm run build
+npm run prisma:validate
 npm run test:smoke
 ```
 
