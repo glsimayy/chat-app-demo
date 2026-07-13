@@ -10,6 +10,7 @@
 - Health check endpointi eklendi: `GET /api/health`.
 - Global validation pipe, exception filter ve response interceptor eklendi.
 - CORS, Helmet ve Compression aktif edildi.
+- Env validation guclendirildi.
 - Auth modulu eklendi:
   - Register
   - Login

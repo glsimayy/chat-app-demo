@@ -10,6 +10,13 @@ Bu dokuman Main Backend, Java ve Database tarafinin ayni kontrata gore calismasi
 - Swagger JSON: `GET /api/docs-json`
 - Socket.IO namespace: `/chat`
 
+## Env Notlari
+
+- `CORS_ORIGIN` tek origin veya virgul ile ayrilmis coklu origin alabilir.
+- `DATABASE_URL` su an opsiyoneldir, Prisma gecisinde kullanilacak.
+- Production ortaminda `JWT_SECRET` ve `BOT_WEBHOOK_SECRET` en az 32 karakter olmalidir.
+- `SWAGGER_ENABLED` sadece `true` veya `false` olabilir.
+
 ## Local Kontrol Komutlari
 
 Backend klasorunde:

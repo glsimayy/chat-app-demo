@@ -15,6 +15,8 @@ npm install
 
 `.env.example` dosyasini referans alarak local `.env` dosyasi olusturulabilir.
 
+Production notu: `JWT_SECRET` ve `BOT_WEBHOOK_SECRET` en az 32 karakter olmalidir.
+
 ### Calistirma
 
 ```bash
@@ -77,3 +79,4 @@ npm run test:smoke
 - Grup olusturma REST endpointi admin ister.
 - Bot group endpointi JWT yerine `x-bot-secret` header'i kullanir.
 - Database entegrasyonu icin beklenen model kontrati `docs/backend-contracts.md` icinde tutulur.
+- `DATABASE_URL` simdilik opsiyoneldir, Prisma gecisinde aktif kullanilacak.
