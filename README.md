@@ -17,6 +17,12 @@ npm install
 
 Production notu: `JWT_SECRET` ve `BOT_WEBHOOK_SECRET` en az 32 karakter olmalidir.
 
+Local PostgreSQL gerekirse repo root klasorunde:
+
+```bash
+docker compose up -d postgres
+```
+
 ### Calistirma
 
 ```bash
@@ -55,6 +61,7 @@ npm run test:smoke
 ## Takim Dokumanlari
 
 - Backend kontratlari: `docs/backend-contracts.md`
+- Database kurulumu: `docs/database-setup.md`
 - Gunluk kayit: `docs/daily-log.md`
 
 ## Ana Ozellikler

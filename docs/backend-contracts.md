@@ -621,7 +621,7 @@ Payload:
 
 Main Backend su an in-memory calisiyor. Database entegrasyonunda beklenen ana tablolar:
 
-Prisma taslagi `backend/prisma/schema.prisma` icinde tutulur. Ilk DB gecisinde bu dosya uzerinden migration alinabilir.
+Prisma taslagi `backend/prisma/schema.prisma` icinde tutulur. Ilk DB gecisinde bu dosya uzerinden migration alinabilir. Local PostgreSQL kurulumu icin `docs/database-setup.md` dosyasina bakilabilir.
 
 ### users
 

@@ -51,6 +51,10 @@
   - `POST /api/bot/groups`
   - `x-bot-secret` korumasi
   - `externalRef` destegi
+- Database hazirligi:
+  - Prisma schema taslagi
+  - Local PostgreSQL Docker Compose
+  - Database setup dokumani
 
 ### Verification
 
