@@ -149,6 +149,16 @@ Sadece grup konusmalari icin calisir. Grup owner'i veya admin kullanici grup adi
 }
 ```
 
+`PATCH /api/conversations/{conversationId}/owner`
+
+Grup owner'i veya admin kullanici ownership'i aktif bir participante devredebilir.
+
+```json
+{
+  "userId": "new-owner-user-uuid"
+}
+```
+
 `POST /api/conversations/{conversationId}/messages`
 
 ```json
@@ -380,6 +390,25 @@ Client event:
 {
   "conversationId": "conversation-uuid",
   "name": "Yeni Grup Adi"
+}
+```
+
+Server push:
+
+```text
+conversation:updated
+```
+
+Payload guncellenmis conversation objesidir.
+
+### conversation:transfer-owner
+
+Client event:
+
+```json
+{
+  "conversationId": "conversation-uuid",
+  "userId": "new-owner-user-uuid"
 }
 ```
 

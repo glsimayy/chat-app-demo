@@ -27,6 +27,7 @@
   - Direct conversation
   - Group conversation
   - Group rename
+  - Group owner transfer
   - Message create/list
   - Message edit/delete
   - Message pagination

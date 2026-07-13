@@ -237,13 +237,27 @@ async function main() {
   );
   assert(ownerLeaveStatus === 400, "Group owner leave should fail");
 
+  const ownershipTransferred = await request(
+    "PATCH",
+    `/conversations/${botGroup.id}/owner`,
+    { userId: beta.user.id },
+    { token: alpha.accessToken },
+  );
+  assert(
+    ownershipTransferred.participants.some(
+      (participant) =>
+        participant.userId === beta.user.id && participant.role === "owner",
+    ),
+    "Group owner transfer failed",
+  );
+
   const leftGroup = await request(
     "POST",
     `/conversations/${botGroup.id}/leave`,
     undefined,
-    { token: beta.accessToken },
+    { token: alpha.accessToken },
   );
-  assert(leftGroup.userId === beta.user.id, "Group member leave failed");
+  assert(leftGroup.userId === alpha.user.id, "Group member leave failed");
 
   console.log(
     JSON.stringify(
@@ -260,6 +274,7 @@ async function main() {
           "socket presence",
           "bot group create",
           "group rename",
+          "group owner transfer",
           "group leave",
         ],
       },

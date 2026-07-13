@@ -27,6 +27,7 @@ import { CreateDirectConversationDto } from "./dto/create-direct-conversation.dt
 import { CreateGroupConversationDto } from "./dto/create-group-conversation.dto";
 import { CreateMessageDto } from "./dto/create-message.dto";
 import { FindMessagesQueryDto } from "./dto/find-messages-query.dto";
+import { TransferGroupOwnerDto } from "./dto/transfer-group-owner.dto";
 import { UpdateGroupConversationDto } from "./dto/update-group-conversation.dto";
 import { UpdateMessageDto } from "./dto/update-message.dto";
 
@@ -82,6 +83,21 @@ export class ConversationsController {
     @Body() dto: UpdateGroupConversationDto,
   ) {
     return this.conversationsService.updateGroupConversation(
+      conversationId,
+      user.id,
+      user.role,
+      dto,
+    );
+  }
+
+  @Patch(":conversationId/owner")
+  @ApiOkResponse({ description: "Group owner transferred" })
+  transferGroupOwner(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("conversationId") conversationId: string,
+    @Body() dto: TransferGroupOwnerDto,
+  ) {
+    return this.conversationsService.transferGroupOwner(
       conversationId,
       user.id,
       user.role,

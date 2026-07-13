@@ -15,6 +15,7 @@ import { Server, Socket } from "socket.io";
 import { AuthenticatedUser } from "../auth/authenticated-user.interface";
 import { ConversationsService } from "../conversations/conversations.service";
 import { CreateMessageDto } from "../conversations/dto/create-message.dto";
+import { TransferGroupOwnerDto } from "../conversations/dto/transfer-group-owner.dto";
 import { UpdateGroupConversationDto } from "../conversations/dto/update-group-conversation.dto";
 import { UpdateMessageDto } from "../conversations/dto/update-message.dto";
 
@@ -52,6 +53,11 @@ interface DeleteMessagePayload {
 interface UpdateConversationPayload {
   conversationId: string;
   name: string;
+}
+
+interface TransferOwnerPayload {
+  conversationId: string;
+  userId: string;
 }
 
 interface JwtPayload {
@@ -224,6 +230,31 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         user.role,
         { name: payload.name } satisfies UpdateGroupConversationDto,
       );
+
+    this.server
+      .to(this.conversationRoom(payload.conversationId))
+      .emit("conversation:updated", conversation);
+
+    const response = { success: true, data: conversation };
+
+    ack?.(response);
+
+    return response;
+  }
+
+  @SubscribeMessage("conversation:transfer-owner")
+  async transferOwner(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: TransferOwnerPayload,
+    @Ack() ack?: (response: unknown) => void,
+  ) {
+    const user = this.getUser(client);
+    const conversation = await this.conversationsService.transferGroupOwner(
+      payload.conversationId,
+      user.id,
+      user.role,
+      { userId: payload.userId } satisfies TransferGroupOwnerDto,
+    );
 
     this.server
       .to(this.conversationRoom(payload.conversationId))

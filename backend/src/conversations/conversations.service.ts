@@ -13,6 +13,7 @@ import { CreateDirectConversationDto } from "./dto/create-direct-conversation.dt
 import { CreateGroupConversationDto } from "./dto/create-group-conversation.dto";
 import { CreateMessageDto } from "./dto/create-message.dto";
 import { FindMessagesQueryDto } from "./dto/find-messages-query.dto";
+import { TransferGroupOwnerDto } from "./dto/transfer-group-owner.dto";
 import { UpdateGroupConversationDto } from "./dto/update-group-conversation.dto";
 import { UpdateMessageDto } from "./dto/update-message.dto";
 import { MessageType } from "./message-type.enum";
@@ -159,6 +160,57 @@ export class ConversationsService {
     this.addSystemMessage(
       conversation.id,
       `Group name changed from "${oldName}" to "${name}".`,
+      now,
+    );
+
+    return conversation;
+  }
+
+  async transferGroupOwner(
+    conversationId: string,
+    currentUserId: string,
+    currentUserRole: UserRole,
+    dto: TransferGroupOwnerDto,
+  ) {
+    const conversation = await this.findOneForUser(
+      conversationId,
+      currentUserId,
+    );
+    this.ensureGroupConversation(conversation);
+    this.ensureCanManageParticipants(
+      conversation,
+      currentUserId,
+      currentUserRole,
+    );
+
+    const targetParticipant = conversation.participants.find(
+      (participant) => participant.userId === dto.userId && !participant.leftAt,
+    );
+
+    if (!targetParticipant) {
+      throw new NotFoundException("Target participant not found");
+    }
+
+    if (targetParticipant.role === ParticipantRole.Owner) {
+      return conversation;
+    }
+
+    const now = new Date();
+    const currentOwners = conversation.participants.filter(
+      (participant) => participant.role === ParticipantRole.Owner,
+    );
+
+    for (const owner of currentOwners) {
+      owner.role = ParticipantRole.Member;
+    }
+
+    targetParticipant.role = ParticipantRole.Owner;
+    conversation.updatedAt = now;
+
+    const user = await this.usersService.findById(dto.userId);
+    this.addSystemMessage(
+      conversation.id,
+      `${user?.username ?? "A user"} is now the group owner.`,
       now,
     );
 
