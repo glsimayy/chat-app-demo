@@ -304,6 +304,45 @@ Server push:
 message:new
 ```
 
+### message:update
+
+Client event:
+
+```json
+{
+  "conversationId": "conversation-uuid",
+  "messageId": "message-uuid",
+  "content": "Duzenlenen mesaj"
+}
+```
+
+Server push:
+
+```text
+message:updated
+```
+
+Payload guncellenmis message objesidir.
+
+### message:delete
+
+Client event:
+
+```json
+{
+  "conversationId": "conversation-uuid",
+  "messageId": "message-uuid"
+}
+```
+
+Server push:
+
+```text
+message:deleted
+```
+
+Payload soft delete uygulanmis message objesidir.
+
 ### typing:start
 
 Client event:

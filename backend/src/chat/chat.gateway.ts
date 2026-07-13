@@ -14,6 +14,7 @@ import { Server, Socket } from "socket.io";
 import { AuthenticatedUser } from "../auth/authenticated-user.interface";
 import { ConversationsService } from "../conversations/conversations.service";
 import { CreateMessageDto } from "../conversations/dto/create-message.dto";
+import { UpdateMessageDto } from "../conversations/dto/update-message.dto";
 
 interface AuthenticatedSocket extends Socket {
   data: {
@@ -32,6 +33,17 @@ interface SendMessagePayload {
 
 interface ConversationEventPayload {
   conversationId: string;
+}
+
+interface UpdateMessagePayload {
+  conversationId: string;
+  messageId: string;
+  content: string;
+}
+
+interface DeleteMessagePayload {
+  conversationId: string;
+  messageId: string;
 }
 
 interface JwtPayload {
@@ -114,6 +126,55 @@ export class ChatGateway implements OnGatewayConnection {
     this.server
       .to(this.conversationRoom(payload.conversationId))
       .emit("message:new", message);
+
+    const response = { success: true, data: message };
+
+    ack?.(response);
+
+    return response;
+  }
+
+  @SubscribeMessage("message:update")
+  async updateMessage(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: UpdateMessagePayload,
+    @Ack() ack?: (response: unknown) => void,
+  ) {
+    const user = this.getUser(client);
+    const message = await this.conversationsService.updateMessage(
+      payload.conversationId,
+      payload.messageId,
+      user.id,
+      { content: payload.content } satisfies UpdateMessageDto,
+    );
+
+    this.server
+      .to(this.conversationRoom(payload.conversationId))
+      .emit("message:updated", message);
+
+    const response = { success: true, data: message };
+
+    ack?.(response);
+
+    return response;
+  }
+
+  @SubscribeMessage("message:delete")
+  async deleteMessage(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: DeleteMessagePayload,
+    @Ack() ack?: (response: unknown) => void,
+  ) {
+    const user = this.getUser(client);
+    const message = await this.conversationsService.deleteMessage(
+      payload.conversationId,
+      payload.messageId,
+      user.id,
+    );
+
+    this.server
+      .to(this.conversationRoom(payload.conversationId))
+      .emit("message:deleted", message);
 
     const response = { success: true, data: message };
 

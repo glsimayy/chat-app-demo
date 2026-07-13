@@ -35,6 +35,7 @@
   - JWT ile socket auth
   - Conversation room join
   - Realtime message push
+  - Realtime message edit/delete
   - Typing indicator
   - Realtime read receipt
 - Java/bot entegrasyonu icin endpoint eklendi:
