@@ -32,13 +32,17 @@ import { SearchMessagesQueryDto } from "./dto/search-messages-query.dto";
 import { TransferGroupOwnerDto } from "./dto/transfer-group-owner.dto";
 import { UpdateGroupConversationDto } from "./dto/update-group-conversation.dto";
 import { UpdateMessageDto } from "./dto/update-message.dto";
+import { RealtimeEventsService } from "./realtime-events.service";
 
 @ApiTags("conversations")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller("conversations")
 export class ConversationsController {
-  constructor(private readonly conversationsService: ConversationsService) {}
+  constructor(
+    private readonly conversationsService: ConversationsService,
+    private readonly realtimeEventsService: RealtimeEventsService,
+  ) {}
 
   @Post("direct")
   @ApiCreatedResponse({
@@ -112,16 +116,20 @@ export class ConversationsController {
 
   @Post(":conversationId/messages")
   @ApiCreatedResponse({ description: "Message created" })
-  createMessage(
+  async createMessage(
     @CurrentUser() user: AuthenticatedUser,
     @Param("conversationId") conversationId: string,
     @Body() dto: CreateMessageDto,
   ) {
-    return this.conversationsService.createMessage(
+    const message = await this.conversationsService.createMessage(
       conversationId,
       user.id,
       dto,
     );
+
+    this.realtimeEventsService.emitMessageCreated(message);
+
+    return message;
   }
 
   @Get(":conversationId/messages")

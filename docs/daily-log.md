@@ -79,3 +79,34 @@
 - Java tarafina bot endpoint kontrati verilecek.
 - Database tarafina tablo/model kontrati verilecek.
 - Main Backend tarafinda Prisma gecisine hazir servis ayrimi yapilacak.
+
+## 14.07.2026 Sali
+
+### Demo Frontend
+
+- Backend testleri icin tek sayfalik demo arayuzu eklendi:
+  - Register/login
+  - Aktif kullanici gosterimi
+  - Kullanici listeleme
+  - Direct conversation olusturma
+  - Group conversation olusturma
+  - REST ile mesaj gonderme
+  - Socket.IO baglanma ve conversation odasina girme
+  - Mesajlari listeleme ve okundu isaretleme
+
+### Realtime
+
+- REST endpointi ile olusturulan mesajlarin Socket.IO odasina yayinlanmasi saglandi.
+- Socket.IO mesaj yayinlama mantigi ortak helper uzerinden toplandi.
+- Frontend tarafinda ayni mesajin iki kez gosterilmesini engelleyen kontrol eklendi.
+
+### Local Ayar
+
+- Local frontend icin CORS origin listesine `http://127.0.0.1:5173` eklendi.
+
+### Verification
+
+- Demo frontend ile direct ve group chat akislarinin calistigi kontrol edildi.
+- Socket baglantisi ve oda mantigi test edildi.
+- `npm run typecheck` basarili.
+- `npm run build` basarili.

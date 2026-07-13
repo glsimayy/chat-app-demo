@@ -1,4 +1,8 @@
 import {
+  OnModuleDestroy,
+  OnModuleInit,
+} from "@nestjs/common";
+import {
   Ack,
   ConnectedSocket,
   MessageBody,
@@ -13,11 +17,13 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { Server, Socket } from "socket.io";
 import { AuthenticatedUser } from "../auth/authenticated-user.interface";
+import { MessageRecord } from "../conversations/conversation.types";
 import { ConversationsService } from "../conversations/conversations.service";
 import { CreateMessageDto } from "../conversations/dto/create-message.dto";
 import { TransferGroupOwnerDto } from "../conversations/dto/transfer-group-owner.dto";
 import { UpdateGroupConversationDto } from "../conversations/dto/update-group-conversation.dto";
 import { UpdateMessageDto } from "../conversations/dto/update-message.dto";
+import { RealtimeEventsService } from "../conversations/realtime-events.service";
 
 interface AuthenticatedSocket extends Socket {
   data: {
@@ -73,17 +79,36 @@ interface JwtPayload {
     credentials: true,
   },
 })
-export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class ChatGateway
+  implements
+    OnGatewayConnection,
+    OnGatewayDisconnect,
+    OnModuleInit,
+    OnModuleDestroy
+{
   @WebSocketServer()
   private readonly server!: Server;
 
   private readonly onlineUserSockets = new Map<string, Set<string>>();
+  private removeMessageCreatedListener?: () => void;
 
   constructor(
     private readonly conversationsService: ConversationsService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly realtimeEventsService: RealtimeEventsService,
   ) {}
+
+  onModuleInit() {
+    this.removeMessageCreatedListener =
+      this.realtimeEventsService.onMessageCreated((message) => {
+        this.broadcastNewMessage(message);
+      });
+  }
+
+  onModuleDestroy() {
+    this.removeMessageCreatedListener?.();
+  }
 
   async handleConnection(client: AuthenticatedSocket) {
     try {
@@ -180,9 +205,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       { content: payload.content } satisfies CreateMessageDto,
     );
 
-    this.server
-      .to(this.conversationRoom(payload.conversationId))
-      .emit("message:new", message);
+    this.broadcastNewMessage(message);
 
     const response = { success: true, data: message };
 
@@ -456,6 +479,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private conversationRoom(conversationId: string) {
     return `conversation:${conversationId}`;
+  }
+
+  private broadcastNewMessage(message: MessageRecord) {
+    this.server
+      .to(this.conversationRoom(message.conversationId))
+      .emit("message:new", message);
   }
 
   private userRoom(userId: string) {
