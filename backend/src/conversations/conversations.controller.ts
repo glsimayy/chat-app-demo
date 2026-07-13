@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from "@nestjs/common";
@@ -90,6 +91,15 @@ export class ConversationsController {
     @Param("conversationId") conversationId: string,
   ) {
     return this.conversationsService.findMessages(conversationId, user.id);
+  }
+
+  @Patch(":conversationId/read")
+  @ApiOkResponse({ description: "Conversation marked as read" })
+  markAsRead(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("conversationId") conversationId: string,
+  ) {
+    return this.conversationsService.markAsRead(conversationId, user.id);
   }
 
   @Get(":conversationId/participants")

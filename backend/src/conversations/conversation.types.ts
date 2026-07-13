@@ -6,6 +6,7 @@ export interface ConversationParticipant {
   userId: string;
   role: ParticipantRole;
   joinedAt: Date;
+  lastReadAt: Date | null;
   leftAt: Date | null;
 }
 

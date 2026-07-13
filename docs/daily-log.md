@@ -25,6 +25,8 @@
   - Direct conversation
   - Group conversation
   - Message create/list
+  - Conversation summary
+  - Read tracking
   - Participant add/remove
   - System message
 - Socket.IO realtime chat modulu eklendi:

@@ -59,12 +59,14 @@ export class ConversationsService {
           userId: currentUserId,
           role: ParticipantRole.Owner,
           joinedAt: now,
+          lastReadAt: now,
           leftAt: null,
         },
         {
           userId: dto.participantId,
           role: ParticipantRole.Member,
           joinedAt: now,
+          lastReadAt: now,
           leftAt: null,
         },
       ],
@@ -102,6 +104,7 @@ export class ConversationsService {
             ? ParticipantRole.Owner
             : ParticipantRole.Member,
         joinedAt: now,
+        lastReadAt: now,
         leftAt: null,
       })),
       createdAt: now,
@@ -132,9 +135,12 @@ export class ConversationsService {
   }
 
   async findForUser(userId: string) {
-    return Array.from(this.conversations.values()).filter((conversation) =>
-      this.isParticipant(conversation, userId),
-    );
+    return Array.from(this.conversations.values())
+      .filter((conversation) => this.isParticipant(conversation, userId))
+      .map((conversation) => this.toConversationSummary(conversation, userId))
+      .sort((left, right) => {
+        return right.updatedAt.getTime() - left.updatedAt.getTime();
+      });
   }
 
   async findOneForUser(conversationId: string, userId: string) {
@@ -177,6 +183,26 @@ export class ConversationsService {
   async findMessages(conversationId: string, userId: string) {
     await this.findOneForUser(conversationId, userId);
     return this.messages.get(conversationId) ?? [];
+  }
+
+  async markAsRead(conversationId: string, userId: string) {
+    const conversation = await this.findOneForUser(conversationId, userId);
+    const participant = conversation.participants.find(
+      (item) => item.userId === userId && !item.leftAt,
+    );
+
+    if (!participant) {
+      throw new NotFoundException("Participant not found");
+    }
+
+    const readAt = new Date();
+    participant.lastReadAt = readAt;
+
+    return {
+      conversationId,
+      readAt,
+      unreadCount: 0,
+    };
   }
 
   async findParticipants(conversationId: string, userId: string) {
@@ -222,12 +248,14 @@ export class ConversationsService {
     if (existingParticipant) {
       existingParticipant.leftAt = null;
       existingParticipant.joinedAt = now;
+      existingParticipant.lastReadAt = now;
       existingParticipant.role = ParticipantRole.Member;
     } else {
       conversation.participants.push({
         userId: dto.userId,
         role: ParticipantRole.Member,
         joinedAt: now,
+        lastReadAt: now,
         leftAt: null,
       });
     }
@@ -363,5 +391,36 @@ export class ConversationsService {
     };
 
     this.messages.get(conversationId)?.push(message);
+  }
+
+  private toConversationSummary(
+    conversation: ConversationRecord,
+    userId: string,
+  ) {
+    const participant = conversation.participants.find(
+      (item) => item.userId === userId && !item.leftAt,
+    );
+    const messages = this.messages.get(conversation.id) ?? [];
+    const lastMessage = messages.at(-1) ?? null;
+    const lastReadAt = participant?.lastReadAt ?? null;
+    const unreadCount = messages.filter((message) => {
+      if (message.senderId === userId) {
+        return false;
+      }
+
+      if (!lastReadAt) {
+        return true;
+      }
+
+      return message.createdAt > lastReadAt;
+    }).length;
+
+    return {
+      ...conversation,
+      participantCount: conversation.participants.filter((item) => !item.leftAt)
+        .length,
+      lastMessage,
+      unreadCount,
+    };
   }
 }

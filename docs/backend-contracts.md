@@ -99,6 +99,23 @@ Bu endpoint admin kullanici ister.
 
 `GET /api/conversations`
 
+Konusma listesini `updatedAt` alanina gore yeniden eskiye sirali dondurur. Her item icinde ek ozet alanlari vardir:
+
+```json
+{
+  "participantCount": 3,
+  "lastMessage": {
+    "id": "message-uuid",
+    "conversationId": "conversation-uuid",
+    "senderId": "user-uuid",
+    "content": "Merhaba",
+    "messageType": "user",
+    "createdAt": "2026-07-13T17:00:00.000Z"
+  },
+  "unreadCount": 2
+}
+```
+
 `GET /api/conversations/{conversationId}`
 
 `POST /api/conversations/{conversationId}/messages`
@@ -110,6 +127,10 @@ Bu endpoint admin kullanici ister.
 ```
 
 `GET /api/conversations/{conversationId}/messages`
+
+`PATCH /api/conversations/{conversationId}/read`
+
+Konusmayi mevcut kullanici icin okundu isaretler.
 
 `GET /api/conversations/{conversationId}/participants`
 
@@ -261,6 +282,7 @@ Main Backend su an in-memory calisiyor. Database entegrasyonunda beklenen ana ta
 - `userId`: user id
 - `role`: enum `owner | member`
 - `joinedAt`: datetime
+- `lastReadAt`: nullable datetime
 - `leftAt`: nullable datetime
 
 Unique onerisi:
