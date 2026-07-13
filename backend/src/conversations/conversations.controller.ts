@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import {
@@ -25,6 +26,7 @@ import { AddParticipantDto } from "./dto/add-participant.dto";
 import { CreateDirectConversationDto } from "./dto/create-direct-conversation.dto";
 import { CreateGroupConversationDto } from "./dto/create-group-conversation.dto";
 import { CreateMessageDto } from "./dto/create-message.dto";
+import { FindMessagesQueryDto } from "./dto/find-messages-query.dto";
 
 @ApiTags("conversations")
 @ApiBearerAuth()
@@ -89,8 +91,13 @@ export class ConversationsController {
   findMessages(
     @CurrentUser() user: AuthenticatedUser,
     @Param("conversationId") conversationId: string,
+    @Query() query: FindMessagesQueryDto,
   ) {
-    return this.conversationsService.findMessages(conversationId, user.id);
+    return this.conversationsService.findMessages(
+      conversationId,
+      user.id,
+      query,
+    );
   }
 
   @Patch(":conversationId/read")

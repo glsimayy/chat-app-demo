@@ -12,6 +12,7 @@ import { AddParticipantDto } from "./dto/add-participant.dto";
 import { CreateDirectConversationDto } from "./dto/create-direct-conversation.dto";
 import { CreateGroupConversationDto } from "./dto/create-group-conversation.dto";
 import { CreateMessageDto } from "./dto/create-message.dto";
+import { FindMessagesQueryDto } from "./dto/find-messages-query.dto";
 import { MessageType } from "./message-type.enum";
 import { ParticipantRole } from "./participant-role.enum";
 
@@ -180,9 +181,33 @@ export class ConversationsService {
     return message;
   }
 
-  async findMessages(conversationId: string, userId: string) {
+  async findMessages(
+    conversationId: string,
+    userId: string,
+    query: FindMessagesQueryDto = {},
+  ) {
     await this.findOneForUser(conversationId, userId);
-    return this.messages.get(conversationId) ?? [];
+    const limit = query.limit ?? 50;
+    const before = query.before ? new Date(query.before) : null;
+    const messages = this.messages.get(conversationId) ?? [];
+    const filteredMessages = before
+      ? messages.filter((message) => message.createdAt < before)
+      : messages;
+    const pageItems = filteredMessages.slice(-limit);
+    const hasMore = filteredMessages.length > pageItems.length;
+
+    return {
+      items: pageItems,
+      pageInfo: {
+        limit,
+        before: query.before ?? null,
+        nextBefore:
+          hasMore && pageItems.length > 0
+            ? pageItems[0].createdAt.toISOString()
+            : null,
+        hasMore,
+      },
+    };
   }
 
   async markAsRead(conversationId: string, userId: string) {

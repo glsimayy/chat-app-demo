@@ -128,6 +128,40 @@ Konusma listesini `updatedAt` alanina gore yeniden eskiye sirali dondurur. Her i
 
 `GET /api/conversations/{conversationId}/messages`
 
+Query parametreleri:
+
+- `limit`: 1-100 arasi mesaj sayisi. Default `50`.
+- `before`: ISO date. Bu tarihten onceki mesajlari getirir.
+
+Ornek:
+
+```http
+GET /api/conversations/{conversationId}/messages?limit=20&before=2026-07-13T17:00:00.000Z
+```
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "id": "message-uuid",
+      "conversationId": "conversation-uuid",
+      "senderId": "user-uuid",
+      "content": "Merhaba",
+      "messageType": "user",
+      "createdAt": "2026-07-13T17:00:00.000Z"
+    }
+  ],
+  "pageInfo": {
+    "limit": 20,
+    "before": "2026-07-13T17:00:00.000Z",
+    "nextBefore": "2026-07-13T16:59:00.000Z",
+    "hasMore": true
+  }
+}
+```
+
 `PATCH /api/conversations/{conversationId}/read`
 
 Konusmayi mevcut kullanici icin okundu isaretler.
