@@ -117,6 +117,19 @@ async function main() {
     );
   }
 
+  const conversationsPage = await request(
+    "GET",
+    `/conversations?type=direct&search=${beta.user.username}&limit=10`,
+    undefined,
+    { token: alpha.accessToken },
+  );
+  assert(
+    conversationsPage.items.some(
+      (conversation) => conversation.id === directConversation.id,
+    ),
+    "Conversation filtering did not return direct conversation",
+  );
+
   const page = await request(
     "GET",
     `/conversations/${directConversation.id}/messages?limit=2`,
@@ -125,6 +138,17 @@ async function main() {
   );
   assert(page.items.length === 2, "Message pagination did not return 2 items");
   assert(page.pageInfo.hasMore === true, "Message pagination hasMore failed");
+
+  const messageSearch = await request(
+    "GET",
+    `/conversations/${directConversation.id}/messages/search?q=smoke-2`,
+    undefined,
+    { token: alpha.accessToken },
+  );
+  assert(
+    messageSearch.items.some((message) => message.content === "smoke-2"),
+    "Message search did not return expected message",
+  );
 
   const alphaSocket = await connectSocket(alpha.accessToken);
   const betaSocket = await connectSocket(beta.accessToken);
@@ -269,7 +293,9 @@ async function main() {
           "health",
           "auth",
           "direct conversations",
+          "conversation filtering",
           "message pagination",
+          "message search",
           "socket message send/update/delete",
           "socket presence",
           "bot group create",
