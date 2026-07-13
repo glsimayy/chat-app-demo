@@ -13,6 +13,7 @@ import { CreateDirectConversationDto } from "./dto/create-direct-conversation.dt
 import { CreateGroupConversationDto } from "./dto/create-group-conversation.dto";
 import { CreateMessageDto } from "./dto/create-message.dto";
 import { FindMessagesQueryDto } from "./dto/find-messages-query.dto";
+import { UpdateGroupConversationDto } from "./dto/update-group-conversation.dto";
 import { UpdateMessageDto } from "./dto/update-message.dto";
 import { MessageType } from "./message-type.enum";
 import { ParticipantRole } from "./participant-role.enum";
@@ -118,6 +119,46 @@ export class ConversationsService {
     this.addSystemMessage(
       conversation.id,
       `Group "${conversation.name}" was created.`,
+      now,
+    );
+
+    return conversation;
+  }
+
+  async updateGroupConversation(
+    conversationId: string,
+    currentUserId: string,
+    currentUserRole: UserRole,
+    dto: UpdateGroupConversationDto,
+  ) {
+    const conversation = await this.findOneForUser(
+      conversationId,
+      currentUserId,
+    );
+    this.ensureGroupConversation(conversation);
+    this.ensureCanManageParticipants(
+      conversation,
+      currentUserId,
+      currentUserRole,
+    );
+
+    const name = dto.name.trim();
+
+    if (!name) {
+      throw new BadRequestException("Group name cannot be empty");
+    }
+
+    if (conversation.name === name) {
+      return conversation;
+    }
+
+    const oldName = conversation.name;
+    const now = new Date();
+    conversation.name = name;
+    conversation.updatedAt = now;
+    this.addSystemMessage(
+      conversation.id,
+      `Group name changed from "${oldName}" to "${name}".`,
       now,
     );
 

@@ -14,6 +14,7 @@ import { Server, Socket } from "socket.io";
 import { AuthenticatedUser } from "../auth/authenticated-user.interface";
 import { ConversationsService } from "../conversations/conversations.service";
 import { CreateMessageDto } from "../conversations/dto/create-message.dto";
+import { UpdateGroupConversationDto } from "../conversations/dto/update-group-conversation.dto";
 import { UpdateMessageDto } from "../conversations/dto/update-message.dto";
 
 interface AuthenticatedSocket extends Socket {
@@ -44,6 +45,11 @@ interface UpdateMessagePayload {
 interface DeleteMessagePayload {
   conversationId: string;
   messageId: string;
+}
+
+interface UpdateConversationPayload {
+  conversationId: string;
+  name: string;
 }
 
 interface JwtPayload {
@@ -128,6 +134,32 @@ export class ChatGateway implements OnGatewayConnection {
       .emit("message:new", message);
 
     const response = { success: true, data: message };
+
+    ack?.(response);
+
+    return response;
+  }
+
+  @SubscribeMessage("conversation:update")
+  async updateConversation(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: UpdateConversationPayload,
+    @Ack() ack?: (response: unknown) => void,
+  ) {
+    const user = this.getUser(client);
+    const conversation =
+      await this.conversationsService.updateGroupConversation(
+        payload.conversationId,
+        user.id,
+        user.role,
+        { name: payload.name } satisfies UpdateGroupConversationDto,
+      );
+
+    this.server
+      .to(this.conversationRoom(payload.conversationId))
+      .emit("conversation:updated", conversation);
+
+    const response = { success: true, data: conversation };
 
     ack?.(response);
 

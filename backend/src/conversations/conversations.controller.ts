@@ -27,6 +27,7 @@ import { CreateDirectConversationDto } from "./dto/create-direct-conversation.dt
 import { CreateGroupConversationDto } from "./dto/create-group-conversation.dto";
 import { CreateMessageDto } from "./dto/create-message.dto";
 import { FindMessagesQueryDto } from "./dto/find-messages-query.dto";
+import { UpdateGroupConversationDto } from "./dto/update-group-conversation.dto";
 import { UpdateMessageDto } from "./dto/update-message.dto";
 
 @ApiTags("conversations")
@@ -71,6 +72,21 @@ export class ConversationsController {
     @Param("conversationId") conversationId: string,
   ) {
     return this.conversationsService.findOneForUser(conversationId, user.id);
+  }
+
+  @Patch(":conversationId")
+  @ApiOkResponse({ description: "Group conversation updated" })
+  updateGroupConversation(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("conversationId") conversationId: string,
+    @Body() dto: UpdateGroupConversationDto,
+  ) {
+    return this.conversationsService.updateGroupConversation(
+      conversationId,
+      user.id,
+      user.role,
+      dto,
+    );
   }
 
   @Post(":conversationId/messages")

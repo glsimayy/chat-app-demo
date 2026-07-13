@@ -24,6 +24,7 @@
 - Conversations modulu eklendi:
   - Direct conversation
   - Group conversation
+  - Group rename
   - Message create/list
   - Message edit/delete
   - Message pagination
@@ -34,6 +35,7 @@
 - Socket.IO realtime chat modulu eklendi:
   - JWT ile socket auth
   - Conversation room join
+  - Realtime conversation update
   - Realtime message push
   - Realtime message edit/delete
   - Typing indicator

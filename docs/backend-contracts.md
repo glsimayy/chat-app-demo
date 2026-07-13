@@ -118,6 +118,16 @@ Konusma listesini `updatedAt` alanina gore yeniden eskiye sirali dondurur. Her i
 
 `GET /api/conversations/{conversationId}`
 
+`PATCH /api/conversations/{conversationId}`
+
+Sadece grup konusmalari icin calisir. Grup owner'i veya admin kullanici grup adini degistirebilir.
+
+```json
+{
+  "name": "Yeni Grup Adi"
+}
+```
+
 `POST /api/conversations/{conversationId}/messages`
 
 ```json
@@ -286,6 +296,25 @@ Server push:
 ```text
 conversation:joined
 ```
+
+### conversation:update
+
+Client event:
+
+```json
+{
+  "conversationId": "conversation-uuid",
+  "name": "Yeni Grup Adi"
+}
+```
+
+Server push:
+
+```text
+conversation:updated
+```
+
+Payload guncellenmis conversation objesidir.
 
 ### message:send
 
