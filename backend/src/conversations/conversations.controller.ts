@@ -27,6 +27,7 @@ import { CreateDirectConversationDto } from "./dto/create-direct-conversation.dt
 import { CreateGroupConversationDto } from "./dto/create-group-conversation.dto";
 import { CreateMessageDto } from "./dto/create-message.dto";
 import { FindMessagesQueryDto } from "./dto/find-messages-query.dto";
+import { UpdateMessageDto } from "./dto/update-message.dto";
 
 @ApiTags("conversations")
 @ApiBearerAuth()
@@ -97,6 +98,36 @@ export class ConversationsController {
       conversationId,
       user.id,
       query,
+    );
+  }
+
+  @Patch(":conversationId/messages/:messageId")
+  @ApiOkResponse({ description: "Message updated" })
+  updateMessage(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("conversationId") conversationId: string,
+    @Param("messageId") messageId: string,
+    @Body() dto: UpdateMessageDto,
+  ) {
+    return this.conversationsService.updateMessage(
+      conversationId,
+      messageId,
+      user.id,
+      dto,
+    );
+  }
+
+  @Delete(":conversationId/messages/:messageId")
+  @ApiOkResponse({ description: "Message deleted" })
+  deleteMessage(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("conversationId") conversationId: string,
+    @Param("messageId") messageId: string,
+  ) {
+    return this.conversationsService.deleteMessage(
+      conversationId,
+      messageId,
+      user.id,
     );
   }
 

@@ -25,6 +25,7 @@
   - Direct conversation
   - Group conversation
   - Message create/list
+  - Message edit/delete
   - Message pagination
   - Conversation summary
   - Read tracking

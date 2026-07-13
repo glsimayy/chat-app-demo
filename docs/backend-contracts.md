@@ -162,6 +162,24 @@ Response:
 }
 ```
 
+`PATCH /api/conversations/{conversationId}/messages/{messageId}`
+
+Sadece mesaji atan kullanici kendi mesajini duzenleyebilir.
+
+```json
+{
+  "content": "Mesaj duzenlendi."
+}
+```
+
+`DELETE /api/conversations/{conversationId}/messages/{messageId}`
+
+Sadece mesaji atan kullanici kendi mesajini silebilir. Silme soft delete olarak calisir:
+
+- `content` bosaltilir.
+- `deletedAt` dolar.
+- Mesaj kaydi pagination icinde kalmaya devam eder.
+
 `PATCH /api/conversations/{conversationId}/read`
 
 Konusmayi mevcut kullanici icin okundu isaretler.
@@ -407,6 +425,8 @@ Unique onerisi:
 - `content`: string
 - `messageType`: enum `user | system`
 - `createdAt`: datetime
+- `updatedAt`: nullable datetime
+- `deletedAt`: nullable datetime
 
 ## Su Anki Notlar
 

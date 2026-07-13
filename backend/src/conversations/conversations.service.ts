@@ -13,6 +13,7 @@ import { CreateDirectConversationDto } from "./dto/create-direct-conversation.dt
 import { CreateGroupConversationDto } from "./dto/create-group-conversation.dto";
 import { CreateMessageDto } from "./dto/create-message.dto";
 import { FindMessagesQueryDto } from "./dto/find-messages-query.dto";
+import { UpdateMessageDto } from "./dto/update-message.dto";
 import { MessageType } from "./message-type.enum";
 import { ParticipantRole } from "./participant-role.enum";
 
@@ -173,6 +174,8 @@ export class ConversationsService {
       content,
       messageType: MessageType.User,
       createdAt: new Date(),
+      updatedAt: null,
+      deletedAt: null,
     };
 
     this.messages.get(conversation.id)?.push(message);
@@ -228,6 +231,50 @@ export class ConversationsService {
       readAt,
       unreadCount: 0,
     };
+  }
+
+  async updateMessage(
+    conversationId: string,
+    messageId: string,
+    userId: string,
+    dto: UpdateMessageDto,
+  ) {
+    const conversation = await this.findOneForUser(conversationId, userId);
+    const message = this.findMessageOrThrow(conversation.id, messageId);
+
+    this.ensureMessageCanBeChanged(message, userId);
+
+    const content = dto.content.trim();
+
+    if (!content) {
+      throw new BadRequestException("Message content cannot be empty");
+    }
+
+    const now = new Date();
+    message.content = content;
+    message.updatedAt = now;
+    conversation.updatedAt = now;
+
+    return message;
+  }
+
+  async deleteMessage(
+    conversationId: string,
+    messageId: string,
+    userId: string,
+  ) {
+    const conversation = await this.findOneForUser(conversationId, userId);
+    const message = this.findMessageOrThrow(conversation.id, messageId);
+
+    this.ensureMessageCanBeChanged(message, userId);
+
+    const now = new Date();
+    message.content = "";
+    message.updatedAt = now;
+    message.deletedAt = now;
+    conversation.updatedAt = now;
+
+    return message;
   }
 
   async findParticipants(conversationId: string, userId: string) {
@@ -413,9 +460,37 @@ export class ConversationsService {
       content,
       messageType: MessageType.System,
       createdAt,
+      updatedAt: null,
+      deletedAt: null,
     };
 
     this.messages.get(conversationId)?.push(message);
+  }
+
+  private findMessageOrThrow(conversationId: string, messageId: string) {
+    const message = (this.messages.get(conversationId) ?? []).find(
+      (item) => item.id === messageId,
+    );
+
+    if (!message) {
+      throw new NotFoundException("Message not found");
+    }
+
+    return message;
+  }
+
+  private ensureMessageCanBeChanged(message: MessageRecord, userId: string) {
+    if (message.messageType !== MessageType.User) {
+      throw new BadRequestException("System messages cannot be changed");
+    }
+
+    if (message.senderId !== userId) {
+      throw new ForbiddenException("You can only change your own messages");
+    }
+
+    if (message.deletedAt) {
+      throw new BadRequestException("Deleted messages cannot be changed");
+    }
   }
 
   private toConversationSummary(

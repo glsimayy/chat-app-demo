@@ -28,4 +28,6 @@ export interface MessageRecord {
   content: string;
   messageType: MessageType;
   createdAt: Date;
+  updatedAt: Date | null;
+  deletedAt: Date | null;
 }
