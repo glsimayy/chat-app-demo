@@ -26,6 +26,7 @@ import { AddParticipantDto } from "./dto/add-participant.dto";
 import { CreateDirectConversationDto } from "./dto/create-direct-conversation.dto";
 import { CreateGroupConversationDto } from "./dto/create-group-conversation.dto";
 import { CreateMessageDto } from "./dto/create-message.dto";
+import { FindConversationsQueryDto } from "./dto/find-conversations-query.dto";
 import { FindMessagesQueryDto } from "./dto/find-messages-query.dto";
 import { TransferGroupOwnerDto } from "./dto/transfer-group-owner.dto";
 import { UpdateGroupConversationDto } from "./dto/update-group-conversation.dto";
@@ -62,8 +63,11 @@ export class ConversationsController {
 
   @Get()
   @ApiOkResponse({ description: "Current user's conversations" })
-  findMyConversations(@CurrentUser() user: AuthenticatedUser) {
-    return this.conversationsService.findForUser(user.id);
+  findMyConversations(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: FindConversationsQueryDto,
+  ) {
+    return this.conversationsService.findForUser(user.id, query);
   }
 
   @Get(":conversationId")

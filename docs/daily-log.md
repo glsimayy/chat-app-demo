@@ -32,6 +32,7 @@
   - Message edit/delete
   - Message pagination
   - Conversation summary
+  - Conversation filtering
   - Read tracking
   - Participant add/remove
   - Group leave

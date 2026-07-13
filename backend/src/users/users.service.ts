@@ -44,6 +44,10 @@ export class UsersService {
   }
 
   async findById(id: string): Promise<PublicUser | undefined> {
+    return this.findByIdSync(id);
+  }
+
+  findByIdSync(id: string): PublicUser | undefined {
     const user = this.users.get(id);
     return user ? this.toPublicUser(user) : undefined;
   }

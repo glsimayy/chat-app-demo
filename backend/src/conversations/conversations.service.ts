@@ -12,6 +12,7 @@ import { AddParticipantDto } from "./dto/add-participant.dto";
 import { CreateDirectConversationDto } from "./dto/create-direct-conversation.dto";
 import { CreateGroupConversationDto } from "./dto/create-group-conversation.dto";
 import { CreateMessageDto } from "./dto/create-message.dto";
+import { FindConversationsQueryDto } from "./dto/find-conversations-query.dto";
 import { FindMessagesQueryDto } from "./dto/find-messages-query.dto";
 import { TransferGroupOwnerDto } from "./dto/transfer-group-owner.dto";
 import { UpdateGroupConversationDto } from "./dto/update-group-conversation.dto";
@@ -229,13 +230,40 @@ export class ConversationsService {
     conversation.updatedAt = now;
   }
 
-  async findForUser(userId: string) {
-    return Array.from(this.conversations.values())
+  async findForUser(userId: string, query: FindConversationsQueryDto = {}) {
+    const limit = query.limit ?? 50;
+    const offset = query.offset ?? 0;
+    const search = query.search?.trim().toLowerCase();
+    const filteredConversations = Array.from(this.conversations.values())
       .filter((conversation) => this.isParticipant(conversation, userId))
+      .filter((conversation) => {
+        if (!query.type) {
+          return true;
+        }
+
+        return conversation.type === query.type;
+      })
+      .filter((conversation) => {
+        if (!search) {
+          return true;
+        }
+
+        return this.conversationMatchesSearch(conversation, search);
+      })
       .map((conversation) => this.toConversationSummary(conversation, userId))
       .sort((left, right) => {
         return right.updatedAt.getTime() - left.updatedAt.getTime();
       });
+
+    return {
+      items: filteredConversations.slice(offset, offset + limit),
+      pageInfo: {
+        limit,
+        offset,
+        total: filteredConversations.length,
+        hasMore: offset + limit < filteredConversations.length,
+      },
+    };
   }
 
   async findOneForUser(conversationId: string, userId: string) {
@@ -523,6 +551,27 @@ export class ConversationsService {
       );
 
       return participantIds.includes(userA) && participantIds.includes(userB);
+    });
+  }
+
+  private conversationMatchesSearch(
+    conversation: ConversationRecord,
+    search: string,
+  ) {
+    if (conversation.name?.toLowerCase().includes(search)) {
+      return true;
+    }
+
+    if (conversation.externalRef?.toLowerCase().includes(search)) {
+      return true;
+    }
+
+    return conversation.participants.some((participant) => {
+      const user = this.usersService.findByIdSync(participant.userId);
+      return (
+        user?.username.toLowerCase().includes(search) ||
+        user?.email.toLowerCase().includes(search)
+      );
     });
   }
 

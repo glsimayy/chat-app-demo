@@ -121,20 +121,37 @@ Bu endpoint admin kullanici ister.
 
 `GET /api/conversations`
 
+Query parametreleri:
+
+- `type`: `direct` veya `group`.
+- `search`: conversation name, external ref, participant username veya participant email icinde arar.
+- `limit`: 1-100 arasi kayit sayisi. Default `50`.
+- `offset`: pagination offset. Default `0`.
+
 Konusma listesini `updatedAt` alanina gore yeniden eskiye sirali dondurur. Her item icinde ek ozet alanlari vardir:
 
 ```json
 {
-  "participantCount": 3,
-  "lastMessage": {
-    "id": "message-uuid",
-    "conversationId": "conversation-uuid",
-    "senderId": "user-uuid",
-    "content": "Merhaba",
-    "messageType": "user",
-    "createdAt": "2026-07-13T17:00:00.000Z"
-  },
-  "unreadCount": 2
+  "items": [
+    {
+      "participantCount": 3,
+      "lastMessage": {
+        "id": "message-uuid",
+        "conversationId": "conversation-uuid",
+        "senderId": "user-uuid",
+        "content": "Merhaba",
+        "messageType": "user",
+        "createdAt": "2026-07-13T17:00:00.000Z"
+      },
+      "unreadCount": 2
+    }
+  ],
+  "pageInfo": {
+    "limit": 50,
+    "offset": 0,
+    "total": 1,
+    "hasMore": false
+  }
 }
 ```
 
