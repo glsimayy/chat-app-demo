@@ -7,6 +7,7 @@
 - NestJS backend kurulumu yapildi.
 - Global API prefix `api` olarak ayarlandi.
 - Swagger UI `/api/docs` altinda acildi.
+- Demo frontend `/demo` altinda servis edildi.
 - Health check endpointi eklendi: `GET /api/health`.
 - Global validation pipe, exception filter ve response interceptor eklendi.
 - Request id ve request logging middleware eklendi.

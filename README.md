@@ -34,6 +34,7 @@ Local adresler:
 - API: `http://localhost:3000/api`
 - Health: `http://localhost:3000/api/health`
 - Swagger: `http://localhost:3000/api/docs`
+- Demo test ekrani: `http://localhost:3000/demo`
 - Socket.IO namespace: `http://localhost:3000/chat`
 
 ### Kontrol

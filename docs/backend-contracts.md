@@ -8,6 +8,7 @@ Bu dokuman Main Backend, Java ve Database tarafinin ayni kontrata gore calismasi
 - Health check: `GET /api/health`
 - Swagger UI: `GET /api/docs`
 - Swagger JSON: `GET /api/docs-json`
+- Demo test ekrani: `GET /demo`
 - Socket.IO namespace: `/chat`
 
 ## Env Notlari

@@ -1,15 +1,17 @@
 ﻿import { ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
+import { NestExpressApplication } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import compression from "compression";
 import helmet from "helmet";
+import { join } from "node:path";
 import { AppModule } from "./app.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 import { ResponseInterceptor } from "./common/interceptors/response.interceptor";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
 
   const apiPrefix = configService.get<string>("API_PREFIX", "api");
@@ -18,6 +20,9 @@ async function bootstrap() {
     configService.get<string>("SWAGGER_ENABLED", "true") === "true";
 
   app.setGlobalPrefix(apiPrefix);
+  app.useStaticAssets(join(process.cwd(), "frontend"), {
+    prefix: "/demo",
+  });
   app.enableCors({
     origin:
       corsOrigin === "*"
