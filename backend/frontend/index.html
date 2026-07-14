@@ -411,7 +411,7 @@
           <h2>Chat</h2>
           <div class="row">
             <button id="connectSocketBtn" class="secondary">Socket baglan</button>
-            <button id="joinSocketBtn" class="secondary">Odaya gir</button>
+            <button id="joinSocketBtn" class="secondary">Odaya tekrar gir</button>
           </div>
         </div>
         <div class="messages" id="messages">
@@ -430,6 +430,10 @@
             <button id="refreshMessagesBtn" class="secondary">Mesajlari yenile</button>
             <button id="markReadBtn" class="secondary">Okundu isaretle</button>
           </div>
+          <p class="help">
+            Socket bagliyken conversation secince odaya otomatik girilir; yeni
+            mesajlar yenilemeden ekrana duser.
+          </p>
         </div>
       </section>
 
@@ -495,6 +499,7 @@
         users: [],
         conversations: [],
         selectedConversation: null,
+        joinedConversationIds: new Set(),
         socket: null,
       };
 
@@ -535,6 +540,7 @@
         sessionStorage.removeItem("chatDemoUser");
         state.token = "";
         state.currentUser = null;
+        state.joinedConversationIds.clear();
         disconnectSocket();
         renderCurrentUser();
       }
@@ -707,6 +713,22 @@
         $("messages").scrollTop = $("messages").scrollHeight;
       }
 
+      function replaceMessage(message) {
+        const element = $("messages").querySelector(
+          `[data-message-id="${message.id}"]`,
+        );
+
+        if (!element) {
+          return;
+        }
+
+        element.outerHTML = renderMessage(message);
+      }
+
+      function isSelectedConversationMessage(message) {
+        return message.conversationId === state.selectedConversation?.id;
+      }
+
       function renderMessage(message) {
         const own = message.senderId === state.currentUser?.id ? " mine" : "";
         const system = message.messageType === "system" ? " system" : "";
@@ -816,6 +838,9 @@
         }
         renderConversations();
         loadMessages().catch((error) => log(`Mesajlar alinamadi: ${error.message}`));
+        autoJoinSelectedConversation().catch((error) =>
+          log(`Socket oda otomatik katilim hatasi: ${error.message}`),
+        );
       }
 
       async function loadMessages() {
@@ -882,21 +907,33 @@
         state.socket.on("connect", () => {
           renderSocketStatus(true);
           log("Socket baglandi", { id: state.socket.id });
+          autoJoinSelectedConversation().catch((error) =>
+            log(`Socket oda otomatik katilim hatasi: ${error.message}`),
+          );
         });
         state.socket.on("disconnect", (reason) => {
+          state.joinedConversationIds.clear();
           renderSocketStatus(false);
           log("Socket kapandi", { reason });
         });
         state.socket.on("message:new", (message) => {
-          appendMessage(message);
+          if (isSelectedConversationMessage(message)) {
+            appendMessage(message);
+          }
           log("Socket message:new", message);
         });
-        state.socket.on("message:updated", (message) =>
-          log("Socket message:updated", message),
-        );
-        state.socket.on("message:deleted", (message) =>
-          log("Socket message:deleted", message),
-        );
+        state.socket.on("message:updated", (message) => {
+          if (isSelectedConversationMessage(message)) {
+            replaceMessage(message);
+          }
+          log("Socket message:updated", message);
+        });
+        state.socket.on("message:deleted", (message) => {
+          if (isSelectedConversationMessage(message)) {
+            replaceMessage(message);
+          }
+          log("Socket message:deleted", message);
+        });
         state.socket.on("conversation:joined", (conversation) =>
           log("Socket conversation:joined", conversation),
         );
@@ -919,10 +956,40 @@
           state.socket.disconnect();
           state.socket = null;
         }
+        state.joinedConversationIds.clear();
         renderSocketStatus(false);
       }
 
-      function joinSocketRoom() {
+      function emitSocketWithAck(eventName, payload) {
+        return new Promise((resolve) => {
+          state.socket.emit(eventName, payload, resolve);
+        });
+      }
+
+      async function autoJoinSelectedConversation() {
+        if (!state.socket?.connected || !state.selectedConversation) {
+          return;
+        }
+
+        const conversationId = state.selectedConversation.id;
+
+        if (state.joinedConversationIds.has(conversationId)) {
+          return;
+        }
+
+        const response = await emitSocketWithAck("conversation:join", {
+          conversationId,
+        });
+
+        if (response?.success === false) {
+          throw new Error(response.message || "Socket oda katilimi basarisiz.");
+        }
+
+        state.joinedConversationIds.add(conversationId);
+        log("Socket odaya otomatik katildi", { conversationId });
+      }
+
+      async function joinSocketRoom() {
         if (!state.socket?.connected) {
           throw new Error("Once socket baglan.");
         }
@@ -930,11 +997,8 @@
           throw new Error("Once conversation sec.");
         }
 
-        state.socket.emit(
-          "conversation:join",
-          { conversationId: state.selectedConversation.id },
-          (response) => log("Socket oda cevabi", response),
-        );
+        state.joinedConversationIds.delete(state.selectedConversation.id);
+        await autoJoinSelectedConversation();
       }
 
       function sendSocketMessage() {
