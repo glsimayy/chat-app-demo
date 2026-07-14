@@ -25,6 +25,9 @@
   - In-memory user storage
   - User arama/listeleme
   - Ilk kullaniciyi admin yapma
+- Dev reset endpointi eklendi:
+  - `POST /api/dev/reset`
+  - Smoke test verilerini temizleme
 - Conversations modulu eklendi:
   - Direct conversation
   - Group conversation

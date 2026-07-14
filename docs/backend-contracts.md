@@ -110,6 +110,12 @@ Opsiyonel arama:
 GET /api/users?search=emir
 ```
 
+### Dev
+
+`POST /api/dev/reset`
+
+Sadece local/dev kullanım içindir. In-memory user, conversation ve message verilerini temizler. Smoke test sonrası manuel demo denemeden once kullanılabilir. Production ortamında kapalıdır.
+
 ### Conversations
 
 `POST /api/conversations/direct`

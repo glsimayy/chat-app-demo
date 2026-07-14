@@ -86,6 +86,13 @@ export class UsersService {
       .map((user) => this.toPublicUser(user));
   }
 
+  clearAll() {
+    const deletedUsers = this.users.size;
+    this.users.clear();
+
+    return { deletedUsers };
+  }
+
   toPublicUser(user: UserRecord): PublicUser {
     const { passwordHash: _passwordHash, ...publicUser } = user;
     return publicUser;

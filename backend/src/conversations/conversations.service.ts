@@ -231,6 +231,16 @@ export class ConversationsService {
     conversation.updatedAt = now;
   }
 
+  clearAll() {
+    const deletedConversations = this.conversations.size;
+    const deletedMessageGroups = this.messages.size;
+
+    this.conversations.clear();
+    this.messages.clear();
+
+    return { deletedConversations, deletedMessageGroups };
+  }
+
   async findForUser(userId: string, query: FindConversationsQueryDto = {}) {
     const limit = query.limit ?? 50;
     const offset = query.offset ?? 0;

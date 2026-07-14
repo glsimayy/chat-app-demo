@@ -36,6 +36,7 @@ Local adresler:
 - Swagger: `http://localhost:3000/api/docs`
 - Demo test ekrani: `http://localhost:3000/demo`
 - Socket.IO namespace: `http://localhost:3000/chat`
+- Dev reset: `POST http://localhost:3000/api/dev/reset`
 
 ### Kontrol
 
@@ -89,3 +90,4 @@ npm run test:smoke
 - Bot group endpointi JWT yerine `x-bot-secret` header'i kullanir.
 - Database entegrasyonu icin beklenen model kontrati `docs/backend-contracts.md` icinde tutulur.
 - `DATABASE_URL` simdilik opsiyoneldir, Prisma gecisinde aktif kullanilacak.
+- Smoke test local server'da test kullanicilari olusturur. Manuel demo oncesi `POST /api/dev/reset` ile in-memory veri temizlenebilir.
