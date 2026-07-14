@@ -1,0 +1,39 @@
+### Senaryo 1: Başarılı İstek (Doğru Token ve Tam Veri)
+POST http://localhost:8080/webhook/ticket-created
+Content-Type: application/json
+X-Webhook-Token: ollechat-secret-token-123
+
+{
+  "eventType": "TICKET_CREATED",
+  "ticketId": "ticket-123",
+  "title": "Müşteri Destek Grubu",
+  "participantIds": ["user-1", "user-2", "user-3"]
+}
+
+###
+
+### Senaryo 2: Başarısız İstek (Yanlış Token - Güvenlik Testi)
+POST http://localhost:8080/webhook/ticket-created
+Content-Type: application/json
+X-Webhook-Token: yanlis-token-buraya
+
+{
+  "eventType": "TICKET_CREATED",
+  "ticketId": "ticket-123",
+  "title": "Müşteri Destek Grubu",
+  "participantIds": ["user-1", "user-2", "user-3"]
+}
+
+###
+
+### Senaryo 3: Başarısız İstek (Eksik Veri - Validasyon Testi)
+POST http://localhost:8080/webhook/ticket-created
+Content-Type: application/json
+X-Webhook-Token: ollechat-secret-token-123
+
+{
+  "eventType": "TICKET_CREATED",
+  "ticketId": "",
+  "title": "Boş veri testi",
+  "participantIds": []
+}

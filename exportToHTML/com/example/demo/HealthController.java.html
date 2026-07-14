@@ -1,0 +1,97 @@
+<html>
+<head>
+<title>HealthController.java</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #7a7e85;}
+.s4 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#191a1c">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+HealthController.java</font>
+</center></td></tr></table>
+<pre><span class="s0">package </span><span class="s1">com</span><span class="s2">.</span><span class="s1">example</span><span class="s2">.</span><span class="s1">demo</span><span class="s2">;</span>
+
+<span class="s0">import </span><span class="s1">org</span><span class="s2">.</span><span class="s1">springframework</span><span class="s2">.</span><span class="s1">http</span><span class="s2">.</span><span class="s1">HttpStatus</span><span class="s2">;</span>
+<span class="s0">import </span><span class="s1">org</span><span class="s2">.</span><span class="s1">springframework</span><span class="s2">.</span><span class="s1">http</span><span class="s2">.</span><span class="s1">ResponseEntity</span><span class="s2">;</span>
+<span class="s0">import </span><span class="s1">org</span><span class="s2">.</span><span class="s1">springframework</span><span class="s2">.</span><span class="s1">web</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">.</span><span class="s1">annotation</span><span class="s2">.*;</span>
+<span class="s0">import </span><span class="s1">org</span><span class="s2">.</span><span class="s1">springframework</span><span class="s2">.</span><span class="s1">web</span><span class="s2">.</span><span class="s1">client</span><span class="s2">.</span><span class="s1">RestClient</span><span class="s2">;</span>
+<span class="s0">import </span><span class="s1">org</span><span class="s2">.</span><span class="s1">springframework</span><span class="s2">.</span><span class="s1">http</span><span class="s2">.</span><span class="s1">MediaType</span><span class="s2">;</span>
+
+<span class="s1">@RestController</span>
+<span class="s0">public class </span><span class="s1">HealthController </span><span class="s2">{</span>
+
+    <span class="s0">private final </span><span class="s1">RestClient restClient </span><span class="s2">= </span><span class="s1">RestClient</span><span class="s2">.</span><span class="s1">create</span><span class="s2">();</span>
+
+    <span class="s3">// Güvenlik için belirlediğimiz gizli ortak şifre (Shared Secret)</span>
+    <span class="s0">private final </span><span class="s1">String SHARED_SECRET_TOKEN </span><span class="s2">= </span><span class="s4">&quot;ollechat-secret-token-123&quot;</span><span class="s2">;</span>
+
+    <span class="s1">@GetMapping</span><span class="s2">(</span><span class="s4">&quot;/health&quot;</span><span class="s2">)</span>
+    <span class="s0">public </span><span class="s1">String checkHealth</span><span class="s2">() {</span>
+        <span class="s0">return </span><span class="s4">&quot;Java servisi ayakta ve çalışıyor!&quot;</span><span class="s2">;</span>
+    <span class="s2">}</span>
+
+    <span class="s1">@PostMapping</span><span class="s2">(</span><span class="s4">&quot;/webhook/ticket-created&quot;</span><span class="s2">)</span>
+    <span class="s0">public </span><span class="s1">ResponseEntity</span><span class="s2">&lt;</span><span class="s1">String</span><span class="s2">&gt; </span><span class="s1">handleTicketCreated</span><span class="s2">(</span>
+            <span class="s1">@RequestHeader</span><span class="s2">(</span><span class="s1">value </span><span class="s2">= </span><span class="s4">&quot;X-Webhook-Token&quot;</span><span class="s2">, </span><span class="s1">required </span><span class="s2">= </span><span class="s0">false</span><span class="s2">) </span><span class="s1">String incomingToken</span><span class="s2">,</span>
+            <span class="s1">@RequestBody TicketWebHookDto webhookData</span><span class="s2">) {</span>
+
+        <span class="s3">// ================= GÜVENLİK KONTROLÜ =================</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">incomingToken </span><span class="s2">== </span><span class="s0">null </span><span class="s2">|| !</span><span class="s1">incomingToken</span><span class="s2">.</span><span class="s1">equals</span><span class="s2">(</span><span class="s1">SHARED_SECRET_TOKEN</span><span class="s2">)) {</span>
+            <span class="s1">System</span><span class="s2">.</span><span class="s1">err</span><span class="s2">.</span><span class="s1">println</span><span class="s2">(</span><span class="s4">&quot;GÜVENLİK HATASI: Yanlis veya eksik token gönderildi!&quot;</span><span class="s2">);</span>
+            <span class="s0">return </span><span class="s1">ResponseEntity</span>
+                    <span class="s2">.</span><span class="s1">status</span><span class="s2">(</span><span class="s1">HttpStatus</span><span class="s2">.</span><span class="s1">UNAUTHORIZED</span><span class="s2">) </span><span class="s3">// HTTP 401 Unauthorized döner</span>
+                    <span class="s2">.</span><span class="s1">body</span><span class="s2">(</span><span class="s4">&quot;HATA: Geçersiz veya eksik güvenlik token'i!&quot;</span><span class="s2">);</span>
+        <span class="s2">}</span>
+
+        <span class="s3">// ================= PAYLOAD VALİDASYONU =================</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">webhookData</span><span class="s2">.</span><span class="s1">getEventType</span><span class="s2">() == </span><span class="s0">null </span><span class="s2">|| </span><span class="s1">webhookData</span><span class="s2">.</span><span class="s1">getEventType</span><span class="s2">().</span><span class="s1">isEmpty</span><span class="s2">() ||</span>
+                <span class="s1">webhookData</span><span class="s2">.</span><span class="s1">getTicketId</span><span class="s2">() == </span><span class="s0">null </span><span class="s2">|| </span><span class="s1">webhookData</span><span class="s2">.</span><span class="s1">getTicketId</span><span class="s2">().</span><span class="s1">isEmpty</span><span class="s2">() ||</span>
+                <span class="s1">webhookData</span><span class="s2">.</span><span class="s1">getTitle</span><span class="s2">() == </span><span class="s0">null </span><span class="s2">|| </span><span class="s1">webhookData</span><span class="s2">.</span><span class="s1">getTitle</span><span class="s2">().</span><span class="s1">isEmpty</span><span class="s2">() ||</span>
+                <span class="s1">webhookData</span><span class="s2">.</span><span class="s1">getParticipantIds</span><span class="s2">() == </span><span class="s0">null </span><span class="s2">|| </span><span class="s1">webhookData</span><span class="s2">.</span><span class="s1">getParticipantIds</span><span class="s2">().</span><span class="s1">isEmpty</span><span class="s2">()) {</span>
+
+            <span class="s1">System</span><span class="s2">.</span><span class="s1">err</span><span class="s2">.</span><span class="s1">println</span><span class="s2">(</span><span class="s4">&quot;VALİDASYON HATASI: Gelen mesajda eksik alanlar var!&quot;</span><span class="s2">);</span>
+            <span class="s0">return </span><span class="s1">ResponseEntity</span>
+                    <span class="s2">.</span><span class="s1">status</span><span class="s2">(</span><span class="s1">HttpStatus</span><span class="s2">.</span><span class="s1">BAD_REQUEST</span><span class="s2">) </span><span class="s3">// HTTP 400 Bad Request döner</span>
+                    <span class="s2">.</span><span class="s1">body</span><span class="s2">(</span><span class="s4">&quot;HATA: Gelen verilerde eksik veya boş alanlar var!&quot;</span><span class="s2">);</span>
+        <span class="s2">}</span>
+
+        <span class="s3">// ================= ASIL İŞLEM (BAŞARILI DURUM) =================</span>
+        <span class="s1">System</span><span class="s2">.</span><span class="s1">out</span><span class="s2">.</span><span class="s1">println</span><span class="s2">(</span><span class="s4">&quot;Mesaj güvenli bir şekilde alındı ve doğrulandı!&quot;</span><span class="s2">);</span>
+        <span class="s1">System</span><span class="s2">.</span><span class="s1">out</span><span class="s2">.</span><span class="s1">println</span><span class="s2">(</span><span class="s4">&quot;Event Tipi: &quot; </span><span class="s2">+ </span><span class="s1">webhookData</span><span class="s2">.</span><span class="s1">getEventType</span><span class="s2">());</span>
+        <span class="s1">System</span><span class="s2">.</span><span class="s1">out</span><span class="s2">.</span><span class="s1">println</span><span class="s2">(</span><span class="s4">&quot;Ticket ID: &quot; </span><span class="s2">+ </span><span class="s1">webhookData</span><span class="s2">.</span><span class="s1">getTicketId</span><span class="s2">());</span>
+        <span class="s1">System</span><span class="s2">.</span><span class="s1">out</span><span class="s2">.</span><span class="s1">println</span><span class="s2">(</span><span class="s4">&quot;Grup Başlığı: &quot; </span><span class="s2">+ </span><span class="s1">webhookData</span><span class="s2">.</span><span class="s1">getTitle</span><span class="s2">());</span>
+        <span class="s1">System</span><span class="s2">.</span><span class="s1">out</span><span class="s2">.</span><span class="s1">println</span><span class="s2">(</span><span class="s4">&quot;Katılımcı ID'leri: &quot; </span><span class="s2">+ </span><span class="s1">webhookData</span><span class="s2">.</span><span class="s1">getParticipantIds</span><span class="s2">());</span>
+
+        <span class="s1">CreateGroupRequest nestJsRequest </span><span class="s2">= </span><span class="s0">new </span><span class="s1">CreateGroupRequest</span><span class="s2">(</span>
+                <span class="s1">webhookData</span><span class="s2">.</span><span class="s1">getTitle</span><span class="s2">(),</span>
+                <span class="s1">webhookData</span><span class="s2">.</span><span class="s1">getParticipantIds</span><span class="s2">(),</span>
+                <span class="s4">&quot;Otomatik webhook tetiklemesi ile oluşturuldu&quot;</span><span class="s2">,</span>
+                <span class="s1">webhookData</span><span class="s2">.</span><span class="s1">getTicketId</span><span class="s2">()</span>
+        <span class="s2">);</span>
+
+        <span class="s0">try </span><span class="s2">{</span>
+            <span class="s1">System</span><span class="s2">.</span><span class="s1">out</span><span class="s2">.</span><span class="s1">println</span><span class="s2">(</span><span class="s4">&quot;NestJS sistemine otomatik grup oluşturma isteği gönderiliyor...&quot;</span><span class="s2">);</span>
+            <span class="s1">String nestJsResponse </span><span class="s2">= </span><span class="s1">restClient</span><span class="s2">.</span><span class="s1">post</span><span class="s2">()</span>
+                    <span class="s2">.</span><span class="s1">uri</span><span class="s2">(</span><span class="s4">&quot;http://localhost:3000/bot/create-group&quot;</span><span class="s2">)</span>
+                    <span class="s2">.</span><span class="s1">contentType</span><span class="s2">(</span><span class="s1">MediaType</span><span class="s2">.</span><span class="s1">APPLICATION_JSON</span><span class="s2">)</span>
+                    <span class="s2">.</span><span class="s1">body</span><span class="s2">(</span><span class="s1">nestJsRequest</span><span class="s2">)</span>
+                    <span class="s2">.</span><span class="s1">retrieve</span><span class="s2">()</span>
+                    <span class="s2">.</span><span class="s1">body</span><span class="s2">(</span><span class="s1">String</span><span class="s2">.</span><span class="s0">class</span><span class="s2">);</span>
+
+            <span class="s1">System</span><span class="s2">.</span><span class="s1">out</span><span class="s2">.</span><span class="s1">println</span><span class="s2">(</span><span class="s4">&quot;NestJS'den gelen yanıt: &quot; </span><span class="s2">+ </span><span class="s1">nestJsResponse</span><span class="s2">);</span>
+        <span class="s2">} </span><span class="s0">catch </span><span class="s2">(</span><span class="s1">Exception e</span><span class="s2">) {</span>
+            <span class="s1">System</span><span class="s2">.</span><span class="s1">err</span><span class="s2">.</span><span class="s1">println</span><span class="s2">(</span><span class="s4">&quot;NestJS entegrasyonunda hata oluştu: &quot; </span><span class="s2">+ </span><span class="s1">e</span><span class="s2">.</span><span class="s1">getMessage</span><span class="s2">());</span>
+        <span class="s2">}</span>
+
+        <span class="s0">return </span><span class="s1">ResponseEntity</span><span class="s2">.</span><span class="s1">ok</span><span class="s2">(</span><span class="s4">&quot;Webhook başarıyla alındı ve NestJS sistemine iletildi.&quot;</span><span class="s2">);</span>
+    <span class="s2">}</span>
+<span class="s2">}</span></pre>
+</body>
+</html>
