@@ -685,6 +685,7 @@
                 state.conversations.find((item) => item.id === id) || null;
               renderConversations();
               await loadMessages();
+              await autoJoinSelectedConversation();
             });
           });
       }
