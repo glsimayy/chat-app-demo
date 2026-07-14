@@ -1,22 +1,37 @@
 import { Injectable } from "@nestjs/common";
 import { EventEmitter } from "node:events";
-import { MessageRecord } from "./conversation.types";
+import { ConversationRecord, MessageRecord } from "./conversation.types";
 
-const MESSAGE_CREATED_EVENT = "message.created";
+const REALTIME_EVENT = "conversation.realtime";
+
+export type ConversationRealtimeEvent =
+  | { type: "conversation.created"; data: ConversationRecord }
+  | { type: "conversation.updated"; data: ConversationRecord }
+  | { type: "message.created"; data: MessageRecord }
+  | { type: "message.updated"; data: MessageRecord }
+  | { type: "message.deleted"; data: MessageRecord }
+  | {
+      type: "message.read";
+      data: { conversationId: string; userId: string; readAt: Date };
+    }
+  | {
+      type: "participant.left";
+      data: { conversationId: string; userId: string; leftAt: Date };
+    };
 
 @Injectable()
 export class RealtimeEventsService {
   private readonly events = new EventEmitter();
 
-  emitMessageCreated(message: MessageRecord) {
-    this.events.emit(MESSAGE_CREATED_EVENT, message);
+  emit(event: ConversationRealtimeEvent) {
+    this.events.emit(REALTIME_EVENT, event);
   }
 
-  onMessageCreated(listener: (message: MessageRecord) => void) {
-    this.events.on(MESSAGE_CREATED_EVENT, listener);
+  onEvent(listener: (event: ConversationRealtimeEvent) => void) {
+    this.events.on(REALTIME_EVENT, listener);
 
     return () => {
-      this.events.off(MESSAGE_CREATED_EVENT, listener);
+      this.events.off(REALTIME_EVENT, listener);
     };
   }
 }

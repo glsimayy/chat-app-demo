@@ -18,9 +18,6 @@ import {
 import { AuthenticatedUser } from "../auth/authenticated-user.interface";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { Roles } from "../auth/roles.decorator";
-import { RolesGuard } from "../auth/roles.guard";
-import { UserRole } from "../users/user-role.enum";
 import { ConversationsService } from "./conversations.service";
 import { AddParticipantDto } from "./dto/add-participant.dto";
 import { CreateDirectConversationDto } from "./dto/create-direct-conversation.dto";
@@ -32,17 +29,13 @@ import { SearchMessagesQueryDto } from "./dto/search-messages-query.dto";
 import { TransferGroupOwnerDto } from "./dto/transfer-group-owner.dto";
 import { UpdateGroupConversationDto } from "./dto/update-group-conversation.dto";
 import { UpdateMessageDto } from "./dto/update-message.dto";
-import { RealtimeEventsService } from "./realtime-events.service";
 
 @ApiTags("conversations")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller("conversations")
 export class ConversationsController {
-  constructor(
-    private readonly conversationsService: ConversationsService,
-    private readonly realtimeEventsService: RealtimeEventsService,
-  ) {}
+  constructor(private readonly conversationsService: ConversationsService) {}
 
   @Post("direct")
   @ApiCreatedResponse({
@@ -56,8 +49,6 @@ export class ConversationsController {
   }
 
   @Post("groups")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.Admin)
   @ApiCreatedResponse({ description: "Group conversation created" })
   createGroupConversation(
     @CurrentUser() user: AuthenticatedUser,
@@ -116,20 +107,16 @@ export class ConversationsController {
 
   @Post(":conversationId/messages")
   @ApiCreatedResponse({ description: "Message created" })
-  async createMessage(
+  createMessage(
     @CurrentUser() user: AuthenticatedUser,
     @Param("conversationId") conversationId: string,
     @Body() dto: CreateMessageDto,
   ) {
-    const message = await this.conversationsService.createMessage(
+    return this.conversationsService.createMessage(
       conversationId,
       user.id,
       dto,
     );
-
-    this.realtimeEventsService.emitMessageCreated(message);
-
-    return message;
   }
 
   @Get(":conversationId/messages")

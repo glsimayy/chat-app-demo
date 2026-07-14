@@ -30,8 +30,7 @@ export class UsersService {
       username,
       email,
       passwordHash: input.passwordHash,
-      role:
-        input.role ?? (this.users.size === 0 ? UserRole.Admin : UserRole.User),
+      role: input.role ?? UserRole.User,
       createdAt: new Date(),
     };
 

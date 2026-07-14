@@ -3,20 +3,60 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Chat Backend Demo</title>
+    <title>ellO</title>
     <style>
       :root {
+        color-scheme: dark;
+        --bg: #0f172a;
+        --page-top: #111827;
+        --header-bg: rgba(15, 23, 42, 0.92);
+        --panel: #172033;
+        --panel-soft: #1f2937;
+        --control: #0b1220;
+        --control-strong: #243244;
+        --bubble: #1e293b;
+        --messages-bg: #0b1120;
+        --text: #f8fafc;
+        --muted: #a8b3c7;
+        --line: rgba(203, 213, 225, 0.18);
+        --line-strong: rgba(203, 213, 225, 0.34);
+        --primary: #14b8a6;
+        --primary-dark: #0f766e;
+        --danger: #f97316;
+        --ok: #34d399;
+        --accent: #5eead4;
+        --warning: #fbbf24;
+        --sidebar: #0a1020;
+        --sidebar-soft: #141d2f;
+        --sidebar-line: rgba(203, 213, 225, 0.16);
+        --shadow: 0 22px 60px rgba(2, 8, 23, 0.42);
+      }
+
+      body[data-theme="light"] {
         color-scheme: light;
-        --bg: #f5f7fb;
+        --bg: #f4f5f7;
+        --page-top: #ffffff;
+        --header-bg: rgba(255, 255, 255, 0.92);
         --panel: #ffffff;
-        --text: #172033;
-        --muted: #657187;
-        --line: #d9dfeb;
-        --primary: #1769aa;
-        --primary-dark: #0f4d7d;
-        --danger: #b3261e;
-        --ok: #1f7a4d;
-        --accent: #b85c00;
+        --panel-soft: #f8fafc;
+        --control: #ffffff;
+        --control-strong: #f3f6fb;
+        --bubble: #ffffff;
+        --messages-bg: #f8fafc;
+        --text: #151821;
+        --muted: #667085;
+        --line: #dde2eb;
+        --line-strong: #c8d0dc;
+        --primary: #2563eb;
+        --primary-dark: #1d4ed8;
+        --danger: #c2410c;
+        --ok: #15803d;
+        --accent: #0f766e;
+        --warning: #d97706;
+        --sidebar: #111827;
+        --sidebar-soft: #172033;
+        --sidebar-line: #263245;
+        --shadow: 0 18px 50px rgba(17, 24, 39, 0.08);
       }
 
       * {
@@ -26,7 +66,8 @@
       body {
         margin: 0;
         min-height: 100vh;
-        background: var(--bg);
+        background:
+          linear-gradient(180deg, var(--page-top) 0, var(--bg) 180px);
         color: var(--text);
         font-family:
           Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
@@ -39,9 +80,14 @@
         align-items: center;
         justify-content: space-between;
         gap: 16px;
-        padding: 16px 20px;
+        min-height: 72px;
+        padding: 14px 18px;
         border-bottom: 1px solid var(--line);
-        background: var(--panel);
+        background: var(--header-bg);
+        backdrop-filter: blur(16px);
+        position: sticky;
+        top: 0;
+        z-index: 10;
       }
 
       h1,
@@ -52,20 +98,22 @@
       }
 
       h1 {
-        font-size: 20px;
+        font-size: 17px;
         line-height: 1.2;
+        letter-spacing: 0;
       }
 
       h2 {
-        font-size: 15px;
+        font-size: 14px;
         line-height: 1.2;
       }
 
       h3 {
-        font-size: 13px;
+        font-size: 11px;
         line-height: 1.2;
         color: var(--muted);
         text-transform: uppercase;
+        letter-spacing: 0;
       }
 
       input,
@@ -81,10 +129,37 @@
         width: 100%;
         min-width: 0;
         border: 1px solid var(--line);
-        border-radius: 6px;
-        background: #fff;
+        border-radius: 8px;
+        background: var(--control);
         color: var(--text);
-        padding: 9px 10px;
+        padding: 10px 11px;
+        outline: none;
+        transition:
+          border-color 150ms ease,
+          box-shadow 150ms ease,
+          background 150ms ease;
+      }
+
+      input:focus,
+      select:focus,
+      textarea:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.16);
+      }
+
+      select option {
+        background: var(--control);
+        color: var(--text);
+      }
+
+      select option:checked {
+        background: var(--control-strong);
+        color: var(--text);
+      }
+
+      body[data-theme="light"] select option:checked {
+        background: #bfdbfe;
+        color: var(--text);
       }
 
       textarea {
@@ -94,26 +169,33 @@
 
       button {
         border: 1px solid transparent;
-        border-radius: 6px;
+        border-radius: 8px;
         background: var(--primary);
         color: #fff;
-        padding: 9px 12px;
+        padding: 10px 13px;
         cursor: pointer;
         white-space: nowrap;
+        font-weight: 650;
+        transition:
+          background 150ms ease,
+          border-color 150ms ease,
+          color 150ms ease,
+          transform 150ms ease;
       }
 
       button:hover {
         background: var(--primary-dark);
+        transform: translateY(-1px);
       }
 
       button.secondary {
-        background: #fff;
+        background: var(--control);
         color: var(--text);
         border-color: var(--line);
       }
 
       button.secondary:hover {
-        background: #eef3f8;
+        background: var(--control-strong);
       }
 
       button.danger {
@@ -122,10 +204,11 @@
 
       label {
         display: grid;
-        gap: 5px;
+        gap: 6px;
         min-width: 0;
         color: var(--muted);
         font-size: 12px;
+        font-weight: 600;
       }
 
       code {
@@ -134,9 +217,11 @@
 
       .app {
         display: grid;
-        grid-template-columns: 320px minmax(420px, 1fr) 360px;
-        gap: 14px;
-        padding: 14px;
+        grid-template-columns: 300px minmax(440px, 1fr) 360px;
+        gap: 16px;
+        height: calc(100vh - 72px);
+        min-height: 0;
+        padding: 16px;
       }
 
       .panel {
@@ -144,6 +229,8 @@
         border: 1px solid var(--line);
         border-radius: 8px;
         background: var(--panel);
+        box-shadow: var(--shadow);
+        overflow: hidden;
       }
 
       .panel-head {
@@ -151,14 +238,17 @@
         align-items: center;
         justify-content: space-between;
         gap: 10px;
-        padding: 12px;
+        min-height: 58px;
+        padding: 14px;
         border-bottom: 1px solid var(--line);
+        background: var(--panel-soft);
       }
 
       .panel-body {
         display: grid;
-        gap: 12px;
-        padding: 12px;
+        gap: 14px;
+        padding: 14px;
+        overflow: auto;
       }
 
       .row {
@@ -166,6 +256,7 @@
         align-items: end;
         gap: 8px;
         min-width: 0;
+        flex-wrap: wrap;
       }
 
       .row > * {
@@ -194,7 +285,12 @@
         align-items: center;
         gap: 8px;
         color: var(--muted);
-        font-size: 13px;
+        font-size: 12px;
+        font-weight: 700;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--control);
+        padding: 8px 11px;
       }
 
       .dot {
@@ -213,10 +309,16 @@
         align-items: center;
         min-height: 24px;
         border-radius: 999px;
-        background: #eef3f8;
-        color: var(--muted);
-        padding: 3px 8px;
+        background: rgba(94, 234, 212, 0.16);
+        color: #ccfbf1;
+        padding: 3px 9px;
         font-size: 12px;
+        font-weight: 750;
+      }
+
+      body[data-theme="light"] .pill {
+        background: #ecfdf5;
+        color: #047857;
       }
 
       .list {
@@ -232,8 +334,8 @@
         width: 100%;
         border: 1px solid var(--line);
         border-radius: 8px;
-        background: #fff;
-        padding: 9px;
+        background: var(--bubble);
+        padding: 10px;
         text-align: left;
       }
 
@@ -244,8 +346,14 @@
 
       button.item:hover,
       button.item.active {
-        border-color: var(--primary);
-        background: #eef7ff;
+        border-color: rgba(94, 234, 212, 0.52);
+        background: #223548;
+      }
+
+      body[data-theme="light"] button.item:hover,
+      body[data-theme="light"] button.item.active {
+        border-color: rgba(37, 99, 235, 0.56);
+        background: #dbeafe;
       }
 
       .item-title {
@@ -262,54 +370,237 @@
         word-break: break-all;
       }
 
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        min-width: 0;
+      }
+
+      .brand-mark {
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background:
+          radial-gradient(circle at 70% 20%, rgba(94, 234, 212, 0.2), transparent 34px),
+          #050b16;
+        color: #fff;
+        font-weight: 800;
+        overflow: hidden;
+      }
+
+      body[data-theme="light"] .brand-mark {
+        background:
+          radial-gradient(circle at 70% 20%, rgba(20, 184, 166, 0.2), transparent 34px),
+          var(--sidebar);
+      }
+
+      .ello-logo {
+        display: block;
+        width: 30px;
+        height: 30px;
+      }
+
+      .ello-logo-ring {
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 4.4;
+      }
+
+      .ello-logo-cut {
+        fill: #050b16;
+      }
+
+      body[data-theme="light"] .ello-logo-cut {
+        fill: var(--sidebar);
+      }
+
+      .ello-logo-glint {
+        fill: #f8fafc;
+        opacity: 0.85;
+      }
+
+      .brand-copy {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
+
+      .top-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .top-control {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--control);
+        color: var(--muted);
+        padding: 5px 8px 5px 10px;
+        font-size: 12px;
+        font-weight: 750;
+      }
+
+      .top-control select {
+        width: auto;
+        min-width: 86px;
+        border: 0;
+        border-radius: 999px;
+        background: var(--control);
+        color: var(--text);
+        padding: 3px 4px;
+        box-shadow: none;
+        color-scheme: dark;
+      }
+
+      body[data-theme="light"] .top-control select {
+        color-scheme: light;
+      }
+
+      .session-panel {
+        background: var(--sidebar);
+        border-color: var(--sidebar-line);
+        color: #f8fafc;
+      }
+
+      .session-panel .panel-head {
+        border-color: var(--sidebar-line);
+        background: var(--sidebar-soft);
+      }
+
+      .session-panel .panel-body {
+        max-height: calc(100vh - 132px);
+      }
+
+      .session-panel h3,
+      .session-panel label,
+      .session-panel .help,
+      .session-panel .item-meta {
+        color: #a7b0c0;
+      }
+
+      .session-panel input,
+      .session-panel select,
+      .session-panel textarea {
+        border-color: var(--sidebar-line);
+        background: #0b1220;
+        color: #f8fafc;
+      }
+
+      .session-panel .item,
+      .session-panel button.secondary {
+        border-color: var(--sidebar-line);
+        background: #0f172a;
+        color: #f8fafc;
+      }
+
+      .session-panel button.secondary:hover {
+        background: #1f2937;
+      }
+
+      .session-panel .pill {
+        background: rgba(20, 184, 166, 0.16);
+        color: #5eead4;
+      }
+
+      .session-panel .row button {
+        flex: 1 1 82px;
+      }
+
+      .chat-panel {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+      }
+
+      .chat-panel .panel-body {
+        overflow: visible;
+      }
+
+      .chat-panel .panel-head .row {
+        align-items: center;
+        flex-wrap: nowrap;
+      }
+
+      .data-panel {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+      }
+
+      .data-panel .panel-body {
+        max-height: calc(100vh - 132px);
+      }
+
       .messages {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        height: min(55vh, 520px);
-        min-height: 300px;
+        gap: 10px;
+        height: auto;
+        min-height: 0;
         overflow: auto;
-        padding: 12px;
-        background: #f9fbfd;
+        padding: 18px;
+        background: var(--messages-bg);
       }
 
       .message {
         max-width: 78%;
         border: 1px solid var(--line);
         border-radius: 8px;
-        background: #fff;
-        padding: 8px 10px;
+        background: var(--bubble);
+        padding: 10px 12px;
+        line-height: 1.45;
+        box-shadow: 0 8px 22px rgba(17, 24, 39, 0.05);
       }
 
       .message.mine {
         align-self: flex-end;
-        border-color: #b9d8ef;
-        background: #eaf6ff;
+        border-color: rgba(94, 234, 212, 0.3);
+        background: #0f766e;
+        color: #fff;
+      }
+
+      body[data-theme="light"] .message.mine {
+        border-color: rgba(37, 99, 235, 0.18);
+        background: #2563eb;
       }
 
       .message.system {
         align-self: center;
         max-width: 90%;
-        border-color: #f3d3a6;
-        background: #fff7ea;
-        color: var(--accent);
+        border-color: #fed7aa;
+        background: #fff7ed;
+        color: #9a3412;
+        box-shadow: none;
       }
 
       .message-meta {
-        margin-top: 5px;
-        color: var(--muted);
+        margin-top: 6px;
+        color: rgba(102, 112, 133, 0.92);
         font-size: 11px;
         word-break: break-all;
       }
 
+      .message.mine .message-meta {
+        color: rgba(255, 255, 255, 0.76);
+      }
+
       .log {
-        height: 180px;
+        height: 170px;
         overflow: auto;
         border: 1px solid var(--line);
-        border-radius: 6px;
-        background: #111827;
+        border-radius: 8px;
+        background: #0b1220;
         color: #e5e7eb;
-        padding: 9px;
+        padding: 10px;
         font-family: Consolas, "SFMono-Regular", monospace;
         font-size: 12px;
         white-space: pre-wrap;
@@ -323,168 +614,237 @@
 
       .empty {
         color: var(--muted);
-        padding: 10px;
+        padding: 14px;
         text-align: center;
       }
 
       @media (max-width: 1100px) {
+        header {
+          position: static;
+        }
+
         .app {
           grid-template-columns: 1fr;
+          height: auto;
+          min-height: 0;
         }
 
         .messages {
-          height: 380px;
+          min-height: 380px;
+        }
+
+        .chat-panel .panel-head .row {
+          flex-wrap: wrap;
+        }
+
+        .session-panel .panel-body,
+        .data-panel .panel-body {
+          max-height: none;
+        }
+      }
+
+      @media (max-width: 700px) {
+        header {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .top-actions {
+          justify-content: flex-start;
+          width: 100%;
+        }
+
+        .top-control,
+        .status {
+          flex: 1 1 132px;
+        }
+
+        .top-control select {
+          min-width: 72px;
         }
       }
     </style>
   </head>
   <body>
     <header>
-      <div class="stack">
-        <h1>Chat Backend Demo</h1>
-        <p class="help">REST + Socket.IO test ekrani. Backend: localhost:3000</p>
+      <div class="brand">
+        <div class="brand-mark" aria-label="ellO logo">
+          <svg class="ello-logo" viewBox="0 0 40 40" role="img" aria-hidden="true">
+            <circle class="ello-logo-ring" cx="20" cy="20" r="12" />
+            <rect class="ello-logo-cut" x="14.5" y="12" width="4.6" height="16" rx="2.3" />
+            <rect class="ello-logo-cut" x="20.9" y="12" width="4.6" height="16" rx="2.3" />
+            <rect class="ello-logo-cut" x="16.5" y="17.8" width="7" height="4.4" rx="2.2" />
+            <circle class="ello-logo-glint" cx="25.7" cy="14.5" r="1.6" />
+          </svg>
+        </div>
+        <div class="brand-copy">
+          <h1 data-i18n="brandTitle">ellO</h1>
+          <p class="help" data-i18n="brandSubtitle">Team messaging workspace</p>
+        </div>
       </div>
-      <div class="status">
-        <span id="socketDot" class="dot"></span>
-        <span id="socketStatus">Socket kapali</span>
+      <div class="top-actions">
+        <span class="pill">localhost:3000</span>
+        <label class="top-control">
+          <span data-i18n="themeLabel">Tema</span>
+          <select id="themeSelect">
+            <option value="comfort" data-i18n="themeComfort">Gri</option>
+            <option value="light" data-i18n="themeLight">Açık</option>
+          </select>
+        </label>
+        <label class="top-control">
+          <span data-i18n="languageLabel">Dil</span>
+          <select id="languageSelect">
+            <option value="tr">TR</option>
+            <option value="en">EN</option>
+          </select>
+        </label>
+        <div class="status">
+          <span id="socketDot" class="dot"></span>
+          <span id="socketStatus">Socket kapali</span>
+        </div>
       </div>
     </header>
 
     <main class="app">
-      <section class="panel">
+      <section class="panel session-panel">
         <div class="panel-head">
-          <h2>Oturum</h2>
+          <h2 data-i18n="workspace">Workspace</h2>
           <span id="rolePill" class="pill">misafir</span>
         </div>
         <div class="panel-body">
           <label>
-            API adresi
+            <span data-i18n="apiAddress">API adresi</span>
             <input id="apiBase" value="http://localhost:3000/api" />
           </label>
 
           <div class="two">
             <label>
-              Username
+              <span data-i18n="username">Username</span>
               <input id="username" value="adminuser" />
             </label>
             <label>
-              Email
+              <span data-i18n="email">Email</span>
               <input id="email" value="admin@example.com" />
             </label>
           </div>
 
           <label>
-            Password
+            <span data-i18n="password">Password</span>
             <input id="password" type="password" value="123456" />
           </label>
 
           <div class="row">
-            <button id="registerBtn">Register</button>
-            <button id="loginBtn" class="secondary">Login</button>
-            <button id="logoutBtn" class="danger">Cikis</button>
+            <button id="registerBtn" data-i18n="register">Register</button>
+            <button id="loginBtn" class="secondary" data-i18n="login">Login</button>
+            <button id="logoutBtn" class="danger" data-i18n="logout">Cikis</button>
           </div>
 
           <div class="stack">
-            <h3>Aktif kullanici</h3>
+            <h3 data-i18n="currentUser">Aktif kullanici</h3>
             <div id="currentUser" class="item">
               <div class="item-meta">Henüz giris yok.</div>
             </div>
           </div>
 
           <div class="stack">
-            <h3>Kisa yol</h3>
-            <p class="help">
-              Server reset sonrasi once admin register et. Sonra user1/user2
-              register edip tekrar admin login ol, group'u admin token ile kur.
+            <h3 data-i18n="shortcut">Kisa yol</h3>
+            <p class="help" data-i18n="shortcutHelp">
+              Demo akisi icin admin, user1 ve user2 profillerini hizlica doldur.
             </p>
             <div class="row">
-              <button class="secondary" data-demo-user="admin">Admin doldur</button>
-              <button class="secondary" data-demo-user="user1">User1 doldur</button>
-              <button class="secondary" data-demo-user="user2">User2 doldur</button>
+              <button class="secondary" data-demo-user="admin">Admin</button>
+              <button class="secondary" data-demo-user="user1">User1</button>
+              <button class="secondary" data-demo-user="user2">User2</button>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="panel">
+      <section class="panel chat-panel">
         <div class="panel-head">
-          <h2>Chat</h2>
+          <div class="stack">
+            <h2 data-i18n="messages">Messages</h2>
+            <p class="help" data-i18n="messagesHelp">Secili conversation uzerinden REST ve Socket.IO testi</p>
+          </div>
           <div class="row">
-            <button id="connectSocketBtn" class="secondary">Socket baglan</button>
-            <button id="joinSocketBtn" class="secondary">Odaya tekrar gir</button>
+            <button id="connectSocketBtn" class="secondary" data-i18n="connectSocket">Socket baglan</button>
+            <button id="joinSocketBtn" class="secondary" data-i18n="rejoinRoom">Odaya tekrar gir</button>
           </div>
         </div>
         <div class="messages" id="messages">
-          <div class="empty">Bir conversation sec veya olustur.</div>
+          <div class="empty" data-i18n="chooseConversation">Bir conversation sec veya olustur.</div>
         </div>
         <div class="panel-body">
           <div class="split">
             <label>
-              Mesaj
-              <input id="messageInput" placeholder="Mesaj yaz..." />
+              <span data-i18n="message">Mesaj</span>
+              <input id="messageInput" placeholder="Mesaj yaz..." data-i18n-placeholder="messagePlaceholder" />
             </label>
-            <button id="sendRestBtn">REST gonder</button>
+            <button id="sendRestBtn" data-i18n="sendRest">REST gonder</button>
           </div>
           <div class="row">
-            <button id="sendSocketBtn" class="secondary">Socket gonder</button>
-            <button id="refreshMessagesBtn" class="secondary">Mesajlari yenile</button>
-            <button id="markReadBtn" class="secondary">Okundu isaretle</button>
+            <button id="sendSocketBtn" class="secondary" data-i18n="sendSocket">Socket gonder</button>
+            <button id="refreshMessagesBtn" class="secondary" data-i18n="refreshMessages">Mesajlari yenile</button>
+            <button id="markReadBtn" class="secondary" data-i18n="markRead">Okundu isaretle</button>
           </div>
-          <p class="help">
+          <p class="help" data-i18n="socketHelp">
             Socket bagliyken conversation secince odaya otomatik girilir; yeni
             mesajlar yenilemeden ekrana duser.
           </p>
         </div>
       </section>
 
-      <section class="panel">
+      <section class="panel data-panel">
         <div class="panel-head">
-          <h2>Veriler</h2>
-          <button id="refreshAllBtn" class="secondary">Yenile</button>
+          <div class="stack">
+            <h2 data-i18n="operations">Operations</h2>
+            <p class="help" data-i18n="operationsHelp">Kullanicilar, conversation ve grup aksiyonlari</p>
+          </div>
+          <button id="refreshAllBtn" class="secondary" data-i18n="refresh">Yenile</button>
         </div>
         <div class="panel-body">
           <div class="stack">
             <div class="row">
-              <h3>Kullanicilar</h3>
-              <button id="loadUsersBtn" class="secondary">Listele</button>
+              <h3 data-i18n="users">Kullanicilar</h3>
+              <button id="loadUsersBtn" class="secondary" data-i18n="list">Listele</button>
             </div>
             <div id="usersList" class="list">
-              <div class="empty">Kullanici listesi bos.</div>
+              <div class="empty" data-i18n="usersEmpty">Kullanici listesi bos.</div>
             </div>
           </div>
 
           <div class="stack">
-            <h3>Direct chat</h3>
+            <h3 data-i18n="directChat">Direct chat</h3>
             <div class="split">
               <select id="directUserSelect"></select>
-              <button id="createDirectBtn">Direct kur</button>
+              <button id="createDirectBtn" data-i18n="createDirect">Direct kur</button>
             </div>
           </div>
 
           <div class="stack">
-            <h3>Group chat</h3>
+            <h3 data-i18n="groupChat">Group chat</h3>
             <label>
-              Grup adi
-              <input id="groupName" value="Test Grup" />
+              <span data-i18n="groupName">Grup adi</span>
+              <input id="groupName" value="Test Grup" data-i18n-value="defaultGroupName" />
             </label>
             <div id="groupUsers" class="list">
-              <div class="empty">Once kullanicilari listele.</div>
+              <div class="empty" data-i18n="loadUsersFirst">Once kullanicilari listele.</div>
             </div>
-            <button id="createGroupBtn">Group kur</button>
+            <button id="createGroupBtn" data-i18n="createGroup">Group kur</button>
           </div>
 
           <div class="stack">
             <div class="row">
-              <h3>Conversation'lar</h3>
-              <button id="loadConversationsBtn" class="secondary">Listele</button>
+              <h3 data-i18n="conversations">Conversation'lar</h3>
+              <button id="loadConversationsBtn" class="secondary" data-i18n="list">Listele</button>
             </div>
             <div id="conversationList" class="list">
-              <div class="empty">Conversation listesi bos.</div>
+              <div class="empty" data-i18n="conversationsEmpty">Conversation listesi bos.</div>
             </div>
           </div>
 
           <div class="stack">
-            <h3>Log</h3>
+            <h3 data-i18n="log">Log</h3>
             <div id="log" class="log"></div>
           </div>
         </div>
@@ -501,6 +861,8 @@
         selectedConversation: null,
         joinedConversationIds: new Set(),
         socket: null,
+        theme: localStorage.getItem("chatDemoTheme") || "comfort",
+        language: localStorage.getItem("chatDemoLanguage") || "tr",
       };
 
       const demoUsers = {
@@ -521,7 +883,247 @@
         },
       };
 
+      const translations = {
+        tr: {
+          pageTitle: "ellO",
+          brandTitle: "ellO",
+          brandSubtitle: "Tak\\u0131m mesajla\\u015fma alan\\u0131",
+          themeLabel: "Tema",
+          themeComfort: "Gri",
+          themeLight: "A\\u00e7\\u0131k",
+          languageLabel: "Dil",
+          workspace: "\\u00c7al\\u0131\\u015fma alan\\u0131",
+          apiAddress: "API adresi",
+          username: "Kullan\\u0131c\\u0131 ad\\u0131",
+          email: "E-posta",
+          password: "\\u015eifre",
+          register: "Kay\\u0131t ol",
+          login: "Giri\\u015f",
+          logout: "\\u00c7\\u0131k\\u0131\\u015f",
+          currentUser: "Aktif kullan\\u0131c\\u0131",
+          noSession: "Hen\\u00fcz giri\\u015f yok.",
+          shortcut: "K\\u0131sa yol",
+          shortcutHelp:
+            "Demo ak\\u0131\\u015f\\u0131 i\\u00e7in admin, user1 ve user2 profillerini h\\u0131zl\\u0131ca doldur.",
+          messages: "Mesajlar",
+          messagesHelp:
+            "Se\\u00e7ili konu\\u015fma \\u00fczerinden REST ve Socket.IO testi",
+          connectSocket: "Socket ba\\u011flan",
+          rejoinRoom: "Odaya tekrar gir",
+          chooseConversation: "Bir konu\\u015fma se\\u00e7 veya olu\\u015ftur.",
+          message: "Mesaj",
+          messagePlaceholder: "Mesaj yaz...",
+          sendRest: "REST g\\u00f6nder",
+          sendSocket: "Socket g\\u00f6nder",
+          refreshMessages: "Mesajlar\\u0131 yenile",
+          markRead: "Okundu i\\u015faretle",
+          socketHelp:
+            "Socket ba\\u011fl\\u0131yken konu\\u015fma se\\u00e7ince odaya otomatik girilir; yeni mesajlar yenilemeden ekrana d\\u00fc\\u015fer.",
+          operations: "Operasyonlar",
+          operationsHelp:
+            "Kullan\\u0131c\\u0131lar, konu\\u015fmalar ve grup aksiyonlar\\u0131",
+          refresh: "Yenile",
+          users: "Kullan\\u0131c\\u0131lar",
+          list: "Listele",
+          usersEmpty: "Kullan\\u0131c\\u0131 listesi bo\\u015f.",
+          directChat: "Direkt sohbet",
+          createDirect: "Direkt kur",
+          groupChat: "Grup sohbeti",
+          groupName: "Grup ad\\u0131",
+          defaultGroupName: "Test Grubu",
+          loadUsersFirst: "\\u00d6nce kullan\\u0131c\\u0131lar\\u0131 listele.",
+          createGroup: "Grup kur",
+          conversations: "Konu\\u015fmalar",
+          conversationsEmpty: "Konu\\u015fma listesi bo\\u015f.",
+          log: "Log",
+          guest: "misafir",
+          noUsers: "Kullan\\u0131c\\u0131 yok.",
+          noConversations: "Konu\\u015fma yok.",
+          noMessages: "Mesaj yok.",
+          socketConnected: "Socket ba\\u011fl\\u0131",
+          socketClosed: "Socket kapal\\u0131",
+          directUserRequired: "Direkt sohbet i\\u00e7in kullan\\u0131c\\u0131 se\\u00e7.",
+          groupUserRequired:
+            "Grup i\\u00e7in en az bir kullan\\u0131c\\u0131 se\\u00e7.",
+          selectConversationRequired: "\\u00d6nce konu\\u015fma se\\u00e7.",
+          emptyMessage: "Mesaj bo\\u015f olamaz.",
+          socketLoginRequired:
+            "Socket i\\u00e7in \\u00f6nce giri\\u015f yap veya kay\\u0131t ol.",
+          socketFirst: "\\u00d6nce socket ba\\u011flan.",
+          socketJoinFailed: "Socket oda kat\\u0131l\\u0131m\\u0131 ba\\u015far\\u0131s\\u0131z.",
+          errorPrefix: "Hata",
+          registerOk: "Kay\\u0131t ba\\u015far\\u0131l\\u0131",
+          loginOk: "Giri\\u015f ba\\u015far\\u0131l\\u0131",
+          meOk: "Aktif kullan\\u0131c\\u0131 do\\u011fruland\\u0131",
+          usersLoaded: "Kullan\\u0131c\\u0131lar listelendi",
+          conversationsLoaded: "Konu\\u015fmalar yenilendi",
+          directReady: "Direkt konu\\u015fma haz\\u0131r",
+          groupReady: "Grup konu\\u015fmas\\u0131 kuruldu",
+          messagesLoadFailed: "Mesajlar al\\u0131namad\\u0131",
+          autoJoinError: "Socket oda otomatik kat\\u0131l\\u0131m hatas\\u0131",
+          messagesRefreshed: "Mesajlar yenilendi",
+          restSent: "REST mesaj g\\u00f6nderildi",
+          readMarked: "Okundu i\\u015faretlendi",
+          socketConnectedLog: "Socket ba\\u011fland\\u0131",
+          socketClosedLog: "Socket kapand\\u0131",
+          socketError: "Socket hatas\\u0131",
+          autoJoined: "Socket odaya otomatik kat\\u0131ld\\u0131",
+          socketAnswer: "Socket mesaj cevab\\u0131",
+          sessionCleared: "Oturum temizlendi",
+          sessionRefreshFailed: "Oturum yenilenemedi",
+        },
+        en: {
+          pageTitle: "ellO",
+          brandTitle: "ellO",
+          brandSubtitle: "Team messaging workspace",
+          themeLabel: "Theme",
+          themeComfort: "Gray",
+          themeLight: "Light",
+          languageLabel: "Language",
+          workspace: "Workspace",
+          apiAddress: "API address",
+          username: "Username",
+          email: "Email",
+          password: "Password",
+          register: "Register",
+          login: "Login",
+          logout: "Logout",
+          currentUser: "Current user",
+          noSession: "No active session yet.",
+          shortcut: "Quick fill",
+          shortcutHelp:
+            "Quickly fill admin, user1, and user2 profiles for the demo flow.",
+          messages: "Messages",
+          messagesHelp:
+            "REST and Socket.IO testing for the selected conversation",
+          connectSocket: "Connect socket",
+          rejoinRoom: "Rejoin room",
+          chooseConversation: "Select or create a conversation.",
+          message: "Message",
+          messagePlaceholder: "Write a message...",
+          sendRest: "Send REST",
+          sendSocket: "Send socket",
+          refreshMessages: "Refresh messages",
+          markRead: "Mark read",
+          socketHelp:
+            "When the socket is connected, selecting a conversation auto-joins its room; new messages appear without refreshing.",
+          operations: "Operations",
+          operationsHelp: "Users, conversations, and group actions",
+          refresh: "Refresh",
+          users: "Users",
+          list: "List",
+          usersEmpty: "User list is empty.",
+          directChat: "Direct chat",
+          createDirect: "Create direct",
+          groupChat: "Group chat",
+          groupName: "Group name",
+          defaultGroupName: "Test Group",
+          loadUsersFirst: "List users first.",
+          createGroup: "Create group",
+          conversations: "Conversations",
+          conversationsEmpty: "Conversation list is empty.",
+          log: "Log",
+          guest: "guest",
+          noUsers: "No users.",
+          noConversations: "No conversations.",
+          noMessages: "No messages.",
+          socketConnected: "Socket connected",
+          socketClosed: "Socket closed",
+          directUserRequired: "Select a user for direct chat.",
+          groupUserRequired: "Select at least one user for the group.",
+          selectConversationRequired: "Select a conversation first.",
+          emptyMessage: "Message cannot be empty.",
+          socketLoginRequired: "Login or register before connecting the socket.",
+          socketFirst: "Connect the socket first.",
+          socketJoinFailed: "Socket room join failed.",
+          errorPrefix: "Error",
+          registerOk: "Register successful",
+          loginOk: "Login successful",
+          meOk: "Current user verified",
+          usersLoaded: "Users listed",
+          conversationsLoaded: "Conversations refreshed",
+          directReady: "Direct conversation ready",
+          groupReady: "Group conversation created",
+          messagesLoadFailed: "Messages could not be loaded",
+          autoJoinError: "Socket auto-join error",
+          messagesRefreshed: "Messages refreshed",
+          restSent: "REST message sent",
+          readMarked: "Marked as read",
+          socketConnectedLog: "Socket connected",
+          socketClosedLog: "Socket closed",
+          socketError: "Socket error",
+          autoJoined: "Socket room auto-joined",
+          socketAnswer: "Socket message response",
+          sessionCleared: "Session cleared",
+          sessionRefreshFailed: "Session could not be refreshed",
+        },
+      };
+
       const $ = (id) => document.getElementById(id);
+
+      function decodeI18n(value) {
+        return String(value).replace(/\\u([\dA-Fa-f]{4})/g, (_, code) =>
+          String.fromCharCode(parseInt(code, 16)),
+        );
+      }
+
+      function t(key) {
+        const value =
+          translations[state.language]?.[key] ||
+          translations.en[key] ||
+          key;
+        return decodeI18n(value);
+      }
+
+      function applyTheme() {
+        document.body.dataset.theme = state.theme;
+        $("themeSelect").value = state.theme;
+        localStorage.setItem("chatDemoTheme", state.theme);
+      }
+
+      function applyLanguage() {
+        document.documentElement.lang = state.language;
+        document.title = t("pageTitle");
+        $("languageSelect").value = state.language;
+        localStorage.setItem("chatDemoLanguage", state.language);
+
+        document.querySelectorAll("[data-i18n]").forEach((element) => {
+          element.textContent = t(element.dataset.i18n);
+        });
+
+        document
+          .querySelectorAll("[data-i18n-placeholder]")
+          .forEach((element) => {
+            element.placeholder = t(element.dataset.i18nPlaceholder);
+          });
+
+        document.querySelectorAll("[data-i18n-value]").forEach((element) => {
+          const key = element.dataset.i18nValue;
+          const knownValues = Object.values(translations)
+            .map((dictionary) => dictionary[key])
+            .filter(Boolean)
+            .map(decodeI18n);
+
+          if (!element.value || knownValues.includes(element.value)) {
+            element.value = t(key);
+          }
+        });
+
+        renderCurrentUser();
+        renderSocketStatus(state.socket?.connected);
+      }
+
+      function changeTheme(value) {
+        state.theme = value;
+        applyTheme();
+      }
+
+      function changeLanguage(value) {
+        state.language = value;
+        applyLanguage();
+        renderUsers();
+        renderConversations();
+      }
 
       function apiBase() {
         return $("apiBase").value.replace(/\/$/, "");
@@ -581,8 +1183,14 @@
       }
 
       function renderCurrentUser() {
-        const role = state.currentUser?.role || "misafir";
+        const role = state.currentUser?.role || t("guest");
         $("rolePill").textContent = role;
+        if (!state.currentUser) {
+          $("currentUser").innerHTML = `<div class="item-meta">${escapeHtml(
+            t("noSession"),
+          )}</div>`;
+          return;
+        }
         $("currentUser").innerHTML = state.currentUser
           ? `
               <div class="item-title">
@@ -597,9 +1205,11 @@
 
       function renderUsers() {
         if (!state.users.length) {
-          $("usersList").innerHTML = '<div class="empty">Kullanici yok.</div>';
+          $("usersList").innerHTML = `<div class="empty">${escapeHtml(
+            t("noUsers"),
+          )}</div>`;
           $("groupUsers").innerHTML =
-            '<div class="empty">Kullanici yok.</div>';
+            `<div class="empty">${escapeHtml(t("noUsers"))}</div>`;
           $("directUserSelect").innerHTML = "";
           return;
         }
@@ -650,7 +1260,7 @@
       function renderConversations() {
         if (!state.conversations.length) {
           $("conversationList").innerHTML =
-            '<div class="empty">Conversation yok.</div>';
+            `<div class="empty">${escapeHtml(t("noConversations"))}</div>`;
           return;
         }
 
@@ -692,7 +1302,9 @@
 
       function renderMessages(items) {
         if (!items.length) {
-          $("messages").innerHTML = '<div class="empty">Mesaj yok.</div>';
+          $("messages").innerHTML = `<div class="empty">${escapeHtml(
+            t("noMessages"),
+          )}</div>`;
           return;
         }
 
@@ -757,7 +1369,7 @@
           },
         });
         saveSession(data);
-        log("Register basarili", data.user);
+        log(t("registerOk"), data.user);
       }
 
       async function login() {
@@ -769,7 +1381,7 @@
           },
         });
         saveSession(data);
-        log("Login basarili", data.user);
+        log(t("loginOk"), data.user);
       }
 
       async function me() {
@@ -777,20 +1389,20 @@
         state.currentUser = user;
         sessionStorage.setItem("chatDemoUser", JSON.stringify(user));
         renderCurrentUser();
-        log("Aktif kullanici dogrulandi", user);
+        log(t("meOk"), user);
       }
 
       async function loadUsers() {
         state.users = await api("/users");
         renderUsers();
-        log("Kullanicilar listelendi", { count: state.users.length });
+        log(t("usersLoaded"), { count: state.users.length });
       }
 
       async function loadConversations() {
         const data = await api("/conversations");
         state.conversations = data.items || [];
         renderConversations();
-        log("Conversation listesi yenilendi", {
+        log(t("conversationsLoaded"), {
           count: state.conversations.length,
         });
       }
@@ -798,7 +1410,7 @@
       async function createDirect() {
         const participantId = $("directUserSelect").value;
         if (!participantId) {
-          throw new Error("Direct chat icin kullanici sec.");
+          throw new Error(t("directUserRequired"));
         }
 
         const conversation = await api("/conversations/direct", {
@@ -806,7 +1418,7 @@
           body: { participantId },
         });
         selectConversation(conversation);
-        log("Direct conversation hazir", conversation);
+        log(t("directReady"), conversation);
       }
 
       async function createGroup() {
@@ -815,7 +1427,7 @@
         ).map((input) => input.value);
 
         if (!participantIds.length) {
-          throw new Error("Group icin en az bir kullanici sec.");
+          throw new Error(t("groupUserRequired"));
         }
 
         const conversation = await api("/conversations/groups", {
@@ -826,7 +1438,7 @@
           },
         });
         selectConversation(conversation);
-        log("Group conversation kuruldu", conversation);
+        log(t("groupReady"), conversation);
       }
 
       function selectConversation(conversation) {
@@ -838,22 +1450,24 @@
           state.conversations.unshift(conversation);
         }
         renderConversations();
-        loadMessages().catch((error) => log(`Mesajlar alinamadi: ${error.message}`));
+        loadMessages().catch((error) =>
+          log(`${t("messagesLoadFailed")}: ${error.message}`),
+        );
         autoJoinSelectedConversation().catch((error) =>
-          log(`Socket oda otomatik katilim hatasi: ${error.message}`),
+          log(`${t("autoJoinError")}: ${error.message}`),
         );
       }
 
       async function loadMessages() {
         if (!state.selectedConversation) {
-          throw new Error("Once conversation sec.");
+          throw new Error(t("selectConversationRequired"));
         }
 
         const data = await api(
           `/conversations/${state.selectedConversation.id}/messages?limit=50`,
         );
         renderMessages(data.items || []);
-        log("Mesajlar yenilendi", {
+        log(t("messagesRefreshed"), {
           conversationId: state.selectedConversation.id,
           count: (data.items || []).length,
         });
@@ -861,12 +1475,12 @@
 
       async function sendRestMessage() {
         if (!state.selectedConversation) {
-          throw new Error("Once conversation sec.");
+          throw new Error(t("selectConversationRequired"));
         }
 
         const content = $("messageInput").value.trim();
         if (!content) {
-          throw new Error("Mesaj bos olamaz.");
+          throw new Error(t("emptyMessage"));
         }
 
         const message = await api(
@@ -878,24 +1492,24 @@
         );
         $("messageInput").value = "";
         appendMessage(message);
-        log("REST mesaj gonderildi", message);
+        log(t("restSent"), message);
       }
 
       async function markRead() {
         if (!state.selectedConversation) {
-          throw new Error("Once conversation sec.");
+          throw new Error(t("selectConversationRequired"));
         }
 
         const data = await api(
           `/conversations/${state.selectedConversation.id}/read`,
           { method: "PATCH" },
         );
-        log("Okundu isaretlendi", data);
+        log(t("readMarked"), data);
       }
 
       function connectSocket() {
         if (!state.token) {
-          throw new Error("Socket icin once login/register yap.");
+          throw new Error(t("socketLoginRequired"));
         }
 
         disconnectSocket();
@@ -907,15 +1521,15 @@
 
         state.socket.on("connect", () => {
           renderSocketStatus(true);
-          log("Socket baglandi", { id: state.socket.id });
+          log(t("socketConnectedLog"), { id: state.socket.id });
           autoJoinSelectedConversation().catch((error) =>
-            log(`Socket oda otomatik katilim hatasi: ${error.message}`),
+            log(`${t("autoJoinError")}: ${error.message}`),
           );
         });
         state.socket.on("disconnect", (reason) => {
           state.joinedConversationIds.clear();
           renderSocketStatus(false);
-          log("Socket kapandi", { reason });
+          log(t("socketClosedLog"), { reason });
         });
         state.socket.on("message:new", (message) => {
           if (isSelectedConversationMessage(message)) {
@@ -948,7 +1562,7 @@
           log("Socket presence:offline", payload),
         );
         state.socket.on("connect_error", (error) =>
-          log(`Socket hata: ${error.message}`),
+          log(`${t("socketError")}: ${error.message}`),
         );
       }
 
@@ -983,19 +1597,19 @@
         });
 
         if (response?.success === false) {
-          throw new Error(response.message || "Socket oda katilimi basarisiz.");
+          throw new Error(response.message || t("socketJoinFailed"));
         }
 
         state.joinedConversationIds.add(conversationId);
-        log("Socket odaya otomatik katildi", { conversationId });
+        log(t("autoJoined"), { conversationId });
       }
 
       async function joinSocketRoom() {
         if (!state.socket?.connected) {
-          throw new Error("Once socket baglan.");
+          throw new Error(t("socketFirst"));
         }
         if (!state.selectedConversation) {
-          throw new Error("Once conversation sec.");
+          throw new Error(t("selectConversationRequired"));
         }
 
         state.joinedConversationIds.delete(state.selectedConversation.id);
@@ -1004,15 +1618,15 @@
 
       function sendSocketMessage() {
         if (!state.socket?.connected) {
-          throw new Error("Once socket baglan.");
+          throw new Error(t("socketFirst"));
         }
         if (!state.selectedConversation) {
-          throw new Error("Once conversation sec.");
+          throw new Error(t("selectConversationRequired"));
         }
 
         const content = $("messageInput").value.trim();
         if (!content) {
-          throw new Error("Mesaj bos olamaz.");
+          throw new Error(t("emptyMessage"));
         }
 
         state.socket.emit(
@@ -1021,7 +1635,7 @@
             conversationId: state.selectedConversation.id,
             content,
           },
-          (response) => log("Socket mesaj cevabi", response),
+          (response) => log(t("socketAnswer"), response),
         );
         $("messageInput").value = "";
       }
@@ -1029,8 +1643,8 @@
       function renderSocketStatus(connected) {
         $("socketDot").classList.toggle("ok", connected);
         $("socketStatus").textContent = connected
-          ? "Socket bagli"
-          : "Socket kapali";
+          ? t("socketConnected")
+          : t("socketClosed");
       }
 
       function fillDemoUser(key) {
@@ -1051,7 +1665,7 @@
           try {
             await handler();
           } catch (error) {
-            log(`Hata: ${error.message}`);
+            log(`${t("errorPrefix")}: ${error.message}`);
             alert(error.message);
           }
         });
@@ -1078,7 +1692,7 @@
       bind("loginBtn", login);
       bind("logoutBtn", async () => {
         clearSession();
-        log("Oturum temizlendi");
+        log(t("sessionCleared"));
       });
       bind("loadUsersBtn", loadUsers);
       bind("createDirectBtn", createDirect);
@@ -1092,11 +1706,18 @@
       bind("sendSocketBtn", async () => sendSocketMessage());
       bind("refreshAllBtn", refreshAll);
 
+      $("themeSelect").addEventListener("change", (event) =>
+        changeTheme(event.target.value),
+      );
+      $("languageSelect").addEventListener("change", (event) =>
+        changeLanguage(event.target.value),
+      );
+
       $("messageInput").addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
           event.preventDefault();
           sendRestMessage().catch((error) => {
-            log(`Hata: ${error.message}`);
+            log(`${t("errorPrefix")}: ${error.message}`);
             alert(error.message);
           });
         }
@@ -1108,10 +1729,14 @@
         );
       });
 
+      applyTheme();
+      applyLanguage();
       renderCurrentUser();
       renderSocketStatus(false);
       if (state.token) {
-        refreshAll().catch((error) => log(`Oturum yenilenemedi: ${error.message}`));
+        refreshAll().catch((error) =>
+          log(`${t("sessionRefreshFailed")}: ${error.message}`),
+        );
       }
     </script>
   </body>

@@ -1,6 +1,6 @@
-import { ForbiddenException, Post, Controller } from "@nestjs/common";
+import { Controller, ForbiddenException, Headers, Post } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import { ApiHeader, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { ConversationsService } from "../conversations/conversations.service";
 import { UsersService } from "../users/users.service";
 
@@ -14,10 +14,20 @@ export class DevController {
   ) {}
 
   @Post("reset")
+  @ApiHeader({
+    name: "x-dev-secret",
+    description: "Development reset secret configured on the backend",
+  })
   @ApiOkResponse({ description: "Development-only in-memory data reset" })
-  resetInMemoryData() {
+  resetInMemoryData(@Headers("x-dev-secret") providedSecret?: string) {
     if (this.configService.get<string>("NODE_ENV") === "production") {
       throw new ForbiddenException("Dev reset is disabled in production");
+    }
+
+    const expectedSecret = this.configService.get<string>("DEV_RESET_SECRET");
+
+    if (!expectedSecret || providedSecret !== expectedSecret) {
+      throw new ForbiddenException("Invalid or missing dev reset secret");
     }
 
     return {

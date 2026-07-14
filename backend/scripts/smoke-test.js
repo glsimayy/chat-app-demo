@@ -2,8 +2,7 @@ const { io } = require("socket.io-client");
 
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:3000/api";
 const SOCKET_URL = process.env.SOCKET_URL ?? "http://localhost:3000/chat";
-const BOT_WEBHOOK_SECRET =
-  process.env.BOT_WEBHOOK_SECRET ?? "dev-bot-secret";
+const BOT_WEBHOOK_SECRET = process.env.BOT_WEBHOOK_SECRET ?? "dev-bot-secret";
 
 function assert(condition, message) {
   if (!condition) {
@@ -52,17 +51,44 @@ function emitWithAck(socket, eventName, payload) {
   return new Promise((resolve) => socket.emit(eventName, payload, resolve));
 }
 
-function waitFor(socket, eventName) {
+function waitFor(socket, eventName, predicate = () => true) {
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(
-      () => reject(new Error(`Timed out waiting for ${eventName}`)),
-      5000,
-    );
+    const timeout = setTimeout(() => {
+      socket.off(eventName, handler);
+      reject(new Error(`Timed out waiting for ${eventName}`));
+    }, 5000);
 
-    socket.once(eventName, (payload) => {
+    const handler = (payload) => {
+      if (!predicate(payload)) {
+        return;
+      }
+
       clearTimeout(timeout);
+      socket.off(eventName, handler);
       resolve(payload);
-    });
+    };
+
+    socket.on(eventName, handler);
+  });
+}
+
+function expectNoEvent(socket, eventName, predicate = () => true) {
+  return new Promise((resolve, reject) => {
+    const handler = (payload) => {
+      if (!predicate(payload)) {
+        return;
+      }
+
+      clearTimeout(timeout);
+      socket.off(eventName, handler);
+      reject(new Error(`Unexpected ${eventName}: ${JSON.stringify(payload)}`));
+    };
+    const timeout = setTimeout(() => {
+      socket.off(eventName, handler);
+      resolve();
+    }, 750);
+
+    socket.on(eventName, handler);
   });
 }
 
@@ -95,6 +121,14 @@ async function main() {
 
   const alpha = await register("smoke_alpha", stamp);
   const beta = await register("smoke_beta", stamp);
+  assert(alpha.user.role === "user", "Public registration must create a user");
+  assert(beta.user.role === "user", "Public registration must create a user");
+
+  const resetStatus = await requestExpectError("POST", "/dev/reset");
+  assert(
+    resetStatus === 403,
+    "Dev reset must reject requests without a secret",
+  );
 
   const me = await request("GET", "/auth/me", undefined, {
     token: alpha.accessToken,
@@ -114,11 +148,10 @@ async function main() {
     changedPassword.user.id === alpha.user.id,
     "Password change returned the wrong user",
   );
-  const oldPasswordStatus = await requestExpectError(
-    "POST",
-    "/auth/login",
-    { email: alpha.user.email, password: "Password123!" },
-  );
+  const oldPasswordStatus = await requestExpectError("POST", "/auth/login", {
+    email: alpha.user.email,
+    password: "Password123!",
+  });
   assert(oldPasswordStatus === 401, "Old password should fail after change");
   const alphaLogin = await request("POST", "/auth/login", {
     email: alpha.user.email,
@@ -179,6 +212,23 @@ async function main() {
   const betaSocket = await connectSocket(beta.accessToken);
 
   try {
+    const unopenedMessagePromise = waitFor(
+      betaSocket,
+      "message:new",
+      (message) => message?.content === "smoke unopened conversation",
+    );
+    const unopenedMessage = await request(
+      "POST",
+      `/conversations/${directConversation.id}/messages`,
+      { content: "smoke unopened conversation" },
+      { token: alpha.accessToken },
+    );
+    const unopenedMessageEvent = await unopenedMessagePromise;
+    assert(
+      unopenedMessageEvent.id === unopenedMessage.id,
+      "Unopened conversation did not receive message:new",
+    );
+
     const alphaSnapshotPromise = waitFor(alphaSocket, "presence:snapshot");
     await emitWithAck(alphaSocket, "conversation:join", {
       conversationId: directConversation.id,
@@ -241,6 +291,85 @@ async function main() {
     });
     const deletedMessage = await deletePromise;
     assert(Boolean(deletedMessage.deletedAt), "Socket message delete failed");
+
+    const restUpdatePromise = waitFor(
+      betaSocket,
+      "message:updated",
+      (message) => message?.id === unopenedMessage.id,
+    );
+    const restUpdatedMessage = await request(
+      "PATCH",
+      `/conversations/${directConversation.id}/messages/${unopenedMessage.id}`,
+      { content: "smoke REST message edited" },
+      { token: alpha.accessToken },
+    );
+    const restUpdateEvent = await restUpdatePromise;
+    assert(
+      restUpdateEvent.content === restUpdatedMessage.content,
+      "REST message update was not broadcast",
+    );
+
+    const restDeletePromise = waitFor(
+      betaSocket,
+      "message:deleted",
+      (message) => message?.id === unopenedMessage.id,
+    );
+    await request(
+      "DELETE",
+      `/conversations/${directConversation.id}/messages/${unopenedMessage.id}`,
+      undefined,
+      { token: alpha.accessToken },
+    );
+    const restDeleteEvent = await restDeletePromise;
+    assert(
+      Boolean(restDeleteEvent.deletedAt),
+      "REST message delete was not broadcast",
+    );
+
+    const removalGroup = await request(
+      "POST",
+      "/conversations/groups",
+      {
+        name: "Smoke Removal Group",
+        participantIds: [beta.user.id],
+      },
+      { token: alpha.accessToken },
+    );
+    const betaGroupSnapshotPromise = waitFor(
+      betaSocket,
+      "presence:snapshot",
+      (snapshot) => snapshot?.conversationId === removalGroup.id,
+    );
+    await emitWithAck(betaSocket, "conversation:join", {
+      conversationId: removalGroup.id,
+    });
+    await betaGroupSnapshotPromise;
+
+    const removedPromise = waitFor(
+      betaSocket,
+      "conversation:left",
+      (event) => event?.conversationId === removalGroup.id,
+    );
+    await request(
+      "DELETE",
+      `/conversations/${removalGroup.id}/participants/${beta.user.id}`,
+      undefined,
+      { token: alpha.accessToken },
+    );
+    await removedPromise;
+
+    const removedUserMessagePromise = expectNoEvent(
+      betaSocket,
+      "message:new",
+      (message) => message?.conversationId === removalGroup.id,
+    );
+    await request(
+      "POST",
+      `/conversations/${removalGroup.id}/messages`,
+      { content: "removed user must not receive this" },
+      { token: alpha.accessToken },
+    );
+    await removedUserMessagePromise;
 
     const betaOfflinePromise = waitFor(alphaSocket, "presence:offline");
     betaSocket.disconnect();
@@ -317,12 +446,18 @@ async function main() {
         checked: [
           "health",
           "auth",
+          "registration role safety",
+          "protected dev reset",
           "change password",
           "direct conversations",
           "conversation filtering",
           "message pagination",
           "message search",
+          "unopened conversation realtime delivery",
           "socket message send/update/delete",
+          "REST message update/delete broadcast",
+          "removed participant room eviction",
+          "regular user group creation",
           "socket presence",
           "bot group create",
           "group rename",

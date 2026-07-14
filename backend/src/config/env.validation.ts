@@ -26,7 +26,9 @@ export function validateEnv(config: Record<string, unknown>) {
 
   if (nodeEnv === "production") {
     if (jwtSecret.length < 32 || jwtSecret === "dev-secret") {
-      throw new Error("JWT_SECRET must be at least 32 characters in production");
+      throw new Error(
+        "JWT_SECRET must be at least 32 characters in production",
+      );
     }
 
     if (botWebhookSecret.length < 32 || botWebhookSecret === "dev-bot-secret") {
@@ -42,11 +44,12 @@ export function validateEnv(config: Record<string, unknown>) {
     API_PREFIX: apiPrefix,
     CORS_ORIGIN: String(config.CORS_ORIGIN ?? "*"),
     SWAGGER_ENABLED: swaggerEnabled,
-    DATABASE_URL: config.DATABASE_URL
-      ? String(config.DATABASE_URL)
-      : undefined,
+    DATABASE_URL: config.DATABASE_URL ? String(config.DATABASE_URL) : undefined,
     JWT_SECRET: jwtSecret,
     JWT_EXPIRES_IN: String(config.JWT_EXPIRES_IN ?? "1d"),
     BOT_WEBHOOK_SECRET: botWebhookSecret,
+    DEV_RESET_SECRET: config.DEV_RESET_SECRET
+      ? String(config.DEV_RESET_SECRET)
+      : undefined,
   };
 }

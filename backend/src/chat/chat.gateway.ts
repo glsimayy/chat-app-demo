@@ -1,7 +1,4 @@
-import {
-  OnModuleDestroy,
-  OnModuleInit,
-} from "@nestjs/common";
+import { OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import {
   Ack,
   ConnectedSocket,
@@ -17,13 +14,15 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { Server, Socket } from "socket.io";
 import { AuthenticatedUser } from "../auth/authenticated-user.interface";
-import { MessageRecord } from "../conversations/conversation.types";
 import { ConversationsService } from "../conversations/conversations.service";
 import { CreateMessageDto } from "../conversations/dto/create-message.dto";
 import { TransferGroupOwnerDto } from "../conversations/dto/transfer-group-owner.dto";
 import { UpdateGroupConversationDto } from "../conversations/dto/update-group-conversation.dto";
 import { UpdateMessageDto } from "../conversations/dto/update-message.dto";
-import { RealtimeEventsService } from "../conversations/realtime-events.service";
+import {
+  ConversationRealtimeEvent,
+  RealtimeEventsService,
+} from "../conversations/realtime-events.service";
 
 interface AuthenticatedSocket extends Socket {
   data: {
@@ -90,7 +89,11 @@ export class ChatGateway
   private readonly server!: Server;
 
   private readonly onlineUserSockets = new Map<string, Set<string>>();
-  private removeMessageCreatedListener?: () => void;
+  private readonly authenticatedSockets = new Map<
+    string,
+    AuthenticatedSocket
+  >();
+  private removeRealtimeListener?: () => void;
 
   constructor(
     private readonly conversationsService: ConversationsService,
@@ -100,14 +103,13 @@ export class ChatGateway
   ) {}
 
   onModuleInit() {
-    this.removeMessageCreatedListener =
-      this.realtimeEventsService.onMessageCreated((message) => {
-        this.broadcastNewMessage(message);
-      });
+    this.removeRealtimeListener = this.realtimeEventsService.onEvent((event) =>
+      this.broadcastRealtimeEvent(event),
+    );
   }
 
   onModuleDestroy() {
-    this.removeMessageCreatedListener?.();
+    this.removeRealtimeListener?.();
   }
 
   async handleConnection(client: AuthenticatedSocket) {
@@ -125,6 +127,7 @@ export class ChatGateway
       client.data.conversationIds = new Set<string>();
 
       this.trackOnlineSocket(payload.sub, client.id);
+      this.authenticatedSockets.set(client.id, client);
       await client.join(this.userRoom(payload.sub));
     } catch {
       client.disconnect(true);
@@ -139,6 +142,7 @@ export class ChatGateway
     }
 
     const userStillOnline = this.untrackOnlineSocket(user.id, client.id);
+    this.authenticatedSockets.delete(client.id);
 
     if (userStillOnline) {
       return;
@@ -205,9 +209,27 @@ export class ChatGateway
       { content: payload.content } satisfies CreateMessageDto,
     );
 
-    this.broadcastNewMessage(message);
-
     const response = { success: true, data: message };
+
+    ack?.(response);
+
+    return response;
+  }
+
+  @SubscribeMessage("conversation:unsubscribe")
+  async unsubscribeConversation(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: ConversationEventPayload,
+    @Ack() ack?: (response: unknown) => void,
+  ) {
+    this.getUser(client);
+    await client.leave(this.conversationRoom(payload.conversationId));
+    client.data.conversationIds?.delete(payload.conversationId);
+
+    const response = {
+      success: true,
+      data: { conversationId: payload.conversationId },
+    };
 
     ack?.(response);
 
@@ -225,13 +247,6 @@ export class ChatGateway
       payload.conversationId,
       user.id,
     );
-    const room = this.conversationRoom(payload.conversationId);
-
-    client.to(room).emit("participant:left", leftState);
-    await client.leave(room);
-    client.data.conversationIds?.delete(payload.conversationId);
-    client.emit("conversation:left", leftState);
-
     const response = { success: true, data: leftState };
 
     ack?.(response);
@@ -254,10 +269,6 @@ export class ChatGateway
         { name: payload.name } satisfies UpdateGroupConversationDto,
       );
 
-    this.server
-      .to(this.conversationRoom(payload.conversationId))
-      .emit("conversation:updated", conversation);
-
     const response = { success: true, data: conversation };
 
     ack?.(response);
@@ -278,10 +289,6 @@ export class ChatGateway
       user.role,
       { userId: payload.userId } satisfies TransferGroupOwnerDto,
     );
-
-    this.server
-      .to(this.conversationRoom(payload.conversationId))
-      .emit("conversation:updated", conversation);
 
     const response = { success: true, data: conversation };
 
@@ -304,10 +311,6 @@ export class ChatGateway
       { content: payload.content } satisfies UpdateMessageDto,
     );
 
-    this.server
-      .to(this.conversationRoom(payload.conversationId))
-      .emit("message:updated", message);
-
     const response = { success: true, data: message };
 
     ack?.(response);
@@ -327,10 +330,6 @@ export class ChatGateway
       payload.messageId,
       user.id,
     );
-
-    this.server
-      .to(this.conversationRoom(payload.conversationId))
-      .emit("message:deleted", message);
 
     const response = { success: true, data: message };
 
@@ -384,16 +383,6 @@ export class ChatGateway
       payload.conversationId,
       user.id,
     );
-    const eventPayload = {
-      conversationId: payload.conversationId,
-      userId: user.id,
-      readAt: readState.readAt,
-    };
-
-    this.server
-      .to(this.conversationRoom(payload.conversationId))
-      .emit("message:read", eventPayload);
-
     const response = { success: true, data: readState };
 
     ack?.(response);
@@ -481,10 +470,92 @@ export class ChatGateway
     return `conversation:${conversationId}`;
   }
 
-  private broadcastNewMessage(message: MessageRecord) {
-    this.server
-      .to(this.conversationRoom(message.conversationId))
-      .emit("message:new", message);
+  private broadcastRealtimeEvent(event: ConversationRealtimeEvent) {
+    switch (event.type) {
+      case "conversation.created":
+        this.emitToConversationAudience(
+          event.data.id,
+          "conversation:created",
+          event.data,
+        );
+        return;
+      case "conversation.updated":
+        this.emitToConversationAudience(
+          event.data.id,
+          "conversation:updated",
+          event.data,
+        );
+        return;
+      case "message.created":
+        this.emitToConversationAudience(
+          event.data.conversationId,
+          "message:new",
+          event.data,
+        );
+        return;
+      case "message.updated":
+        this.emitToConversationAudience(
+          event.data.conversationId,
+          "message:updated",
+          event.data,
+        );
+        return;
+      case "message.deleted":
+        this.emitToConversationAudience(
+          event.data.conversationId,
+          "message:deleted",
+          event.data,
+        );
+        return;
+      case "message.read":
+        this.emitToConversationAudience(
+          event.data.conversationId,
+          "message:read",
+          event.data,
+        );
+        return;
+      case "participant.left":
+        this.broadcastParticipantLeft(event.data);
+    }
+  }
+
+  private emitToConversationAudience(
+    conversationId: string,
+    eventName: string,
+    payload: unknown,
+  ) {
+    let audience = this.server.to(this.conversationRoom(conversationId));
+
+    for (const userId of this.conversationsService.getActiveParticipantIds(
+      conversationId,
+    )) {
+      audience = audience.to(this.userRoom(userId));
+    }
+
+    audience.emit(eventName, payload);
+  }
+
+  private broadcastParticipantLeft(event: {
+    conversationId: string;
+    userId: string;
+    leftAt: Date;
+  }) {
+    const conversationRoom = this.conversationRoom(event.conversationId);
+    const userRoom = this.userRoom(event.userId);
+
+    this.emitToConversationAudience(
+      event.conversationId,
+      "participant:left",
+      event,
+    );
+    this.server.to(userRoom).emit("conversation:left", event);
+    this.server.in(userRoom).socketsLeave(conversationRoom);
+
+    for (const socketId of this.onlineUserSockets.get(event.userId) ?? []) {
+      this.authenticatedSockets
+        .get(socketId)
+        ?.data.conversationIds?.delete(event.conversationId);
+    }
   }
 
   private userRoom(userId: string) {

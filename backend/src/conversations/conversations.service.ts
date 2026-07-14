@@ -20,13 +20,17 @@ import { UpdateGroupConversationDto } from "./dto/update-group-conversation.dto"
 import { UpdateMessageDto } from "./dto/update-message.dto";
 import { MessageType } from "./message-type.enum";
 import { ParticipantRole } from "./participant-role.enum";
+import { RealtimeEventsService } from "./realtime-events.service";
 
 @Injectable()
 export class ConversationsService {
   private readonly conversations = new Map<string, ConversationRecord>();
   private readonly messages = new Map<string, MessageRecord[]>();
 
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly realtimeEventsService: RealtimeEventsService,
+  ) {}
 
   async createDirectConversation(
     currentUserId: string,
@@ -82,6 +86,10 @@ export class ConversationsService {
 
     this.conversations.set(conversation.id, conversation);
     this.messages.set(conversation.id, []);
+    this.realtimeEventsService.emit({
+      type: "conversation.created",
+      data: conversation,
+    });
 
     return conversation;
   }
@@ -124,6 +132,10 @@ export class ConversationsService {
       `Group "${conversation.name}" was created.`,
       now,
     );
+    this.realtimeEventsService.emit({
+      type: "conversation.created",
+      data: conversation,
+    });
 
     return conversation;
   }
@@ -164,6 +176,10 @@ export class ConversationsService {
       `Group name changed from "${oldName}" to "${name}".`,
       now,
     );
+    this.realtimeEventsService.emit({
+      type: "conversation.updated",
+      data: conversation,
+    });
 
     return conversation;
   }
@@ -215,6 +231,10 @@ export class ConversationsService {
       `${user?.username ?? "A user"} is now the group owner.`,
       now,
     );
+    this.realtimeEventsService.emit({
+      type: "conversation.updated",
+      data: conversation,
+    });
 
     return conversation;
   }
@@ -229,6 +249,10 @@ export class ConversationsService {
     const now = new Date();
     this.addSystemMessage(conversationId, content.trim(), now);
     conversation.updatedAt = now;
+    this.realtimeEventsService.emit({
+      type: "conversation.updated",
+      data: conversation,
+    });
   }
 
   clearAll() {
@@ -312,6 +336,7 @@ export class ConversationsService {
 
     this.messages.get(conversation.id)?.push(message);
     conversation.updatedAt = message.createdAt;
+    this.realtimeEventsService.emit({ type: "message.created", data: message });
 
     return message;
   }
@@ -356,7 +381,9 @@ export class ConversationsService {
     const matches = (this.messages.get(conversationId) ?? [])
       .filter((message) => !message.deletedAt)
       .filter((message) => message.content.toLowerCase().includes(search))
-      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+      .sort(
+        (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+      )
       .slice(0, limit);
 
     return {
@@ -380,6 +407,10 @@ export class ConversationsService {
 
     const readAt = new Date();
     participant.lastReadAt = readAt;
+    this.realtimeEventsService.emit({
+      type: "message.read",
+      data: { conversationId, userId, readAt },
+    });
 
     return {
       conversationId,
@@ -409,6 +440,7 @@ export class ConversationsService {
     message.content = content;
     message.updatedAt = now;
     conversation.updatedAt = now;
+    this.realtimeEventsService.emit({ type: "message.updated", data: message });
 
     return message;
   }
@@ -428,6 +460,7 @@ export class ConversationsService {
     message.updatedAt = now;
     message.deletedAt = now;
     conversation.updatedAt = now;
+    this.realtimeEventsService.emit({ type: "message.deleted", data: message });
 
     return message;
   }
@@ -464,12 +497,17 @@ export class ConversationsService {
       `${user?.username ?? "A user"} left the group.`,
       now,
     );
-
-    return {
+    const leftState = {
       conversationId,
       userId,
       leftAt: now,
     };
+    this.realtimeEventsService.emit({
+      type: "participant.left",
+      data: leftState,
+    });
+
+    return leftState;
   }
 
   async addParticipant(
@@ -526,6 +564,10 @@ export class ConversationsService {
       `${user.username} joined the group.`,
       now,
     );
+    this.realtimeEventsService.emit({
+      type: "conversation.updated",
+      data: conversation,
+    });
 
     return conversation.participants.filter(
       (participant) => !participant.leftAt,
@@ -570,8 +612,24 @@ export class ConversationsService {
       `${user?.username ?? "A user"} left the group.`,
       now,
     );
+    this.realtimeEventsService.emit({
+      type: "participant.left",
+      data: { conversationId, userId: targetUserId, leftAt: now },
+    });
 
     return conversation.participants.filter((item) => !item.leftAt);
+  }
+
+  getActiveParticipantIds(conversationId: string) {
+    const conversation = this.conversations.get(conversationId);
+
+    if (!conversation) {
+      return [];
+    }
+
+    return conversation.participants
+      .filter((participant) => !participant.leftAt)
+      .map((participant) => participant.userId);
   }
 
   private findDirectConversation(userA: string, userB: string) {
