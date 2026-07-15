@@ -1,4 +1,11 @@
-import { Controller, Get, Query } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  ParseUUIDPipe,
+  Query,
+} from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -21,5 +28,17 @@ export class UsersController {
   @ApiOkResponse({ description: "Registered users" })
   findAll(@Query("search") search?: string) {
     return this.usersService.findAll(search);
+  }
+
+  @Get(":userId")
+  @ApiOkResponse({ description: "Registered user profile" })
+  async findOne(@Param("userId", new ParseUUIDPipe()) userId: string) {
+    const user = await this.usersService.findById(userId);
+
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    return user;
   }
 }

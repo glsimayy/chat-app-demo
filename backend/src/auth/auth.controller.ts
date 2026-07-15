@@ -5,6 +5,7 @@ import {
   ApiOkResponse,
   ApiTags,
 } from "@nestjs/swagger";
+import { Throttle } from "@nestjs/throttler";
 import { AuthenticatedUser } from "./authenticated-user.interface";
 import { AuthService } from "./auth.service";
 import { CurrentUser } from "./current-user.decorator";
@@ -19,12 +20,14 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post("register")
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiCreatedResponse({ description: "User registered successfully" })
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
   @Post("login")
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOkResponse({ description: "User logged in successfully" })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);

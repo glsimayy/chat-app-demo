@@ -15,6 +15,19 @@ export type ConversationRealtimeEvent =
       data: { conversationId: string; userId: string; readAt: Date };
     }
   | {
+      type: "participant.added";
+      data: { conversationId: string; userId: string; joinedAt: Date };
+    }
+  | {
+      type: "participant.removed";
+      data: {
+        conversationId: string;
+        userId: string;
+        removedAt: Date;
+        removedBy: string;
+      };
+    }
+  | {
       type: "participant.left";
       data: { conversationId: string; userId: string; leftAt: Date };
     };

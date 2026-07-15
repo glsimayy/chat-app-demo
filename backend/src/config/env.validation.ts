@@ -2,7 +2,33 @@ export function validateEnv(config: Record<string, unknown>) {
   const nodeEnv = String(config.NODE_ENV ?? "development");
   const port = Number(config.PORT ?? 3000);
   const apiPrefix = String(config.API_PREFIX ?? "api").trim();
-  const swaggerEnabled = String(config.SWAGGER_ENABLED ?? "true");
+  const corsOrigin = String(config.CORS_ORIGIN ?? "*").trim();
+  const swaggerEnabled = String(
+    config.SWAGGER_ENABLED ?? (nodeEnv === "production" ? "false" : "true"),
+  );
+  const bodyLimit = String(config.BODY_LIMIT ?? "1mb")
+    .trim()
+    .toLowerCase();
+  const rateLimitTtlMs = parsePositiveInteger(
+    config.RATE_LIMIT_TTL_MS,
+    60_000,
+    "RATE_LIMIT_TTL_MS",
+  );
+  const rateLimitMax = parsePositiveInteger(
+    config.RATE_LIMIT_MAX,
+    120,
+    "RATE_LIMIT_MAX",
+  );
+  const socketRateLimitTtlMs = parsePositiveInteger(
+    config.SOCKET_RATE_LIMIT_TTL_MS,
+    10_000,
+    "SOCKET_RATE_LIMIT_TTL_MS",
+  );
+  const socketRateLimitMax = parsePositiveInteger(
+    config.SOCKET_RATE_LIMIT_MAX,
+    60,
+    "SOCKET_RATE_LIMIT_MAX",
+  );
   const jwtSecret = String(config.JWT_SECRET ?? "dev-secret");
   const botWebhookSecret = String(
     config.BOT_WEBHOOK_SECRET ?? "dev-bot-secret",
@@ -24,7 +50,19 @@ export function validateEnv(config: Record<string, unknown>) {
     throw new Error("SWAGGER_ENABLED must be true or false");
   }
 
+  if (!corsOrigin) {
+    throw new Error("CORS_ORIGIN cannot be empty");
+  }
+
+  if (!/^\d+(b|kb|mb)$/.test(bodyLimit)) {
+    throw new Error("BODY_LIMIT must use b, kb, or mb units");
+  }
+
   if (nodeEnv === "production") {
+    if (corsOrigin === "*") {
+      throw new Error("CORS_ORIGIN cannot be wildcard in production");
+    }
+
     if (jwtSecret.length < 32 || jwtSecret === "dev-secret") {
       throw new Error(
         "JWT_SECRET must be at least 32 characters in production",
@@ -42,8 +80,13 @@ export function validateEnv(config: Record<string, unknown>) {
     NODE_ENV: nodeEnv,
     PORT: String(port),
     API_PREFIX: apiPrefix,
-    CORS_ORIGIN: String(config.CORS_ORIGIN ?? "*"),
+    CORS_ORIGIN: corsOrigin,
     SWAGGER_ENABLED: swaggerEnabled,
+    BODY_LIMIT: bodyLimit,
+    RATE_LIMIT_TTL_MS: String(rateLimitTtlMs),
+    RATE_LIMIT_MAX: String(rateLimitMax),
+    SOCKET_RATE_LIMIT_TTL_MS: String(socketRateLimitTtlMs),
+    SOCKET_RATE_LIMIT_MAX: String(socketRateLimitMax),
     DATABASE_URL: config.DATABASE_URL ? String(config.DATABASE_URL) : undefined,
     JWT_SECRET: jwtSecret,
     JWT_EXPIRES_IN: String(config.JWT_EXPIRES_IN ?? "1d"),
@@ -52,4 +95,18 @@ export function validateEnv(config: Record<string, unknown>) {
       ? String(config.DEV_RESET_SECRET)
       : undefined,
   };
+}
+
+function parsePositiveInteger(
+  value: unknown,
+  fallback: number,
+  variableName: string,
+) {
+  const parsed = Number(value ?? fallback);
+
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${variableName} must be a positive integer`);
+  }
+
+  return parsed;
 }

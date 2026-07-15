@@ -14,9 +14,15 @@ Bu dokuman Main Backend, Java ve Database tarafinin ayni kontrata gore calismasi
 ## Env Notlari
 
 - `CORS_ORIGIN` tek origin veya virgul ile ayrilmis coklu origin alabilir.
+- Production ortaminda `CORS_ORIGIN=*` kabul edilmez. Ayni allowlist HTTP ve
+  Socket.IO icin kullanilir.
 - `DATABASE_URL` su an opsiyoneldir, Prisma gecisinde kullanilacak.
 - Production ortaminda `JWT_SECRET` ve `BOT_WEBHOOK_SECRET` en az 32 karakter olmalidir.
-- `SWAGGER_ENABLED` sadece `true` veya `false` olabilir.
+- `SWAGGER_ENABLED` sadece `true` veya `false` olabilir ve production'da
+  varsayilan olarak kapalidir.
+- `BODY_LIMIT`, `RATE_LIMIT_TTL_MS`, `RATE_LIMIT_MAX`,
+  `SOCKET_RATE_LIMIT_TTL_MS` ve `SOCKET_RATE_LIMIT_MAX` guvenlik limitlerini
+  kontrol eder.
 
 ## Local Kontrol Komutlari
 
@@ -24,6 +30,9 @@ Backend klasorunde:
 
 ```bash
 npm run typecheck
+npm run test:typecheck
+npm test
+npm run test:e2e
 npm run build
 npm run prisma:validate
 npm run test:smoke
@@ -109,6 +118,10 @@ Opsiyonel arama:
 ```http
 GET /api/users?search=emir
 ```
+
+`GET /api/users/{userId}`
+
+Kayitli kullanicinin public profil bilgisini dondurur. Endpoint JWT ister.
 
 ### Dev
 
@@ -278,11 +291,13 @@ Konusmayi mevcut kullanici icin okundu isaretler.
 
 `POST /api/conversations/{conversationId}/leave`
 
-Mevcut kullaniciyi grup konusmasindan cikarir. Sadece member kullanici ayrilabilir; owner icin henuz ownership transfer yoktur.
+Mevcut kullaniciyi grup konusmasindan cikarir. Sadece member kullanici ayrilabilir; owner once ownership'i aktif bir uyeye devretmelidir.
 
 `GET /api/conversations/{conversationId}/participants`
 
 `POST /api/conversations/{conversationId}/participants`
+
+Grup owner'i veya admin yeni uye ekleyebilir. Basarili islem `participant:added` socket eventini ve bir sistem mesajini yayinlar.
 
 ```json
 {
@@ -292,9 +307,15 @@ Mevcut kullaniciyi grup konusmasindan cikarir. Sadece member kullanici ayrilabil
 
 `DELETE /api/conversations/{conversationId}/participants/{userId}`
 
+Grup owner'i veya admin uye cikarabilir. Basarili islem `participant:removed` socket eventini, cikarilan kullaniciya `conversation:left` eventini ve bir sistem mesajini yayinlar.
+
 ## Java Tarafi Icin Bot Kontrati
 
 Java servisi webhook, zamanlanmis is veya dis sistem tetigi aldiginda Main Backend icinde grup olusturmak icin bu endpointi cagirir.
+
+`POST /api/bot/create-group`
+
+Geriye uyumlu alias:
 
 `POST /api/bot/groups`
 
@@ -329,6 +350,8 @@ Alanlar:
 - `name`: Grup adi.
 - `participantIds`: Gruba eklenecek diger kullanicilar.
 - `externalRef`: Dis sistem id'si. Ornek: ticket id, meeting id, webhook id.
+- Ayni `externalRef` ile tekrarlanan istek mevcut grubu dondurur; yeni grup veya
+  ikinci bir baslangic sistem mesaji olusturmaz.
 - `initialSystemMessage`: Grup acildiktan sonra sistem mesaji olarak eklenir.
 
 Beklenen basarili response:
@@ -361,11 +384,26 @@ Auth:
 
 ```js
 io("http://localhost:3000/chat", {
-  auth: { token: "<jwt>" }
+  auth: { token: "<jwt>" },
 });
 ```
 
 Alternatif olarak `Authorization: Bearer <jwt>` header'i da desteklenir.
+
+Socket event hatalari `exception` eventi ile ayni formatta dondurulur:
+
+```json
+{
+  "success": false,
+  "code": "VALIDATION_ERROR",
+  "message": "Invalid socket payload",
+  "errors": [],
+  "timestamp": "2026-07-15T17:00:00.000Z"
+}
+```
+
+Sabit hata kodlari: `BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`,
+`CONFLICT`, `VALIDATION_ERROR`, `RATE_LIMITED` ve `INTERNAL_ERROR`.
 
 ### conversation:join
 
@@ -500,6 +538,31 @@ Payload:
   "conversationId": "conversation-uuid",
   "userId": "user-uuid",
   "leftAt": "2026-07-13T17:00:00.000Z"
+}
+```
+
+### participant:added
+
+Gruba uye eklendiginde aktif katilimcilara server push:
+
+```json
+{
+  "conversationId": "conversation-uuid",
+  "userId": "user-uuid",
+  "joinedAt": "2026-07-13T17:00:00.000Z"
+}
+```
+
+### participant:removed
+
+Gruptan uye cikarildiginda aktif katilimcilara server push:
+
+```json
+{
+  "conversationId": "conversation-uuid",
+  "userId": "user-uuid",
+  "removedAt": "2026-07-13T17:00:00.000Z",
+  "removedBy": "admin-or-owner-uuid"
 }
 ```
 

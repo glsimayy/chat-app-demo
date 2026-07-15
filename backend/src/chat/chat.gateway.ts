@@ -1,4 +1,10 @@
-import { OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import {
+  OnModuleDestroy,
+  OnModuleInit,
+  UseFilters,
+  UsePipes,
+  ValidationPipe,
+} from "@nestjs/common";
 import {
   Ack,
   ConnectedSocket,
@@ -23,46 +29,22 @@ import {
   ConversationRealtimeEvent,
   RealtimeEventsService,
 } from "../conversations/realtime-events.service";
+import {
+  ConversationEventPayloadDto,
+  DeleteMessagePayloadDto,
+  SendMessagePayloadDto,
+  TransferOwnerPayloadDto,
+  UpdateConversationPayloadDto,
+  UpdateMessagePayloadDto,
+} from "./dto/socket-event.dto";
+import { SocketExceptionFilter } from "./socket-exception.filter";
+import { SocketRateLimiterService } from "./socket-rate-limiter.service";
 
 interface AuthenticatedSocket extends Socket {
   data: {
     conversationIds?: Set<string>;
     user?: AuthenticatedUser;
   };
-}
-
-interface JoinConversationPayload {
-  conversationId: string;
-}
-
-interface SendMessagePayload {
-  conversationId: string;
-  content: string;
-}
-
-interface ConversationEventPayload {
-  conversationId: string;
-}
-
-interface UpdateMessagePayload {
-  conversationId: string;
-  messageId: string;
-  content: string;
-}
-
-interface DeleteMessagePayload {
-  conversationId: string;
-  messageId: string;
-}
-
-interface UpdateConversationPayload {
-  conversationId: string;
-  name: string;
-}
-
-interface TransferOwnerPayload {
-  conversationId: string;
-  userId: string;
 }
 
 interface JwtPayload {
@@ -73,11 +55,24 @@ interface JwtPayload {
 
 @WebSocketGateway({
   namespace: "chat",
-  cors: {
-    origin: true,
-    credentials: true,
-  },
 })
+@UseFilters(SocketExceptionFilter)
+@UsePipes(
+  new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+    exceptionFactory: (errors) =>
+      new WsException({
+        code: "VALIDATION_ERROR",
+        message: "Invalid socket payload",
+        errors: errors.map((error) => ({
+          property: error.property,
+          messages: Object.values(error.constraints ?? {}),
+        })),
+      }),
+  }),
+)
 export class ChatGateway
   implements
     OnGatewayConnection,
@@ -100,6 +95,7 @@ export class ChatGateway
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly realtimeEventsService: RealtimeEventsService,
+    private readonly socketRateLimiterService: SocketRateLimiterService,
   ) {}
 
   onModuleInit() {
@@ -130,11 +126,18 @@ export class ChatGateway
       this.authenticatedSockets.set(client.id, client);
       await client.join(this.userRoom(payload.sub));
     } catch {
+      client.emit("exception", {
+        success: false,
+        code: "UNAUTHORIZED",
+        message: "Unauthorized socket connection",
+        timestamp: new Date().toISOString(),
+      });
       client.disconnect(true);
     }
   }
 
   handleDisconnect(client: AuthenticatedSocket) {
+    this.socketRateLimiterService.clear(client.id);
     const user = client.data.user;
 
     if (!user) {
@@ -161,9 +164,10 @@ export class ChatGateway
   @SubscribeMessage("conversation:join")
   async joinConversation(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: JoinConversationPayload,
+    @MessageBody() payload: ConversationEventPayloadDto,
     @Ack() ack?: (response: unknown) => void,
   ) {
+    this.consumeRateLimit(client, "conversation:join");
     const user = this.getUser(client);
     const conversation = await this.conversationsService.findOneForUser(
       payload.conversationId,
@@ -199,9 +203,10 @@ export class ChatGateway
   @SubscribeMessage("message:send")
   async sendMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: SendMessagePayload,
+    @MessageBody() payload: SendMessagePayloadDto,
     @Ack() ack?: (response: unknown) => void,
   ) {
+    this.consumeRateLimit(client, "message:send");
     const user = this.getUser(client);
     const message = await this.conversationsService.createMessage(
       payload.conversationId,
@@ -219,9 +224,10 @@ export class ChatGateway
   @SubscribeMessage("conversation:unsubscribe")
   async unsubscribeConversation(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: ConversationEventPayload,
+    @MessageBody() payload: ConversationEventPayloadDto,
     @Ack() ack?: (response: unknown) => void,
   ) {
+    this.consumeRateLimit(client, "conversation:unsubscribe");
     this.getUser(client);
     await client.leave(this.conversationRoom(payload.conversationId));
     client.data.conversationIds?.delete(payload.conversationId);
@@ -239,9 +245,10 @@ export class ChatGateway
   @SubscribeMessage("conversation:leave")
   async leaveConversation(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: ConversationEventPayload,
+    @MessageBody() payload: ConversationEventPayloadDto,
     @Ack() ack?: (response: unknown) => void,
   ) {
+    this.consumeRateLimit(client, "conversation:leave");
     const user = this.getUser(client);
     const leftState = await this.conversationsService.leaveConversation(
       payload.conversationId,
@@ -257,9 +264,10 @@ export class ChatGateway
   @SubscribeMessage("conversation:update")
   async updateConversation(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: UpdateConversationPayload,
+    @MessageBody() payload: UpdateConversationPayloadDto,
     @Ack() ack?: (response: unknown) => void,
   ) {
+    this.consumeRateLimit(client, "conversation:update");
     const user = this.getUser(client);
     const conversation =
       await this.conversationsService.updateGroupConversation(
@@ -279,9 +287,10 @@ export class ChatGateway
   @SubscribeMessage("conversation:transfer-owner")
   async transferOwner(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: TransferOwnerPayload,
+    @MessageBody() payload: TransferOwnerPayloadDto,
     @Ack() ack?: (response: unknown) => void,
   ) {
+    this.consumeRateLimit(client, "conversation:transfer-owner");
     const user = this.getUser(client);
     const conversation = await this.conversationsService.transferGroupOwner(
       payload.conversationId,
@@ -300,9 +309,10 @@ export class ChatGateway
   @SubscribeMessage("message:update")
   async updateMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: UpdateMessagePayload,
+    @MessageBody() payload: UpdateMessagePayloadDto,
     @Ack() ack?: (response: unknown) => void,
   ) {
+    this.consumeRateLimit(client, "message:update");
     const user = this.getUser(client);
     const message = await this.conversationsService.updateMessage(
       payload.conversationId,
@@ -321,9 +331,10 @@ export class ChatGateway
   @SubscribeMessage("message:delete")
   async deleteMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: DeleteMessagePayload,
+    @MessageBody() payload: DeleteMessagePayloadDto,
     @Ack() ack?: (response: unknown) => void,
   ) {
+    this.consumeRateLimit(client, "message:delete");
     const user = this.getUser(client);
     const message = await this.conversationsService.deleteMessage(
       payload.conversationId,
@@ -341,9 +352,10 @@ export class ChatGateway
   @SubscribeMessage("typing:start")
   async startTyping(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: ConversationEventPayload,
+    @MessageBody() payload: ConversationEventPayloadDto,
     @Ack() ack?: (response: unknown) => void,
   ) {
+    this.consumeRateLimit(client, "typing:start");
     const response = await this.emitConversationUserEvent(
       client,
       payload,
@@ -358,9 +370,10 @@ export class ChatGateway
   @SubscribeMessage("typing:stop")
   async stopTyping(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: ConversationEventPayload,
+    @MessageBody() payload: ConversationEventPayloadDto,
     @Ack() ack?: (response: unknown) => void,
   ) {
+    this.consumeRateLimit(client, "typing:stop");
     const response = await this.emitConversationUserEvent(
       client,
       payload,
@@ -375,9 +388,10 @@ export class ChatGateway
   @SubscribeMessage("message:read")
   async markMessageRead(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() payload: ConversationEventPayload,
+    @MessageBody() payload: ConversationEventPayloadDto,
     @Ack() ack?: (response: unknown) => void,
   ) {
+    this.consumeRateLimit(client, "message:read");
     const user = this.getUser(client);
     const readState = await this.conversationsService.markAsRead(
       payload.conversationId,
@@ -403,22 +417,32 @@ export class ChatGateway
       return header.slice("Bearer ".length);
     }
 
-    throw new WsException("Missing socket auth token");
+    throw new WsException({
+      code: "UNAUTHORIZED",
+      message: "Missing socket auth token",
+    });
   }
 
   private getUser(client: AuthenticatedSocket) {
     const user = client.data.user;
 
     if (!user) {
-      throw new WsException("Unauthorized socket connection");
+      throw new WsException({
+        code: "UNAUTHORIZED",
+        message: "Unauthorized socket connection",
+      });
     }
 
     return user;
   }
 
+  private consumeRateLimit(client: AuthenticatedSocket, eventName: string) {
+    this.socketRateLimiterService.consume(client.id, eventName);
+  }
+
   private async emitConversationUserEvent(
     client: AuthenticatedSocket,
-    payload: ConversationEventPayload,
+    payload: ConversationEventPayloadDto,
     eventName: "typing:started" | "typing:stopped",
   ) {
     const user = this.getUser(client);
@@ -514,6 +538,16 @@ export class ChatGateway
           event.data,
         );
         return;
+      case "participant.added":
+        this.emitToConversationAudience(
+          event.data.conversationId,
+          "participant:added",
+          event.data,
+        );
+        return;
+      case "participant.removed":
+        this.broadcastParticipantRemoved(event.data);
+        return;
       case "participant.left":
         this.broadcastParticipantLeft(event.data);
     }
@@ -549,6 +583,40 @@ export class ChatGateway
       event,
     );
     this.server.to(userRoom).emit("conversation:left", event);
+    this.server.in(userRoom).socketsLeave(conversationRoom);
+
+    for (const socketId of this.onlineUserSockets.get(event.userId) ?? []) {
+      this.authenticatedSockets
+        .get(socketId)
+        ?.data.conversationIds?.delete(event.conversationId);
+    }
+  }
+
+  private broadcastParticipantRemoved(event: {
+    conversationId: string;
+    userId: string;
+    removedAt: Date;
+    removedBy: string;
+  }) {
+    const conversationRoom = this.conversationRoom(event.conversationId);
+    const userRoom = this.userRoom(event.userId);
+    const legacyLeftEvent = {
+      conversationId: event.conversationId,
+      userId: event.userId,
+      leftAt: event.removedAt,
+    };
+
+    this.emitToConversationAudience(
+      event.conversationId,
+      "participant:removed",
+      event,
+    );
+    this.emitToConversationAudience(
+      event.conversationId,
+      "participant:left",
+      legacyLeftEvent,
+    );
+    this.server.to(userRoom).emit("conversation:left", legacyLeftEvent);
     this.server.in(userRoom).socketsLeave(conversationRoom);
 
     for (const socketId of this.onlineUserSockets.get(event.userId) ?? []) {

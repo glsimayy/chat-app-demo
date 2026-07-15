@@ -1,0 +1,11 @@
+process.env.NODE_ENV = "test";
+process.env.API_PREFIX = "api";
+process.env.CORS_ORIGIN = "http://localhost:5173,http://127.0.0.1:5173";
+process.env.SWAGGER_ENABLED = "false";
+process.env.JWT_SECRET = "test-jwt-secret-with-at-least-32-characters";
+process.env.BOT_WEBHOOK_SECRET = "test-bot-secret-with-at-least-32-characters";
+process.env.DEV_RESET_SECRET = "test-reset-secret";
+process.env.RATE_LIMIT_TTL_MS = "60000";
+process.env.RATE_LIMIT_MAX = "120";
+process.env.SOCKET_RATE_LIMIT_TTL_MS = "10000";
+process.env.SOCKET_RATE_LIMIT_MAX = "60";

@@ -15,7 +15,12 @@ npm install
 
 `.env.example` dosyasini referans alarak local `.env` dosyasi olusturulabilir.
 
-Production notu: `JWT_SECRET` ve `BOT_WEBHOOK_SECRET` en az 32 karakter olmalidir.
+Production notlari:
+
+- `JWT_SECRET` ve `BOT_WEBHOOK_SECRET` en az 32 karakter olmalidir.
+- `CORS_ORIGIN` wildcard (`*`) olamaz.
+- Swagger varsayilan olarak kapalidir.
+- HTTP ve Socket.IO rate limit ayarlari `.env.example` icinden degistirilebilir.
 
 Local PostgreSQL gerekirse repo root klasorunde:
 
@@ -44,12 +49,17 @@ Server acikken:
 
 ```bash
 npm run typecheck
+npm run test:typecheck
+npm test
+npm run test:e2e
 npm run build
 npm run prisma:validate
 npm run test:smoke
 ```
 
-`test:smoke` asagidaki akislarin calistigini kontrol eder:
+Unit ve e2e testleri config, CORS, rate limit, validation ve yetki kurallarini
+kontrol eder. `test:smoke` ise calisan server uzerinde asagidaki akislarin
+tamamini birlikte kontrol eder:
 
 - health
 - auth
@@ -59,6 +69,9 @@ npm run test:smoke
 - Socket.IO presence
 - bot group create
 - group rename
+
+Bu kontroller `.github/workflows/backend-ci.yml` ile her ilgili push ve pull
+request'te otomatik calisir.
 
 ## Takim Dokumanlari
 
@@ -81,13 +94,15 @@ npm run test:smoke
 - Typing indicator
 - Read receipt
 - Online presence
-- Java/bot entegrasyonu icin `POST /api/bot/groups`
+- Java/bot entegrasyonu icin `POST /api/bot/create-group`
+- Geriye uyumlu bot alias'i: `POST /api/bot/groups`
 
 ## Notlar
 
 - Ilk register olan kullanici local modda `admin` olur.
 - Grup olusturma REST endpointi admin ister.
 - Bot group endpointi JWT yerine `x-bot-secret` header'i kullanir.
+- Auth endpointleri HTTP rate limit, Socket.IO eventleri socket bazli rate limit uygular.
 - Database entegrasyonu icin beklenen model kontrati `docs/backend-contracts.md` icinde tutulur.
 - `DATABASE_URL` simdilik opsiyoneldir, Prisma gecisinde aktif kullanilacak.
 - Smoke test local server'da test kullanicilari olusturur. Manuel demo oncesi `POST /api/dev/reset` ile in-memory veri temizlenebilir.

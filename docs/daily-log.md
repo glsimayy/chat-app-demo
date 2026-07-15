@@ -65,6 +65,23 @@
 
 - `npm run typecheck` basarili.
 - `npm run build` basarili.
+
+## 15.07.2026 Carsamba
+
+### Backend Guvenlik ve Test
+
+- HTTP auth rate limiting ve Socket.IO event rate limiting eklendi.
+- HTTP ve Socket.IO ayni CORS allowlist'ine baglandi.
+- Production wildcard CORS engellendi ve Swagger varsayilan kapali yapildi.
+- Socket exception cevaplari sabit hata kodlariyla standartlastirildi.
+- Jest unit testleri ve Supertest e2e testleri eklendi.
+- GitHub Actions backend CI akisi eklendi.
+
+### Verification
+
+- Uygulama ve test typecheck basarili.
+- 7 unit test basarili.
+- 5 HTTP e2e test basarili.
 - `npm run prisma:validate` eklendi.
 - `npm run test:smoke` eklendi.
 - `npm audit --audit-level=moderate` temiz.

@@ -18,6 +18,9 @@ import {
 import { AuthenticatedUser } from "../auth/authenticated-user.interface";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { Roles } from "../auth/roles.decorator";
+import { RolesGuard } from "../auth/roles.guard";
+import { UserRole } from "../users/user-role.enum";
 import { ConversationsService } from "./conversations.service";
 import { AddParticipantDto } from "./dto/add-participant.dto";
 import { CreateDirectConversationDto } from "./dto/create-direct-conversation.dto";
@@ -32,7 +35,7 @@ import { UpdateMessageDto } from "./dto/update-message.dto";
 
 @ApiTags("conversations")
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller("conversations")
 export class ConversationsController {
   constructor(private readonly conversationsService: ConversationsService) {}
@@ -49,6 +52,7 @@ export class ConversationsController {
   }
 
   @Post("groups")
+  @Roles(UserRole.Admin)
   @ApiCreatedResponse({ description: "Group conversation created" })
   createGroupConversation(
     @CurrentUser() user: AuthenticatedUser,

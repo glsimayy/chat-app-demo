@@ -1,0 +1,91 @@
+name: Backend CI
+
+on:
+  push:
+    paths:
+      - ".github/workflows/backend-ci.yml"
+      - "backend/**"
+      - "docs/backend-contracts.md"
+      - "README.md"
+  pull_request:
+    paths:
+      - ".github/workflows/backend-ci.yml"
+      - "backend/**"
+      - "docs/backend-contracts.md"
+      - "README.md"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      NODE_ENV: test
+      PORT: "3000"
+      API_PREFIX: api
+      CORS_ORIGIN: http://localhost:5173
+      SWAGGER_ENABLED: "false"
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/chat_app_ci
+      JWT_SECRET: ci-jwt-secret-with-at-least-32-characters
+      BOT_WEBHOOK_SECRET: ci-bot-secret-with-at-least-32-characters
+      DEV_RESET_SECRET: ci-reset-secret
+      RATE_LIMIT_TTL_MS: "60000"
+      RATE_LIMIT_MAX: "120"
+      SOCKET_RATE_LIMIT_TTL_MS: "10000"
+      SOCKET_RATE_LIMIT_MAX: "60"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck application and tests
+        run: |
+          npm run typecheck
+          npm run test:typecheck
+
+      - name: Run unit and e2e tests
+        run: |
+          npm test
+          npm run test:e2e
+
+      - name: Build and validate Prisma schema
+        run: |
+          npm run build
+          npm run prisma:validate
+
+      - name: Run full smoke test
+        shell: bash
+        run: |
+          npm run start:prod > /tmp/chat-backend.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:3000/api/health > /dev/null; then
+              break
+            fi
+
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              cat /tmp/chat-backend.log
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+          curl --fail --silent http://localhost:3000/api/health > /dev/null
+          npm run test:smoke

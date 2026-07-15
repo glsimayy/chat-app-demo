@@ -26,6 +26,10 @@ import { RealtimeEventsService } from "./realtime-events.service";
 export class ConversationsService {
   private readonly conversations = new Map<string, ConversationRecord>();
   private readonly messages = new Map<string, MessageRecord[]>();
+  private readonly externalGroupCreations = new Map<
+    string,
+    Promise<ConversationRecord>
+  >();
 
   constructor(
     private readonly usersService: UsersService,
@@ -97,6 +101,7 @@ export class ConversationsService {
   async createGroupConversation(
     currentUserId: string,
     dto: CreateGroupConversationDto,
+    externalRef: string | null = null,
   ) {
     const now = new Date();
     const participantIds = Array.from(
@@ -110,7 +115,7 @@ export class ConversationsService {
       type: ConversationType.Group,
       name: dto.name.trim(),
       createdBy: currentUserId,
-      externalRef: null,
+      externalRef,
       participants: participantIds.map((userId) => ({
         userId,
         role:
@@ -127,7 +132,7 @@ export class ConversationsService {
 
     this.conversations.set(conversation.id, conversation);
     this.messages.set(conversation.id, []);
-    this.addSystemMessage(
+    const systemMessage = this.addSystemMessage(
       conversation.id,
       `Group "${conversation.name}" was created.`,
       now,
@@ -136,8 +141,62 @@ export class ConversationsService {
       type: "conversation.created",
       data: conversation,
     });
+    this.realtimeEventsService.emit({
+      type: "message.created",
+      data: systemMessage,
+    });
 
     return conversation;
+  }
+
+  async createExternalGroupConversation(
+    currentUserId: string,
+    dto: CreateGroupConversationDto,
+    externalRef?: string,
+    initialSystemMessage?: string,
+  ) {
+    const normalizedExternalRef = externalRef?.trim() || null;
+
+    if (!normalizedExternalRef) {
+      const conversation = await this.createGroupConversation(
+        currentUserId,
+        dto,
+      );
+      this.addInitialSystemMessage(conversation.id, initialSystemMessage);
+      return conversation;
+    }
+
+    const existingConversation = Array.from(this.conversations.values()).find(
+      (conversation) => conversation.externalRef === normalizedExternalRef,
+    );
+
+    if (existingConversation) {
+      return existingConversation;
+    }
+
+    const pendingCreation = this.externalGroupCreations.get(
+      normalizedExternalRef,
+    );
+
+    if (pendingCreation) {
+      return pendingCreation;
+    }
+
+    const creation = this.createGroupConversation(
+      currentUserId,
+      dto,
+      normalizedExternalRef,
+    )
+      .then((conversation) => {
+        this.addInitialSystemMessage(conversation.id, initialSystemMessage);
+        return conversation;
+      })
+      .finally(() => {
+        this.externalGroupCreations.delete(normalizedExternalRef);
+      });
+
+    this.externalGroupCreations.set(normalizedExternalRef, creation);
+    return creation;
   }
 
   async updateGroupConversation(
@@ -171,7 +230,7 @@ export class ConversationsService {
     const now = new Date();
     conversation.name = name;
     conversation.updatedAt = now;
-    this.addSystemMessage(
+    const systemMessage = this.addSystemMessage(
       conversation.id,
       `Group name changed from "${oldName}" to "${name}".`,
       now,
@@ -179,6 +238,10 @@ export class ConversationsService {
     this.realtimeEventsService.emit({
       type: "conversation.updated",
       data: conversation,
+    });
+    this.realtimeEventsService.emit({
+      type: "message.created",
+      data: systemMessage,
     });
 
     return conversation;
@@ -226,7 +289,7 @@ export class ConversationsService {
     conversation.updatedAt = now;
 
     const user = await this.usersService.findById(dto.userId);
-    this.addSystemMessage(
+    const systemMessage = this.addSystemMessage(
       conversation.id,
       `${user?.username ?? "A user"} is now the group owner.`,
       now,
@@ -234,6 +297,10 @@ export class ConversationsService {
     this.realtimeEventsService.emit({
       type: "conversation.updated",
       data: conversation,
+    });
+    this.realtimeEventsService.emit({
+      type: "message.created",
+      data: systemMessage,
     });
 
     return conversation;
@@ -247,11 +314,19 @@ export class ConversationsService {
     }
 
     const now = new Date();
-    this.addSystemMessage(conversationId, content.trim(), now);
+    const systemMessage = this.addSystemMessage(
+      conversationId,
+      content.trim(),
+      now,
+    );
     conversation.updatedAt = now;
     this.realtimeEventsService.emit({
       type: "conversation.updated",
       data: conversation,
+    });
+    this.realtimeEventsService.emit({
+      type: "message.created",
+      data: systemMessage,
     });
   }
 
@@ -261,6 +336,7 @@ export class ConversationsService {
 
     this.conversations.clear();
     this.messages.clear();
+    this.externalGroupCreations.clear();
 
     return { deletedConversations, deletedMessageGroups };
   }
@@ -492,7 +568,7 @@ export class ConversationsService {
     const now = new Date();
     participant.leftAt = now;
     conversation.updatedAt = now;
-    this.addSystemMessage(
+    const systemMessage = this.addSystemMessage(
       conversation.id,
       `${user?.username ?? "A user"} left the group.`,
       now,
@@ -505,6 +581,10 @@ export class ConversationsService {
     this.realtimeEventsService.emit({
       type: "participant.left",
       data: leftState,
+    });
+    this.realtimeEventsService.emit({
+      type: "message.created",
+      data: systemMessage,
     });
 
     return leftState;
@@ -559,7 +639,7 @@ export class ConversationsService {
     }
 
     conversation.updatedAt = now;
-    this.addSystemMessage(
+    const systemMessage = this.addSystemMessage(
       conversation.id,
       `${user.username} joined the group.`,
       now,
@@ -567,6 +647,14 @@ export class ConversationsService {
     this.realtimeEventsService.emit({
       type: "conversation.updated",
       data: conversation,
+    });
+    this.realtimeEventsService.emit({
+      type: "participant.added",
+      data: { conversationId, userId: dto.userId, joinedAt: now },
+    });
+    this.realtimeEventsService.emit({
+      type: "message.created",
+      data: systemMessage,
     });
 
     return conversation.participants.filter(
@@ -607,14 +695,23 @@ export class ConversationsService {
     const now = new Date();
     participant.leftAt = now;
     conversation.updatedAt = now;
-    this.addSystemMessage(
+    const systemMessage = this.addSystemMessage(
       conversation.id,
-      `${user?.username ?? "A user"} left the group.`,
+      `${user?.username ?? "A user"} was removed from the group.`,
       now,
     );
     this.realtimeEventsService.emit({
-      type: "participant.left",
-      data: { conversationId, userId: targetUserId, leftAt: now },
+      type: "participant.removed",
+      data: {
+        conversationId,
+        userId: targetUserId,
+        removedAt: now,
+        removedBy: currentUserId,
+      },
+    });
+    this.realtimeEventsService.emit({
+      type: "message.created",
+      data: systemMessage,
     });
 
     return conversation.participants.filter((item) => !item.leftAt);
@@ -732,6 +829,17 @@ export class ConversationsService {
     };
 
     this.messages.get(conversationId)?.push(message);
+
+    return message;
+  }
+
+  private addInitialSystemMessage(
+    conversationId: string,
+    initialSystemMessage?: string,
+  ) {
+    if (initialSystemMessage?.trim()) {
+      this.addSystemEvent(conversationId, initialSystemMessage);
+    }
   }
 
   private findMessageOrThrow(conversationId: string, messageId: string) {

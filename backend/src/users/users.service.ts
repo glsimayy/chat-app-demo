@@ -1,4 +1,5 @@
 import { ConflictException, Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { UserRole } from "./user-role.enum";
 import { PublicUser, UserRecord } from "./user.types";
 
@@ -12,6 +13,8 @@ interface CreateUserInput {
 @Injectable()
 export class UsersService {
   private readonly users = new Map<string, UserRecord>();
+
+  constructor(private readonly configService: ConfigService) {}
 
   async create(input: CreateUserInput): Promise<PublicUser> {
     const email = input.email.toLowerCase();
@@ -30,7 +33,7 @@ export class UsersService {
       username,
       email,
       passwordHash: input.passwordHash,
-      role: input.role ?? UserRole.User,
+      role: input.role ?? this.getDefaultRole(),
       createdAt: new Date(),
     };
 
@@ -106,5 +109,14 @@ export class UsersService {
     return Array.from(this.users.values()).find(
       (user) => user.username.toLowerCase() === normalizedUsername,
     );
+  }
+
+  private getDefaultRole() {
+    const isLocalFirstUser =
+      this.users.size === 0 &&
+      this.configService.get<string>("NODE_ENV", "development") !==
+        "production";
+
+    return isLocalFirstUser ? UserRole.Admin : UserRole.User;
   }
 }

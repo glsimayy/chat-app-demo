@@ -3,6 +3,8 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { ConversationsModule } from "../conversations/conversations.module";
 import { ChatGateway } from "./chat.gateway";
+import { SocketExceptionFilter } from "./socket-exception.filter";
+import { SocketRateLimiterService } from "./socket-rate-limiter.service";
 
 @Module({
   imports: [
@@ -15,6 +17,6 @@ import { ChatGateway } from "./chat.gateway";
       }),
     }),
   ],
-  providers: [ChatGateway],
+  providers: [ChatGateway, SocketExceptionFilter, SocketRateLimiterService],
 })
 export class ChatModule {}

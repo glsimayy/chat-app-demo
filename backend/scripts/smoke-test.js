@@ -1,8 +1,12 @@
+require("dotenv").config({ quiet: true });
+
 const { io } = require("socket.io-client");
 
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:3000/api";
 const SOCKET_URL = process.env.SOCKET_URL ?? "http://localhost:3000/chat";
 const BOT_WEBHOOK_SECRET = process.env.BOT_WEBHOOK_SECRET ?? "dev-bot-secret";
+const DEV_RESET_SECRET =
+  process.env.DEV_RESET_SECRET ?? "change-me-for-dev-reset";
 
 function assert(condition, message) {
   if (!condition) {
@@ -17,6 +21,7 @@ async function request(method, path, body, options = {}) {
       "content-type": "application/json",
       ...(options.token ? { authorization: `Bearer ${options.token}` } : {}),
       ...(options.botSecret ? { "x-bot-secret": options.botSecret } : {}),
+      ...(options.devSecret ? { "x-dev-secret": options.devSecret } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -36,6 +41,7 @@ async function requestExpectError(method, path, body, options = {}) {
       "content-type": "application/json",
       ...(options.token ? { authorization: `Bearer ${options.token}` } : {}),
       ...(options.botSecret ? { "x-bot-secret": options.botSecret } : {}),
+      ...(options.devSecret ? { "x-dev-secret": options.devSecret } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -119,21 +125,50 @@ async function main() {
   const health = await request("GET", "/health");
   assert(health.status === "ok", "Health check did not return ok");
 
-  const alpha = await register("smoke_alpha", stamp);
-  const beta = await register("smoke_beta", stamp);
-  assert(alpha.user.role === "user", "Public registration must create a user");
-  assert(beta.user.role === "user", "Public registration must create a user");
-
   const resetStatus = await requestExpectError("POST", "/dev/reset");
   assert(
     resetStatus === 403,
     "Dev reset must reject requests without a secret",
   );
+  await request("POST", "/dev/reset", undefined, {
+    devSecret: DEV_RESET_SECRET,
+  });
+
+  const alpha = await register("smoke_alpha", stamp);
+  const beta = await register("smoke_beta", stamp);
+  const gamma = await register("smoke_gamma", stamp);
+  assert(
+    alpha.user.role === "admin",
+    "First local registration must create the demo admin",
+  );
+  assert(beta.user.role === "user", "Later registrations must create users");
+  assert(gamma.user.role === "user", "Later registrations must create users");
 
   const me = await request("GET", "/auth/me", undefined, {
     token: alpha.accessToken,
   });
   assert(me.id === alpha.user.id, "auth/me returned the wrong user");
+  const betaProfile = await request(
+    "GET",
+    `/users/${beta.user.id}`,
+    undefined,
+    { token: alpha.accessToken },
+  );
+  assert(betaProfile.id === beta.user.id, "User profile endpoint failed");
+
+  const regularUserGroupStatus = await requestExpectError(
+    "POST",
+    "/conversations/groups",
+    {
+      name: "Regular User Group Must Fail",
+      participantIds: [alpha.user.id],
+    },
+    { token: beta.accessToken },
+  );
+  assert(
+    regularUserGroupStatus === 403,
+    "Regular users must not create manual groups",
+  );
 
   const changedPassword = await request(
     "PATCH",
@@ -272,6 +307,17 @@ async function main() {
       "Socket message:new payload failed",
     );
 
+    const validationErrorPromise = waitFor(
+      alphaSocket,
+      "exception",
+      (error) => error?.code === "VALIDATION_ERROR",
+    );
+    alphaSocket.emit("message:send", {
+      conversationId: directConversation.id,
+      content: "x".repeat(2001),
+    });
+    await validationErrorPromise;
+
     const updatePromise = waitFor(betaSocket, "message:updated");
     await emitWithAck(alphaSocket, "message:update", {
       conversationId: directConversation.id,
@@ -335,6 +381,30 @@ async function main() {
       },
       { token: alpha.accessToken },
     );
+    const participantAddedPromise = waitFor(
+      betaSocket,
+      "participant:added",
+      (event) =>
+        event?.conversationId === removalGroup.id &&
+        event?.userId === gamma.user.id,
+    );
+    const participantSystemMessagePromise = waitFor(
+      betaSocket,
+      "message:new",
+      (message) =>
+        message?.conversationId === removalGroup.id &&
+        message?.messageType === "system" &&
+        message?.content?.includes(gamma.user.username),
+    );
+    await request(
+      "POST",
+      `/conversations/${removalGroup.id}/participants`,
+      { userId: gamma.user.id },
+      { token: alpha.accessToken },
+    );
+    await participantAddedPromise;
+    await participantSystemMessagePromise;
+
     const betaGroupSnapshotPromise = waitFor(
       betaSocket,
       "presence:snapshot",
@@ -350,6 +420,13 @@ async function main() {
       "conversation:left",
       (event) => event?.conversationId === removalGroup.id,
     );
+    const participantRemovedPromise = waitFor(
+      alphaSocket,
+      "participant:removed",
+      (event) =>
+        event?.conversationId === removalGroup.id &&
+        event?.userId === beta.user.id,
+    );
     await request(
       "DELETE",
       `/conversations/${removalGroup.id}/participants/${beta.user.id}`,
@@ -357,6 +434,7 @@ async function main() {
       { token: alpha.accessToken },
     );
     await removedPromise;
+    await participantRemovedPromise;
 
     const removedUserMessagePromise = expectNoEvent(
       betaSocket,
@@ -383,18 +461,39 @@ async function main() {
     betaSocket.disconnect();
   }
 
-  const botGroup = await request(
+  const botGroupPayload = {
+    ownerId: alpha.user.id,
+    name: "Smoke Bot Group",
+    participantIds: [beta.user.id],
+    externalRef: `smoke-${stamp}`,
+    initialSystemMessage: "Smoke bot group is ready.",
+  };
+  const botGroup = await request("POST", "/bot/create-group", botGroupPayload, {
+    botSecret: BOT_WEBHOOK_SECRET,
+  });
+  assert(botGroup.type === "group", "Bot group create failed");
+  const repeatedBotGroup = await request(
     "POST",
-    "/bot/groups",
-    {
-      ownerId: alpha.user.id,
-      name: "Smoke Bot Group",
-      participantIds: [beta.user.id],
-      externalRef: `smoke-${stamp}`,
-    },
+    "/bot/create-group",
+    botGroupPayload,
     { botSecret: BOT_WEBHOOK_SECRET },
   );
-  assert(botGroup.type === "group", "Bot group create failed");
+  assert(
+    repeatedBotGroup.id === botGroup.id,
+    "Repeated bot webhook created a duplicate group",
+  );
+  const botMessages = await request(
+    "GET",
+    `/conversations/${botGroup.id}/messages?limit=50`,
+    undefined,
+    { token: alpha.accessToken },
+  );
+  assert(
+    botMessages.items.filter(
+      (message) => message.content === botGroupPayload.initialSystemMessage,
+    ).length === 1,
+    "Repeated bot webhook duplicated the initial system message",
+  );
 
   const renamedGroup = await request(
     "PATCH",
@@ -446,8 +545,10 @@ async function main() {
         checked: [
           "health",
           "auth",
-          "registration role safety",
+          "local admin bootstrap and registration role safety",
           "protected dev reset",
+          "user profile",
+          "admin-only manual group creation",
           "change password",
           "direct conversations",
           "conversation filtering",
@@ -455,11 +556,13 @@ async function main() {
           "message search",
           "unopened conversation realtime delivery",
           "socket message send/update/delete",
+          "socket payload validation",
           "REST message update/delete broadcast",
           "removed participant room eviction",
-          "regular user group creation",
+          "participant added/removed events",
+          "realtime system messages",
           "socket presence",
-          "bot group create",
+          "idempotent bot group create",
           "group rename",
           "group owner transfer",
           "group leave",
