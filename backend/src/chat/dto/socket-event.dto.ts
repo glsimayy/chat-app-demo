@@ -1,4 +1,13 @@
-import { IsString, IsUUID, MaxLength, MinLength } from "class-validator";
+import {
+  ArrayMaxSize,
+  ArrayUnique,
+  IsArray,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  MinLength,
+} from "class-validator";
 
 export class ConversationEventPayloadDto {
   @IsUUID("4")
@@ -10,6 +19,10 @@ export class SendMessagePayloadDto extends ConversationEventPayloadDto {
   @MinLength(1)
   @MaxLength(2000)
   content!: string;
+
+  @IsOptional()
+  @IsUUID("4")
+  clientMessageId?: string;
 }
 
 export class UpdateMessagePayloadDto extends SendMessagePayloadDto {
@@ -32,4 +45,12 @@ export class UpdateConversationPayloadDto extends ConversationEventPayloadDto {
 export class TransferOwnerPayloadDto extends ConversationEventPayloadDto {
   @IsUUID("4")
   userId!: string;
+}
+
+export class SyncConversationsPayloadDto {
+  @IsArray()
+  @ArrayUnique()
+  @ArrayMaxSize(100)
+  @IsUUID("4", { each: true })
+  conversationIds!: string[];
 }

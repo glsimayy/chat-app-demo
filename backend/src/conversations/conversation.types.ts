@@ -23,6 +23,7 @@ export interface ConversationRecord {
 
 export interface MessageRecord {
   id: string;
+  clientMessageId: string | null;
   conversationId: string;
   senderId: string | null;
   content: string;

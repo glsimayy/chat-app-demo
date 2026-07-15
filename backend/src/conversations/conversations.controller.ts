@@ -9,17 +9,23 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
-import {
-  ApiBearerAuth,
-  ApiCreatedResponse,
-  ApiOkResponse,
-  ApiTags,
-} from "@nestjs/swagger";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { AuthenticatedUser } from "../auth/authenticated-user.interface";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
+import { ApiSuccessResponse } from "../common/swagger/api-success-response.decorator";
+import {
+  ConversationListResponseDto,
+  ConversationParticipantResponseDto,
+  ConversationResponseDto,
+  MessageListResponseDto,
+  MessageResponseDto,
+  MessageSearchResponseDto,
+  ParticipantLeftResponseDto,
+  ReadStateResponseDto,
+} from "../common/swagger/backend-response.dto";
 import { UserRole } from "../users/user-role.enum";
 import { ConversationsService } from "./conversations.service";
 import { AddParticipantDto } from "./dto/add-participant.dto";
@@ -41,8 +47,9 @@ export class ConversationsController {
   constructor(private readonly conversationsService: ConversationsService) {}
 
   @Post("direct")
-  @ApiCreatedResponse({
+  @ApiSuccessResponse(ConversationResponseDto, {
     description: "Direct conversation created or returned",
+    status: 201,
   })
   createDirectConversation(
     @CurrentUser() user: AuthenticatedUser,
@@ -53,7 +60,10 @@ export class ConversationsController {
 
   @Post("groups")
   @Roles(UserRole.Admin)
-  @ApiCreatedResponse({ description: "Group conversation created" })
+  @ApiSuccessResponse(ConversationResponseDto, {
+    description: "Group conversation created",
+    status: 201,
+  })
   createGroupConversation(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateGroupConversationDto,
@@ -62,7 +72,9 @@ export class ConversationsController {
   }
 
   @Get()
-  @ApiOkResponse({ description: "Current user's conversations" })
+  @ApiSuccessResponse(ConversationListResponseDto, {
+    description: "Current user's conversations",
+  })
   findMyConversations(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: FindConversationsQueryDto,
@@ -71,7 +83,9 @@ export class ConversationsController {
   }
 
   @Get(":conversationId")
-  @ApiOkResponse({ description: "Conversation detail" })
+  @ApiSuccessResponse(ConversationResponseDto, {
+    description: "Conversation detail",
+  })
   findOne(
     @CurrentUser() user: AuthenticatedUser,
     @Param("conversationId") conversationId: string,
@@ -80,7 +94,9 @@ export class ConversationsController {
   }
 
   @Patch(":conversationId")
-  @ApiOkResponse({ description: "Group conversation updated" })
+  @ApiSuccessResponse(ConversationResponseDto, {
+    description: "Group conversation updated",
+  })
   updateGroupConversation(
     @CurrentUser() user: AuthenticatedUser,
     @Param("conversationId") conversationId: string,
@@ -95,7 +111,9 @@ export class ConversationsController {
   }
 
   @Patch(":conversationId/owner")
-  @ApiOkResponse({ description: "Group owner transferred" })
+  @ApiSuccessResponse(ConversationResponseDto, {
+    description: "Group owner transferred",
+  })
   transferGroupOwner(
     @CurrentUser() user: AuthenticatedUser,
     @Param("conversationId") conversationId: string,
@@ -110,7 +128,10 @@ export class ConversationsController {
   }
 
   @Post(":conversationId/messages")
-  @ApiCreatedResponse({ description: "Message created" })
+  @ApiSuccessResponse(MessageResponseDto, {
+    description: "Message created",
+    status: 201,
+  })
   createMessage(
     @CurrentUser() user: AuthenticatedUser,
     @Param("conversationId") conversationId: string,
@@ -124,7 +145,9 @@ export class ConversationsController {
   }
 
   @Get(":conversationId/messages")
-  @ApiOkResponse({ description: "Conversation messages" })
+  @ApiSuccessResponse(MessageListResponseDto, {
+    description: "Conversation messages",
+  })
   findMessages(
     @CurrentUser() user: AuthenticatedUser,
     @Param("conversationId") conversationId: string,
@@ -138,7 +161,9 @@ export class ConversationsController {
   }
 
   @Get(":conversationId/messages/search")
-  @ApiOkResponse({ description: "Search messages in conversation" })
+  @ApiSuccessResponse(MessageSearchResponseDto, {
+    description: "Search messages in conversation",
+  })
   searchMessages(
     @CurrentUser() user: AuthenticatedUser,
     @Param("conversationId") conversationId: string,
@@ -152,7 +177,9 @@ export class ConversationsController {
   }
 
   @Patch(":conversationId/messages/:messageId")
-  @ApiOkResponse({ description: "Message updated" })
+  @ApiSuccessResponse(MessageResponseDto, {
+    description: "Message updated",
+  })
   updateMessage(
     @CurrentUser() user: AuthenticatedUser,
     @Param("conversationId") conversationId: string,
@@ -168,7 +195,9 @@ export class ConversationsController {
   }
 
   @Delete(":conversationId/messages/:messageId")
-  @ApiOkResponse({ description: "Message deleted" })
+  @ApiSuccessResponse(MessageResponseDto, {
+    description: "Message deleted",
+  })
   deleteMessage(
     @CurrentUser() user: AuthenticatedUser,
     @Param("conversationId") conversationId: string,
@@ -182,7 +211,9 @@ export class ConversationsController {
   }
 
   @Patch(":conversationId/read")
-  @ApiOkResponse({ description: "Conversation marked as read" })
+  @ApiSuccessResponse(ReadStateResponseDto, {
+    description: "Conversation marked as read",
+  })
   markAsRead(
     @CurrentUser() user: AuthenticatedUser,
     @Param("conversationId") conversationId: string,
@@ -191,7 +222,9 @@ export class ConversationsController {
   }
 
   @Post(":conversationId/leave")
-  @ApiOkResponse({ description: "Current user left the group conversation" })
+  @ApiSuccessResponse(ParticipantLeftResponseDto, {
+    description: "Current user left the group conversation",
+  })
   leaveConversation(
     @CurrentUser() user: AuthenticatedUser,
     @Param("conversationId") conversationId: string,
@@ -200,7 +233,10 @@ export class ConversationsController {
   }
 
   @Get(":conversationId/participants")
-  @ApiOkResponse({ description: "Conversation participants" })
+  @ApiSuccessResponse(ConversationParticipantResponseDto, {
+    description: "Conversation participants",
+    isArray: true,
+  })
   findParticipants(
     @CurrentUser() user: AuthenticatedUser,
     @Param("conversationId") conversationId: string,
@@ -209,7 +245,10 @@ export class ConversationsController {
   }
 
   @Post(":conversationId/participants")
-  @ApiCreatedResponse({ description: "Participant added" })
+  @ApiSuccessResponse(ConversationParticipantResponseDto, {
+    description: "Participant added",
+    status: 201,
+  })
   addParticipant(
     @CurrentUser() user: AuthenticatedUser,
     @Param("conversationId") conversationId: string,
@@ -224,7 +263,9 @@ export class ConversationsController {
   }
 
   @Delete(":conversationId/participants/:userId")
-  @ApiOkResponse({ description: "Participant removed" })
+  @ApiSuccessResponse(ConversationParticipantResponseDto, {
+    description: "Participant removed",
+  })
   removeParticipant(
     @CurrentUser() user: AuthenticatedUser,
     @Param("conversationId") conversationId: string,

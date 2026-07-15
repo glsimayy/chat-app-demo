@@ -8,11 +8,12 @@ import {
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
-  ApiOkResponse,
   ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { ApiSuccessResponse } from "../common/swagger/api-success-response.decorator";
+import { UserResponseDto } from "../common/swagger/backend-response.dto";
 import { UseGuards } from "@nestjs/common";
 import { UsersService } from "./users.service";
 
@@ -25,13 +26,18 @@ export class UsersController {
 
   @Get()
   @ApiQuery({ name: "search", required: false })
-  @ApiOkResponse({ description: "Registered users" })
+  @ApiSuccessResponse(UserResponseDto, {
+    description: "Registered users",
+    isArray: true,
+  })
   findAll(@Query("search") search?: string) {
     return this.usersService.findAll(search);
   }
 
   @Get(":userId")
-  @ApiOkResponse({ description: "Registered user profile" })
+  @ApiSuccessResponse(UserResponseDto, {
+    description: "Registered user profile",
+  })
   async findOne(@Param("userId", new ParseUUIDPipe()) userId: string) {
     const user = await this.usersService.findById(userId);
 

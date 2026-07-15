@@ -1,16 +1,14 @@
 import { APIClient } from "./apiCore";
 import { mapAuthResponse } from "./backendAdapters";
-import * as url from "./urls";
 
 const api = new APIClient();
 
-// postForgetPwd
-const postFakeForgetPwd = (data: any) =>
-  api.create(url.POST_FAKE_PASSWORD_FORGET, data);
+const unsupportedPasswordReset = (_data?: any) =>
+  Promise.reject("Password reset by email is not available yet");
 
-// postForgetPwd
-const postJwtForgetPwd = (data: any) =>
-  api.create(url.POST_FAKE_JWT_PASSWORD_FORGET, data);
+const postFakeForgetPwd = unsupportedPasswordReset;
+
+const postJwtForgetPwd = unsupportedPasswordReset;
 
 const postFakeLogin = (data: any) =>
   api.create("/auth/login", data).then(mapAuthResponse);
@@ -34,8 +32,8 @@ const changePassword = (data: object) => {
   return api.patch("/auth/password", data);
 };
 
-// postSocialLogin
-const postSocialLogin = (data: any) => api.create(url.SOCIAL_LOGIN, data);
+const postSocialLogin = (_data?: any) =>
+  Promise.reject("Social login is not available yet");
 
 export {
   postFakeForgetPwd,

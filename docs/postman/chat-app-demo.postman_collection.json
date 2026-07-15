@@ -1,0 +1,328 @@
+{
+  "info": {
+    "_postman_id": "9d447d7a-c9ab-49ec-80c6-d51f221d7aa8",
+    "name": "Chat App Demo - Backend",
+    "description": "Runs the core REST flow from a clean local backend: health, users, direct chat, idempotent messaging, group chat and bot integration.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+          "pm.test('Request succeeded', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+          "const body = pm.response.json();",
+          "pm.test('Success envelope is valid', function () { pm.expect(body.success).to.eql(true); pm.expect(body).to.have.property('data'); });"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api" },
+    { "key": "devSecret", "value": "change-me-for-dev-reset" },
+    { "key": "botSecret", "value": "change-me-for-bot-webhooks" },
+    { "key": "adminToken", "value": "" },
+    { "key": "memberToken", "value": "" },
+    { "key": "adminId", "value": "" },
+    { "key": "memberId", "value": "" },
+    { "key": "guestId", "value": "" },
+    { "key": "directConversationId", "value": "" },
+    { "key": "groupConversationId", "value": "" },
+    { "key": "clientMessageId", "value": "" },
+    { "key": "firstMessageId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "01 - Reset development data",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-dev-secret", "value": "{{devSecret}}", "type": "text" }
+        ],
+        "url": "{{baseUrl}}/dev/reset",
+        "description": "Development only. Clears in-memory users and conversations so the collection can be rerun."
+      }
+    },
+    {
+      "name": "02 - Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/health"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Backend is healthy', function () { pm.expect(pm.response.json().data.status).to.eql('ok'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Register admin",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"postman_admin\",\n  \"email\": \"postman.admin@example.com\",\n  \"password\": \"Demo123!\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/register"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const data = pm.response.json().data;",
+              "pm.collectionVariables.set('adminToken', data.accessToken);",
+              "pm.collectionVariables.set('adminId', data.user.id);",
+              "pm.test('First user is admin', function () { pm.expect(data.user.role).to.eql('admin'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Register member",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"postman_member\",\n  \"email\": \"postman.member@example.com\",\n  \"password\": \"Demo123!\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/register"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const data = pm.response.json().data;",
+              "pm.collectionVariables.set('memberToken', data.accessToken);",
+              "pm.collectionVariables.set('memberId', data.user.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Register guest",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"postman_guest\",\n  \"email\": \"postman.guest@example.com\",\n  \"password\": \"Demo123!\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/register"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('guestId', pm.response.json().data.user.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - List users",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/users"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Three users are available', function () { pm.expect(pm.response.json().data.length).to.be.at.least(3); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Create direct conversation",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"participantId\": \"{{memberId}}\"\n}" },
+        "url": "{{baseUrl}}/conversations/direct"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const data = pm.response.json().data;",
+              "pm.collectionVariables.set('directConversationId', data.id);",
+              "pm.test('Direct conversation returned', function () { pm.expect(data.type).to.eql('direct'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Send direct message",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('clientMessageId', pm.variables.replaceIn('{{$guid}}'));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const data = pm.response.json().data;",
+              "pm.collectionVariables.set('firstMessageId', data.id);",
+              "pm.test('Client message id is preserved', function () { pm.expect(data.clientMessageId).to.eql(pm.collectionVariables.get('clientMessageId')); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"content\": \"Postman idempotency test\",\n  \"clientMessageId\": \"{{clientMessageId}}\"\n}" },
+        "url": "{{baseUrl}}/conversations/{{directConversationId}}/messages"
+      }
+    },
+    {
+      "name": "09 - Retry same direct message",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"content\": \"Postman idempotency test\",\n  \"clientMessageId\": \"{{clientMessageId}}\"\n}" },
+        "url": "{{baseUrl}}/conversations/{{directConversationId}}/messages"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Retry returns the original message', function () { pm.expect(pm.response.json().data.id).to.eql(pm.collectionVariables.get('firstMessageId')); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 - Create group conversation",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Postman Demo Group\",\n  \"participantIds\": [\"{{memberId}}\"]\n}" },
+        "url": "{{baseUrl}}/conversations/groups"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const data = pm.response.json().data;",
+              "pm.collectionVariables.set('groupConversationId', data.id);",
+              "pm.test('Group conversation returned', function () { pm.expect(data.type).to.eql('group'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 - Add guest to group",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"userId\": \"{{guestId}}\"\n}" },
+        "url": "{{baseUrl}}/conversations/{{groupConversationId}}/participants"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Guest was added', function () { pm.expect(pm.response.json().data.userId).to.eql(pm.collectionVariables.get('guestId')); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 - Remove guest from group",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+        "method": "DELETE",
+        "header": [],
+        "url": "{{baseUrl}}/conversations/{{groupConversationId}}/participants/{{guestId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Guest was removed', function () { pm.expect(pm.response.json().data.leftAt).to.be.a('string'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 - Create bot group",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-bot-secret", "value": "{{botSecret}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ownerId\": \"{{adminId}}\",\n  \"name\": \"Postman Bot Group\",\n  \"participantIds\": [\"{{memberId}}\"],\n  \"externalRef\": \"postman-demo-001\",\n  \"initialSystemMessage\": \"Bot integration is ready.\"\n}"
+        },
+        "url": "{{baseUrl}}/bot/groups"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('External reference is preserved', function () { pm.expect(pm.response.json().data.externalRef).to.eql('postman-demo-001'); });"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

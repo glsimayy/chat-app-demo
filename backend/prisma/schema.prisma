@@ -81,6 +81,7 @@ model ConversationParticipant {
 
 model Message {
   id             String        @id @default(uuid()) @db.Uuid
+  clientMessageId String?      @db.Uuid
   conversationId String        @db.Uuid
   senderId       String?       @db.Uuid
   content        String
@@ -93,6 +94,7 @@ model Message {
 
   @@index([conversationId, createdAt])
   @@index([senderId])
+  @@unique([senderId, clientMessageId])
   @@index([messageType])
   @@index([deletedAt])
   @@map("messages")

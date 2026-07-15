@@ -64,12 +64,14 @@ describe("App e2e", () => {
     expect(response.body.message).toContain("property role should not exist");
   });
 
-  it("enforces the admin-only manual group rule", async () => {
+  it("enforces the complete group authorization matrix", async () => {
     const admin = await register("admin_user");
     const member = await register("member_user");
+    const outsider = await register("outsider_user");
 
     expect(admin.user.role).toBe("admin");
     expect(member.user.role).toBe("user");
+    expect(outsider.user.role).toBe("user");
 
     await request(app.getHttpServer())
       .post("/api/conversations/groups")
@@ -88,6 +90,86 @@ describe("App e2e", () => {
       name: "Admin Group",
       createdBy: admin.user.id,
     });
+
+    await request(app.getHttpServer())
+      .patch(`/api/conversations/${created.body.data.id}`)
+      .set("authorization", `Bearer ${member.accessToken}`)
+      .send({ name: "Member Rename Must Fail" })
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .post(`/api/conversations/${created.body.data.id}/participants`)
+      .set("authorization", `Bearer ${member.accessToken}`)
+      .send({ userId: outsider.user.id })
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .get(`/api/conversations/${created.body.data.id}`)
+      .set("authorization", `Bearer ${outsider.accessToken}`)
+      .expect(404);
+
+    await request(app.getHttpServer())
+      .post(`/api/conversations/${created.body.data.id}/participants`)
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .send({ userId: outsider.user.id })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .delete(
+        `/api/conversations/${created.body.data.id}/participants/${admin.user.id}`,
+      )
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .delete(
+        `/api/conversations/${created.body.data.id}/participants/${member.user.id}`,
+      )
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post(`/api/conversations/${created.body.data.id}/messages`)
+      .set("authorization", `Bearer ${member.accessToken}`)
+      .send({ content: "Removed member message" })
+      .expect(404);
+  });
+
+  it("deduplicates message retries by clientMessageId", async () => {
+    const sender = await register("retry_sender");
+    const recipient = await register("retry_recipient");
+    const direct = await request(app.getHttpServer())
+      .post("/api/conversations/direct")
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .send({ participantId: recipient.user.id })
+      .expect(201);
+    const payload = {
+      content: "Exactly once",
+      clientMessageId: crypto.randomUUID(),
+    };
+
+    const first = await request(app.getHttpServer())
+      .post(`/api/conversations/${direct.body.data.id}/messages`)
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .send(payload)
+      .expect(201);
+    const retry = await request(app.getHttpServer())
+      .post(`/api/conversations/${direct.body.data.id}/messages`)
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .send(payload)
+      .expect(201);
+    const history = await request(app.getHttpServer())
+      .get(`/api/conversations/${direct.body.data.id}/messages`)
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .expect(200);
+
+    expect(retry.body.data.id).toBe(first.body.data.id);
+    expect(
+      history.body.data.items.filter(
+        (message: { clientMessageId?: string }) =>
+          message.clientMessageId === payload.clientMessageId,
+      ),
+    ).toHaveLength(1);
   });
 
   it("returns CORS headers only for configured origins", async () => {
@@ -104,6 +186,33 @@ describe("App e2e", () => {
       "http://localhost:5173",
     );
     expect(unknown.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+
+  it("restricts runtime metrics to administrators", async () => {
+    const admin = await register("metrics_admin");
+    const member = await register("metrics_member");
+
+    const metrics = await request(app.getHttpServer())
+      .get("/api/metrics")
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .expect(200);
+
+    expect(metrics.body.data).toMatchObject({
+      counters: {
+        httpRequestsTotal: expect.any(Number),
+        messagesCreatedTotal: expect.any(Number),
+      },
+      gauges: {
+        activeSockets: expect.any(Number),
+        averageHttpDurationMs: expect.any(Number),
+      },
+      socketEventsByName: expect.any(Object),
+    });
+
+    await request(app.getHttpServer())
+      .get("/api/metrics")
+      .set("authorization", `Bearer ${member.accessToken}`)
+      .expect(403);
   });
 
   it("rate limits repeated login attempts", async () => {

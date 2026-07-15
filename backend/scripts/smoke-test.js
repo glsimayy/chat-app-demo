@@ -244,7 +244,7 @@ async function main() {
   );
 
   const alphaSocket = await connectSocket(alpha.accessToken);
-  const betaSocket = await connectSocket(beta.accessToken);
+  let betaSocket = await connectSocket(beta.accessToken);
 
   try {
     const unopenedMessagePromise = waitFor(
@@ -295,9 +295,11 @@ async function main() {
     );
 
     const newMessagePromise = waitFor(betaSocket, "message:new");
+    const socketClientMessageId = crypto.randomUUID();
     const sent = await emitWithAck(alphaSocket, "message:send", {
       conversationId: directConversation.id,
       content: "smoke socket message",
+      clientMessageId: socketClientMessageId,
     });
     const newMessage = await newMessagePromise;
 
@@ -306,17 +308,31 @@ async function main() {
       newMessage.content === "smoke socket message",
       "Socket message:new payload failed",
     );
-
-    const validationErrorPromise = waitFor(
-      alphaSocket,
-      "exception",
-      (error) => error?.code === "VALIDATION_ERROR",
+    const duplicateMessagePromise = expectNoEvent(
+      betaSocket,
+      "message:new",
+      (message) => message?.clientMessageId === socketClientMessageId,
     );
-    alphaSocket.emit("message:send", {
+    const duplicateAck = await emitWithAck(alphaSocket, "message:send", {
+      conversationId: directConversation.id,
+      content: "smoke socket message",
+      clientMessageId: socketClientMessageId,
+    });
+    assert(
+      duplicateAck.data.id === sent.data.id,
+      "Socket message retry was not deduplicated",
+    );
+    await duplicateMessagePromise;
+
+    const validationErrorAck = await emitWithAck(alphaSocket, "message:send", {
       conversationId: directConversation.id,
       content: "x".repeat(2001),
     });
-    await validationErrorPromise;
+    assert(
+      validationErrorAck.success === false &&
+        validationErrorAck.code === "VALIDATION_ERROR",
+      "Socket validation error ack was not standardized",
+    );
 
     const updatePromise = waitFor(betaSocket, "message:updated");
     await emitWithAck(alphaSocket, "message:update", {
@@ -370,6 +386,30 @@ async function main() {
     assert(
       Boolean(restDeleteEvent.deletedAt),
       "REST message delete was not broadcast",
+    );
+
+    const reconnectOfflinePromise = waitFor(alphaSocket, "presence:offline");
+    betaSocket.disconnect();
+    await reconnectOfflinePromise;
+    betaSocket = await connectSocket(beta.accessToken);
+    const syncedPromise = waitFor(betaSocket, "conversation:synced");
+    const syncAck = await emitWithAck(betaSocket, "conversation:sync", {
+      conversationIds: [directConversation.id],
+    });
+    const synced = await syncedPromise;
+    assert(syncAck.success === true, "Reconnect sync ack failed");
+    assert(
+      synced.conversationIds.includes(directConversation.id),
+      "Reconnect did not sync active conversation",
+    );
+    const typingAfterReconnectPromise = waitFor(betaSocket, "typing:started");
+    await emitWithAck(alphaSocket, "typing:start", {
+      conversationId: directConversation.id,
+    });
+    const typingAfterReconnect = await typingAfterReconnectPromise;
+    assert(
+      typingAfterReconnect.userId === alpha.user.id,
+      "Reconnected socket did not rejoin the conversation room",
     );
 
     const removalGroup = await request(
@@ -556,6 +596,9 @@ async function main() {
           "message search",
           "unopened conversation realtime delivery",
           "socket message send/update/delete",
+          "socket message retry idempotency",
+          "standard socket success and error ACKs",
+          "socket reconnect conversation sync",
           "socket payload validation",
           "REST message update/delete broadcast",
           "removed participant room eviction",

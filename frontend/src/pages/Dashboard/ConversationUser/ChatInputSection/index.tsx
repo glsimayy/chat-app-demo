@@ -13,12 +13,14 @@ import { MessagesTypes } from "../../../../data/messages";
 
 interface IndexProps {
   onSend: (data: any) => void;
+  onTyping: (value: string) => void;
   replyData: null | MessagesTypes | undefined;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   chatUserDetails: any;
 }
 const Index = ({
   onSend,
+  onTyping,
   replyData,
   onSetReplyData,
   chatUserDetails,
@@ -43,6 +45,7 @@ const Index = ({
   const [text, setText] = useState<null | string>("");
   const onChangeText = (value: string) => {
     setText(value);
+    onTyping(value);
   };
 
   /*
@@ -108,6 +111,7 @@ const Index = ({
     }
 
     setText("");
+    onTyping("");
     setImages(null);
     setFiles(null);
     setemojiPicker(false);
@@ -141,7 +145,7 @@ const Index = ({
             <InputSection value={text} onChange={onChangeText} />
           </div>
           <div className="col-auto">
-            <EndButtons onSubmit={onSubmit} disabled={disabled} />
+            <EndButtons disabled={disabled} />
           </div>
         </div>
       </Form>

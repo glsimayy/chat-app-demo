@@ -41,6 +41,7 @@ Local adresler:
 - Swagger: `http://localhost:3000/api/docs`
 - Demo test ekrani: `http://localhost:3000/demo`
 - Socket.IO namespace: `http://localhost:3000/chat`
+- Runtime metrics (admin): `http://localhost:3000/api/metrics`
 - Dev reset: `POST http://localhost:3000/api/dev/reset`
 
 ### Kontrol
@@ -55,6 +56,7 @@ npm run test:e2e
 npm run build
 npm run prisma:validate
 npm run test:smoke
+npm run test:load
 ```
 
 Unit ve e2e testleri config, CORS, rate limit, validation ve yetki kurallarini
@@ -67,6 +69,8 @@ tamamini birlikte kontrol eder:
 - message pagination
 - Socket.IO message send/update/delete
 - Socket.IO presence
+- reconnect conversation sync
+- idempotent message retry
 - bot group create
 - group rename
 
@@ -78,6 +82,20 @@ request'te otomatik calisir.
 - Backend kontratlari: `docs/backend-contracts.md`
 - Database kurulumu: `docs/database-setup.md`
 - Gunluk kayit: `docs/daily-log.md`
+- Postman koleksiyonu: `docs/postman/chat-app-demo.postman_collection.json`
+
+## Frontend
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+Demo UI `http://localhost:5173` adresinde calisir. API adresi gerekirse
+`REACT_APP_API_URL` ile degistirilebilir; varsayilan deger
+`http://localhost:3000/api` olur. Mesajlar socket bagliyken ACK ile gonderilir,
+baglanti yoksa ayni `clientMessageId` ile REST fallback kullanilir.
 
 ## Ana Ozellikler
 
@@ -94,6 +112,10 @@ request'te otomatik calisir.
 - Typing indicator
 - Read receipt
 - Online presence
+- Socket reconnect ve conversation sync
+- `clientMessageId` ile tekrar gonderim korumasi
+- Admin runtime metrics
+- Structured HTTP ve Socket.IO loglari
 - Java/bot entegrasyonu icin `POST /api/bot/create-group`
 - Geriye uyumlu bot alias'i: `POST /api/bot/groups`
 

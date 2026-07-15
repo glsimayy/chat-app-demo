@@ -70,6 +70,33 @@
   padding: 12px 20px;
 }
 
+.conversation-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 0;
+
+  .user-chat-topbar {
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .chat-conversation {
+    flex: 1;
+    height: auto;
+    min-height: 0;
+  }
+
+  .chat-conversation .chat-conversation-list {
+    margin-top: 0;
+  }
+
+  .chat-input-section {
+    position: relative;
+    flex-shrink: 0;
+  }
+}
+
 .cursor-pointer {
   cursor: pointer;
 }

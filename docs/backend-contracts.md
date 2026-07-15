@@ -10,6 +10,8 @@ Bu dokuman Main Backend, Java ve Database tarafinin ayni kontrata gore calismasi
 - Swagger JSON: `GET /api/docs-json`
 - Demo test ekrani: `GET /demo`
 - Socket.IO namespace: `/chat`
+- Admin metrics: `GET /api/metrics`
+- Postman collection: `docs/postman/chat-app-demo.postman_collection.json`
 
 ## Env Notlari
 
@@ -36,9 +38,13 @@ npm run test:e2e
 npm run build
 npm run prisma:validate
 npm run test:smoke
+npm run test:load
 ```
 
-`test:smoke` server acikken calisir ve auth, direct chat, pagination, Socket.IO, presence, bot group ve group rename akislarini kontrol eder.
+`test:smoke` server acikken auth, direct chat, pagination, Socket.IO, presence,
+reconnect sync, tekrar mesaj korumasi, bot group ve group rename akislarini
+kontrol eder. `test:load` varsayilan olarak 5 socket ile 50 mesaj gonderir ve
+throughput ile ACK p50/p95/max surelerini raporlar.
 
 ## Genel Response Formati
 
@@ -212,9 +218,14 @@ Grup owner'i veya admin kullanici ownership'i aktif bir participante devredebili
 
 ```json
 {
-  "content": "Selam ekip"
+  "content": "Selam ekip",
+  "clientMessageId": "client-generated-uuid"
 }
 ```
+
+`clientMessageId` opsiyoneldir. Ayni kullanici ayni id, conversation ve content
+ile tekrar gonderirse backend yeni mesaj olusturmaz; ilk mesaji geri dondurur.
+Ayni id farkli conversation veya content ile kullanilirsa `409 Conflict` doner.
 
 `GET /api/conversations/{conversationId}/messages`
 
@@ -236,6 +247,7 @@ Response:
   "items": [
     {
       "id": "message-uuid",
+      "clientMessageId": "client-generated-uuid",
       "conversationId": "conversation-uuid",
       "senderId": "user-uuid",
       "content": "Merhaba",
@@ -405,6 +417,24 @@ Socket event hatalari `exception` eventi ile ayni formatta dondurulur:
 Sabit hata kodlari: `BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`,
 `CONFLICT`, `VALIDATION_ERROR`, `RATE_LIMITED` ve `INTERNAL_ERROR`.
 
+Client ACK callback gonderirse basari ve hata callback uzerinden standart
+zarfta doner. Callback yoksa hata `exception` eventi olarak push edilir.
+
+### session:ready ve conversation:sync
+
+Baglanti kurulunca server `session:ready` eventi ile kullanicinin aktif
+conversation id'lerini gonderir. Reconnect sonrasinda client room uyeliklerini
+geri kurmak icin su eventi yollar:
+
+```json
+{
+  "conversationIds": ["conversation-uuid"]
+}
+```
+
+Server ACK ve `conversation:synced` push'u ile senkronlanan id'leri ve
+`syncedAt` zamanini dondurur.
+
 ### conversation:join
 
 Client event:
@@ -573,7 +603,8 @@ Client event:
 ```json
 {
   "conversationId": "conversation-uuid",
-  "content": "Merhaba"
+  "content": "Merhaba",
+  "clientMessageId": "client-generated-uuid"
 }
 ```
 
@@ -740,6 +771,7 @@ Unique onerisi:
 ### messages
 
 - `id`: uuid primary key
+- `clientMessageId`: nullable uuid; sender ile birlikte unique
 - `conversationId`: conversation id
 - `senderId`: nullable user id
 - `content`: string

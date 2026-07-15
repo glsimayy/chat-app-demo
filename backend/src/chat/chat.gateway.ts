@@ -1,6 +1,7 @@
 import {
   OnModuleDestroy,
   OnModuleInit,
+  Logger,
   UseFilters,
   UsePipes,
   ValidationPipe,
@@ -21,6 +22,7 @@ import { JwtService } from "@nestjs/jwt";
 import { Server, Socket } from "socket.io";
 import { AuthenticatedUser } from "../auth/authenticated-user.interface";
 import { ConversationsService } from "../conversations/conversations.service";
+import { MetricsService } from "../metrics/metrics.service";
 import { CreateMessageDto } from "../conversations/dto/create-message.dto";
 import { TransferGroupOwnerDto } from "../conversations/dto/transfer-group-owner.dto";
 import { UpdateGroupConversationDto } from "../conversations/dto/update-group-conversation.dto";
@@ -33,6 +35,7 @@ import {
   ConversationEventPayloadDto,
   DeleteMessagePayloadDto,
   SendMessagePayloadDto,
+  SyncConversationsPayloadDto,
   TransferOwnerPayloadDto,
   UpdateConversationPayloadDto,
   UpdateMessagePayloadDto,
@@ -88,6 +91,7 @@ export class ChatGateway
     string,
     AuthenticatedSocket
   >();
+  private readonly logger = new Logger(ChatGateway.name);
   private removeRealtimeListener?: () => void;
 
   constructor(
@@ -96,6 +100,7 @@ export class ChatGateway
     private readonly configService: ConfigService,
     private readonly realtimeEventsService: RealtimeEventsService,
     private readonly socketRateLimiterService: SocketRateLimiterService,
+    private readonly metricsService: MetricsService,
   ) {}
 
   onModuleInit() {
@@ -124,8 +129,31 @@ export class ChatGateway
 
       this.trackOnlineSocket(payload.sub, client.id);
       this.authenticatedSockets.set(client.id, client);
+      this.metricsService.recordSocketConnection();
+      this.logger.log(
+        JSON.stringify({
+          type: "socket_connected",
+          socketId: client.id,
+          userId: payload.sub,
+        }),
+      );
       await client.join(this.userRoom(payload.sub));
+      client.emit("session:ready", {
+        userId: payload.sub,
+        conversationIds:
+          this.conversationsService.getActiveConversationIdsForUser(
+            payload.sub,
+          ),
+        connectedAt: new Date(),
+      });
     } catch {
+      this.metricsService.recordSocketError();
+      this.logger.warn(
+        JSON.stringify({
+          type: "socket_connection_rejected",
+          socketId: client.id,
+        }),
+      );
       client.emit("exception", {
         success: false,
         code: "UNAUTHORIZED",
@@ -146,6 +174,14 @@ export class ChatGateway
 
     const userStillOnline = this.untrackOnlineSocket(user.id, client.id);
     this.authenticatedSockets.delete(client.id);
+    this.metricsService.recordSocketDisconnect();
+    this.logger.log(
+      JSON.stringify({
+        type: "socket_disconnected",
+        socketId: client.id,
+        userId: user.id,
+      }),
+    );
 
     if (userStillOnline) {
       return;
@@ -211,12 +247,42 @@ export class ChatGateway
     const message = await this.conversationsService.createMessage(
       payload.conversationId,
       user.id,
-      { content: payload.content } satisfies CreateMessageDto,
+      {
+        content: payload.content,
+        clientMessageId: payload.clientMessageId,
+      } satisfies CreateMessageDto,
     );
 
     const response = { success: true, data: message };
 
     ack?.(response);
+
+    return response;
+  }
+
+  @SubscribeMessage("conversation:sync")
+  async syncConversations(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: SyncConversationsPayloadDto,
+    @Ack() ack?: (response: unknown) => void,
+  ) {
+    this.consumeRateLimit(client, "conversation:sync");
+    const user = this.getUser(client);
+
+    for (const conversationId of payload.conversationIds) {
+      await this.conversationsService.findOneForUser(conversationId, user.id);
+      await client.join(this.conversationRoom(conversationId));
+      client.data.conversationIds?.add(conversationId);
+    }
+
+    const syncState = {
+      conversationIds: payload.conversationIds,
+      syncedAt: new Date(),
+    };
+    const response = { success: true, data: syncState };
+
+    ack?.(response);
+    client.emit("conversation:synced", syncState);
 
     return response;
   }
@@ -437,6 +503,7 @@ export class ChatGateway
   }
 
   private consumeRateLimit(client: AuthenticatedSocket, eventName: string) {
+    this.metricsService.recordSocketEvent(eventName);
     this.socketRateLimiterService.consume(client.id, eventName);
   }
 

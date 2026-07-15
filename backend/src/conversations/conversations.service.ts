@@ -1,11 +1,13 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import { UsersService } from "../users/users.service";
 import { UserRole } from "../users/user-role.enum";
+import { MetricsService } from "../metrics/metrics.service";
 import { ConversationType } from "./conversation-type.enum";
 import { ConversationRecord, MessageRecord } from "./conversation.types";
 import { AddParticipantDto } from "./dto/add-participant.dto";
@@ -34,6 +36,7 @@ export class ConversationsService {
   constructor(
     private readonly usersService: UsersService,
     private readonly realtimeEventsService: RealtimeEventsService,
+    private readonly metricsService: MetricsService,
   ) {}
 
   async createDirectConversation(
@@ -399,8 +402,26 @@ export class ConversationsService {
       throw new BadRequestException("Message content cannot be empty");
     }
 
+    const existingMessage = dto.clientMessageId
+      ? this.findMessageByClientId(userId, dto.clientMessageId)
+      : undefined;
+
+    if (existingMessage) {
+      if (
+        existingMessage.conversationId !== conversationId ||
+        existingMessage.content !== content
+      ) {
+        throw new ConflictException(
+          "clientMessageId has already been used for another message",
+        );
+      }
+
+      return existingMessage;
+    }
+
     const message: MessageRecord = {
       id: crypto.randomUUID(),
+      clientMessageId: dto.clientMessageId ?? null,
       conversationId,
       senderId: userId,
       content,
@@ -411,10 +432,17 @@ export class ConversationsService {
     };
 
     this.messages.get(conversation.id)?.push(message);
+    this.metricsService.recordMessageCreated();
     conversation.updatedAt = message.createdAt;
     this.realtimeEventsService.emit({ type: "message.created", data: message });
 
     return message;
+  }
+
+  getActiveConversationIdsForUser(userId: string) {
+    return Array.from(this.conversations.values())
+      .filter((conversation) => this.isParticipant(conversation, userId))
+      .map((conversation) => conversation.id);
   }
 
   async findMessages(
@@ -819,6 +847,7 @@ export class ConversationsService {
   ) {
     const message: MessageRecord = {
       id: crypto.randomUUID(),
+      clientMessageId: null,
       conversationId,
       senderId: null,
       content,
@@ -829,6 +858,7 @@ export class ConversationsService {
     };
 
     this.messages.get(conversationId)?.push(message);
+    this.metricsService.recordMessageCreated();
 
     return message;
   }
@@ -852,6 +882,21 @@ export class ConversationsService {
     }
 
     return message;
+  }
+
+  private findMessageByClientId(userId: string, clientMessageId: string) {
+    for (const messages of this.messages.values()) {
+      const message = messages.find(
+        (item) =>
+          item.senderId === userId && item.clientMessageId === clientMessageId,
+      );
+
+      if (message) {
+        return message;
+      }
+    }
+
+    return undefined;
   }
 
   private ensureMessageCanBeChanged(message: MessageRecord, userId: string) {

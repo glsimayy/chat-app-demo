@@ -1,11 +1,12 @@
 import { Body, Controller, Post, UseGuards } from "@nestjs/common";
 import {
-  ApiCreatedResponse,
   ApiHeader,
   ApiTags,
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
+import { ApiSuccessResponse } from "../common/swagger/api-success-response.decorator";
+import { ConversationResponseDto } from "../common/swagger/backend-response.dto";
 import { ConversationsService } from "../conversations/conversations.service";
 import { BotSecretGuard } from "./bot-secret.guard";
 import { CreateBotGroupDto } from "./dto/create-bot-group.dto";
@@ -22,7 +23,10 @@ export class BotController {
     name: "x-bot-secret",
     description: "Shared secret for Java/bot webhook calls",
   })
-  @ApiCreatedResponse({ description: "Group conversation created by bot" })
+  @ApiSuccessResponse(ConversationResponseDto, {
+    description: "Group conversation created by bot",
+    status: 201,
+  })
   @ApiUnauthorizedResponse({ description: "Bot secret is missing or invalid" })
   async createGroup(@Body() dto: CreateBotGroupDto) {
     return this.conversationsService.createExternalGroupConversation(

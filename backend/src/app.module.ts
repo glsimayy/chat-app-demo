@@ -10,6 +10,7 @@ import { validateEnv } from "./config/env.validation";
 import { ConversationsModule } from "./conversations/conversations.module";
 import { DevModule } from "./dev/dev.module";
 import { HealthModule } from "./health/health.module";
+import { MetricsModule } from "./metrics/metrics.module";
 import { UsersModule } from "./users/users.module";
 
 @Module({
@@ -29,6 +30,7 @@ import { UsersModule } from "./users/users.module";
       ],
     }),
     HealthModule,
+    MetricsModule,
     UsersModule,
     AuthModule,
     ConversationsModule,

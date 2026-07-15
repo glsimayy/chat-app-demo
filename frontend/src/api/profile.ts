@@ -1,20 +1,32 @@
-import { APIClient } from "./apiCore";
-import * as url from "./urls";
-
-const api = new APIClient();
+import { getCurrentAuthUser } from "./backendAdapters";
+import { settings } from "../data/settings";
 
 const getProfileDetails = () => {
-  return api.get(url.GET_PROFILE_DETAILS);
+  const user = getCurrentAuthUser();
+  const username = user?.username || "User";
+
+  return Promise.resolve({
+    basicDetails: {
+      firstName: username,
+      lastName: "",
+      title: user?.role === "admin" ? "Administrator" : "User",
+      description: "",
+      fullName: username,
+      email: user?.email || "",
+      location: "",
+      avatar: user?.profileImage || "",
+      coverImage: "",
+    },
+    media: { total: 0, list: [] },
+    attachedFiles: { total: 0, list: [] },
+  });
 };
 
 const getSettings = () => {
-  return api.get(url.GET_USER_SETTINGS);
+  return Promise.resolve(settings);
 };
 const updateSettings = (field: string, value: any) => {
-  return api.update(url.UPDATE_ETTINGS, {
-    field: field,
-    value: value,
-  });
+  return Promise.resolve({ field, value });
 };
 
 export { getProfileDetails, getSettings, updateSettings };

@@ -63,6 +63,26 @@ const createChannel = (data: any) => {
   });
 };
 
+const getConversationParticipants = async (
+  conversationId: string | number,
+) => {
+  const participants: any = await api.get(
+    `/conversations/${conversationId}/participants`,
+  );
+
+  return Array.isArray(participants) ? participants : [];
+};
+
+const addConversationParticipant = (
+  conversationId: string | number,
+  userId: string,
+) => api.create(`/conversations/${conversationId}/participants`, { userId });
+
+const removeConversationParticipant = (
+  conversationId: string | number,
+  userId: string,
+) => api.delete(`/conversations/${conversationId}/participants/${userId}`);
+
 const getChatUserDetails = async (id: string | number) => {
   const [users, conversation] = await Promise.all([
     getUsers(),
@@ -94,7 +114,10 @@ const sendMessage = (data: any) => {
     (data?.attachments?.length ? "[attachment]" : "") ||
     (data?.image?.length || data?.newimage?.length ? "[image]" : "");
 
-  return api.create(`/conversations/${conversationId}/messages`, { content });
+  return api.create(`/conversations/${conversationId}/messages`, {
+    content,
+    clientMessageId: data?.clientMessageId,
+  });
 };
 
 const receiveMessage = (id: string | number) => getChatUserConversations(id);
@@ -119,7 +142,10 @@ const forwardMessage = async (data: any) => {
   const content = data?.forwardedMessage?.text || data?.message || "";
   await Promise.all(
     (data.contacts || []).map((conversationId: string | number) =>
-      api.create(`/conversations/${conversationId}/messages`, { content })
+      api.create(`/conversations/${conversationId}/messages`, {
+        content,
+        clientMessageId: crypto.randomUUID(),
+      })
     )
   );
 
@@ -151,11 +177,15 @@ const deleteImage = (
 ) => Promise.resolve("Image deleted");
 
 export {
+  getUsers,
   getFavourites,
   getDirectMessages,
   getChannels,
   addContacts,
   createChannel,
+  getConversationParticipants,
+  addConversationParticipant,
+  removeConversationParticipant,
   getChatUserDetails,
   getChatUserConversations,
   sendMessage,

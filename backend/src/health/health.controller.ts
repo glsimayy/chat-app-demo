@@ -1,13 +1,17 @@
 ﻿import { Controller, Get } from "@nestjs/common";
-import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import { ApiTags } from "@nestjs/swagger";
 import { SkipThrottle } from "@nestjs/throttler";
+import { ApiSuccessResponse } from "../common/swagger/api-success-response.decorator";
+import { HealthResponseDto } from "../common/swagger/backend-response.dto";
 
 @ApiTags("health")
 @Controller("health")
 @SkipThrottle()
 export class HealthController {
   @Get()
-  @ApiOkResponse({ description: "Backend health status" })
+  @ApiSuccessResponse(HealthResponseDto, {
+    description: "Backend health status",
+  })
   getHealth() {
     return {
       status: "ok",

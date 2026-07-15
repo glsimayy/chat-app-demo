@@ -1,18 +1,13 @@
-import { APIClient } from "./apiCore";
-import * as url from "./urls";
-
-const api = new APIClient();
-
 const getBookmarks = () => {
-  return api.get(url.GET_BOOKMARKS_LIST);
+  return Promise.resolve([]);
 };
 
-const deleteBookmark = (id: number) => {
-  return api.delete(url.DELETE_BOOKMARK + "/" + id, { params: { id } });
+const deleteBookmark = (_id: number) => {
+  return Promise.resolve("Bookmark removed");
 };
 
-const updateBookmark = (id: number, data: object) => {
-  return api.update(url.UPDATE_BOOKMARK + "/" + id, data);
+const updateBookmark = (_id: number, data: object) => {
+  return Promise.resolve(data);
 };
 
 export { getBookmarks, deleteBookmark, updateBookmark };

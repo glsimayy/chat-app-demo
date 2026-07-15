@@ -1,5 +1,6 @@
 import { Injectable, Logger, NestMiddleware } from "@nestjs/common";
 import { NextFunction, Request, Response } from "express";
+import { MetricsService } from "../../metrics/metrics.service";
 
 type RequestWithId = Request & {
   requestId?: string;
@@ -8,6 +9,8 @@ type RequestWithId = Request & {
 @Injectable()
 export class RequestLoggerMiddleware implements NestMiddleware {
   private readonly logger = new Logger(RequestLoggerMiddleware.name);
+
+  constructor(private readonly metricsService: MetricsService) {}
 
   use(request: RequestWithId, response: Response, next: NextFunction) {
     const startedAt = Date.now();
@@ -18,7 +21,16 @@ export class RequestLoggerMiddleware implements NestMiddleware {
 
     response.on("finish", () => {
       const durationMs = Date.now() - startedAt;
-      const message = `${request.method} ${request.originalUrl} ${response.statusCode} ${durationMs}ms requestId=${requestId}`;
+      const message = JSON.stringify({
+        type: "http_request",
+        requestId,
+        method: request.method,
+        path: request.originalUrl,
+        statusCode: response.statusCode,
+        durationMs,
+      });
+
+      this.metricsService.recordHttpRequest(response.statusCode, durationMs);
 
       if (response.statusCode >= 500) {
         this.logger.error(message);

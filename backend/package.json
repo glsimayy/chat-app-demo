@@ -17,6 +17,7 @@
         "test": "jest --config jest.config.cjs --runInBand",
         "test:e2e": "jest --config test/jest-e2e.json --runInBand",
         "test:smoke": "node scripts/smoke-test.js",
+        "test:load": "node scripts/load-test.js",
         "format": "prettier --write \"src/**/*.ts\""
     },
     "keywords": [],

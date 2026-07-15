@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import { WsException } from "@nestjs/websockets";
 import { Socket } from "socket.io";
+import { MetricsService } from "../metrics/metrics.service";
 
 interface ErrorBody {
   code?: string;
@@ -22,15 +23,28 @@ interface ErrorBody {
 export class SocketExceptionFilter implements WsExceptionFilter {
   private readonly logger = new Logger(SocketExceptionFilter.name);
 
+  constructor(private readonly metricsService: MetricsService) {}
+
   catch(exception: unknown, host: ArgumentsHost) {
+    this.metricsService.recordSocketError();
     const client = host.switchToWs().getClient<Socket>();
     const response = this.normalize(exception);
-
-    client.emit("exception", {
+    const payload = {
       success: false,
       ...response,
       timestamp: new Date().toISOString(),
-    });
+    };
+    const ack = host
+      .getArgs()
+      .find((argument) => typeof argument === "function") as
+      ((response: unknown) => void) | undefined;
+
+    if (ack) {
+      ack(payload);
+      return;
+    }
+
+    client.emit("exception", payload);
   }
 
   private normalize(exception: unknown) {
