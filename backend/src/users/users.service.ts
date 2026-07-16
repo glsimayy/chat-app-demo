@@ -1,5 +1,11 @@
-import { ConflictException, Injectable } from "@nestjs/common";
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import * as bcrypt from "bcrypt";
 import { UserRole } from "./user-role.enum";
 import { PublicUser, UserRecord } from "./user.types";
 
@@ -10,11 +16,54 @@ interface CreateUserInput {
   role?: UserRole;
 }
 
+const DEVELOPMENT_USERS = [
+  {
+    username: "admin",
+    email: "admin@ello.local",
+    password: "Admin123!",
+    role: UserRole.Admin,
+  },
+  {
+    username: "user1",
+    email: "user1@ello.local",
+    password: "User123!",
+    role: UserRole.User,
+  },
+  {
+    username: "user2",
+    email: "user2@ello.local",
+    password: "User123!",
+    role: UserRole.User,
+  },
+] as const;
+
 @Injectable()
-export class UsersService {
+export class UsersService implements OnModuleInit {
   private readonly users = new Map<string, UserRecord>();
+  private readonly logger = new Logger(UsersService.name);
 
   constructor(private readonly configService: ConfigService) {}
+
+  async onModuleInit() {
+    if (
+      this.configService.get<string>("NODE_ENV", "development") !==
+      "development"
+    ) {
+      return;
+    }
+
+    for (const demoUser of DEVELOPMENT_USERS) {
+      const passwordHash = await bcrypt.hash(demoUser.password, 10);
+      await this.create({
+        username: demoUser.username,
+        email: demoUser.email,
+        passwordHash,
+        role: demoUser.role,
+      });
+    }
+
+    this.logger.log(`Seeded ${DEVELOPMENT_USERS.length} development users`);
+  }
 
   async create(input: CreateUserInput): Promise<PublicUser> {
     const email = input.email.toLowerCase();

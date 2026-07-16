@@ -44,6 +44,14 @@ Local adresler:
 - Runtime metrics (admin): `http://localhost:3000/api/metrics`
 - Dev reset: `POST http://localhost:3000/api/dev/reset`
 
+Development modunda backend her acildiginda su demo hesaplari hazirlanir:
+
+| Rol | Kullanici adi | E-posta | Sifre |
+| --- | --- | --- | --- |
+| Admin | `admin` | `admin@ello.local` | `Admin123!` |
+| User | `user1` | `user1@ello.local` | `User123!` |
+| User | `user2` | `user2@ello.local` | `User123!` |
+
 ### Kontrol
 
 Server acikken:
@@ -121,7 +129,7 @@ baglanti yoksa ayni `clientMessageId` ile REST fallback kullanilir.
 
 ## Notlar
 
-- Ilk register olan kullanici local modda `admin` olur.
+- Development modunda hazir admin hesabi olusturulur; yeni kayitlar `user` olur.
 - Grup olusturma REST endpointi admin ister.
 - Bot group endpointi JWT yerine `x-bot-secret` header'i kullanir.
 - Auth endpointleri HTTP rate limit, Socket.IO eventleri socket bazli rate limit uygular.
