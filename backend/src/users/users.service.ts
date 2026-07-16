@@ -3,9 +3,12 @@ import {
   Injectable,
   Logger,
   OnModuleInit,
+  Optional,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { Prisma, UserRole as PrismaUserRole } from "@prisma/client";
 import * as bcrypt from "bcrypt";
+import { PrismaService } from "../database/prisma.service";
 import { UserRole } from "./user-role.enum";
 import { PublicUser, UserRecord } from "./user.types";
 
@@ -42,9 +45,23 @@ export class UsersService implements OnModuleInit {
   private readonly users = new Map<string, UserRecord>();
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    @Optional() private readonly prismaService?: PrismaService,
+  ) {}
 
   async onModuleInit() {
+    if (this.prismaService?.enabled) {
+      const persistedUsers = await this.prismaService.client.user.findMany();
+
+      for (const persistedUser of persistedUsers) {
+        const user = this.toUserRecord(persistedUser);
+        this.users.set(user.id, user);
+      }
+
+      this.logger.log(`Loaded ${persistedUsers.length} users from PostgreSQL`);
+    }
+
     if (
       this.configService.get<string>("NODE_ENV", "development") !==
       "development"
@@ -53,6 +70,10 @@ export class UsersService implements OnModuleInit {
     }
 
     for (const demoUser of DEVELOPMENT_USERS) {
+      if (this.findByEmailSync(demoUser.email)) {
+        continue;
+      }
+
       const passwordHash = await bcrypt.hash(demoUser.password, 10);
       await this.create({
         username: demoUser.username,
@@ -62,7 +83,7 @@ export class UsersService implements OnModuleInit {
       });
     }
 
-    this.logger.log(`Seeded ${DEVELOPMENT_USERS.length} development users`);
+    this.logger.log("Ensured development demo users exist");
   }
 
   async create(input: CreateUserInput): Promise<PublicUser> {
@@ -85,6 +106,26 @@ export class UsersService implements OnModuleInit {
       role: input.role ?? this.getDefaultRole(),
       createdAt: new Date(),
     };
+
+    if (this.prismaService?.enabled) {
+      try {
+        await this.prismaService.client.user.create({
+          data: {
+            ...user,
+            role: user.role as unknown as PrismaUserRole,
+          },
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          throw new ConflictException("Email or username already exists");
+        }
+
+        throw error;
+      }
+    }
 
     this.users.set(user.id, user);
     return this.toPublicUser(user);
@@ -109,8 +150,14 @@ export class UsersService implements OnModuleInit {
       return undefined;
     }
 
-    user.passwordHash = passwordHash;
+    if (this.prismaService?.enabled) {
+      await this.prismaService.client.user.update({
+        where: { id },
+        data: { passwordHash },
+      });
+    }
 
+    user.passwordHash = passwordHash;
     return this.toPublicUser(user);
   }
 
@@ -137,8 +184,13 @@ export class UsersService implements OnModuleInit {
       .map((user) => this.toPublicUser(user));
   }
 
-  clearAll() {
+  async clearAll() {
     const deletedUsers = this.users.size;
+
+    if (this.prismaService?.enabled) {
+      await this.prismaService.client.user.deleteMany();
+    }
+
     this.users.clear();
 
     return { deletedUsers };
@@ -167,5 +219,23 @@ export class UsersService implements OnModuleInit {
         "production";
 
     return isLocalFirstUser ? UserRole.Admin : UserRole.User;
+  }
+
+  private toUserRecord(user: {
+    id: string;
+    username: string;
+    email: string;
+    passwordHash: string;
+    role: string;
+    createdAt: Date;
+  }): UserRecord {
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      passwordHash: user.passwordHash,
+      role: user.role as UserRole,
+      createdAt: user.createdAt,
+    };
   }
 }

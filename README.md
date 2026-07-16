@@ -19,7 +19,9 @@ politikasi `npm` komutunu engelliyorsa ayni komutlar `npm.cmd install` ve
 
 ## Backend
 
-Backend NestJS ile yazildi ve su an in-memory data ile calisir. Server restart edilince local veriler sifirlanir.
+Backend NestJS ile yazildi. `DATABASE_URL` tanimliysa PostgreSQL + Prisma ile
+kalici, tanimli degilse gelistirme ve test icin in-memory calisir. In-memory
+modda server restart edilince local veriler sifirlanir.
 
 ### Kurulum
 
@@ -37,10 +39,13 @@ Production notlari:
 - Swagger varsayilan olarak kapalidir.
 - HTTP ve Socket.IO rate limit ayarlari `.env.example` icinden degistirilebilir.
 
-Local PostgreSQL gerekirse repo root klasorunde:
+Kalici local PostgreSQL icin repo root klasorunde:
 
 ```bash
 docker compose up -d postgres
+cd backend
+npx prisma migrate deploy
+npm run prisma:generate
 ```
 
 ### Calistirma
@@ -98,7 +103,25 @@ tamamini birlikte kontrol eder:
 - group rename
 
 Bu kontroller `.github/workflows/backend-ci.yml` ile her ilgili push ve pull
-request'te otomatik calisir.
+request'te gercek PostgreSQL 16 servisi uzerinde otomatik calisir.
+
+## Java Webhook
+
+Ticket webhook adaptoru `java-webhook` klasorundedir. Java 17 veya daha yeni
+bir JDK ile:
+
+```powershell
+cd java-webhook
+$env:WEBHOOK_SECRET = "local-webhook-secret"
+$env:BOT_WEBHOOK_SECRET = "backend ile ayni bot secret"
+$env:CHAT_BACKEND_BASE_URL = "http://localhost:3000"
+.\mvnw.cmd spring-boot:run
+```
+
+Servis `http://localhost:8080/webhook/ticket-created` endpoint'ini acar ve
+dogruladigi istegi NestJS `POST /api/bot/create-group` endpoint'ine iletir.
+Kurulum ve payload ornegi `java-webhook/README.md` icindedir.
+Java testleri `.github/workflows/java-webhook-ci.yml` ile otomatik calisir.
 
 ## Takim Dokumanlari
 
@@ -162,6 +185,6 @@ message akislarini gercek frontend, backend ve Socket.IO uzerinde kontrol eder.
 - Grup olusturma REST endpointi admin ister.
 - Bot group endpointi JWT yerine `x-bot-secret` header'i kullanir.
 - Auth endpointleri HTTP rate limit, Socket.IO eventleri socket bazli rate limit uygular.
-- Database entegrasyonu icin beklenen model kontrati `docs/backend-contracts.md` icinde tutulur.
-- `DATABASE_URL` simdilik opsiyoneldir, Prisma gecisinde aktif kullanilacak.
-- Smoke test local server'da test kullanicilari olusturur. Manuel demo oncesi `POST /api/dev/reset` ile in-memory veri temizlenebilir.
+- Database model kontrati `docs/backend-contracts.md` icinde tutulur.
+- `DATABASE_URL` opsiyoneldir; tanimlandiginda Prisma kaliciligi otomatik aktif olur.
+- Smoke test local server'da test kullanicilari olusturur. Manuel demo oncesi `POST /api/dev/reset` ile gelistirme verisi temizlenebilir.

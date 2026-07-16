@@ -9,6 +9,7 @@ import { RequestLoggerMiddleware } from "./common/middleware/request-logger.midd
 import { validateEnv } from "./config/env.validation";
 import { ConversationsModule } from "./conversations/conversations.module";
 import { DevModule } from "./dev/dev.module";
+import { DatabaseModule } from "./database/database.module";
 import { HealthModule } from "./health/health.module";
 import { MetricsModule } from "./metrics/metrics.module";
 import { UsersModule } from "./users/users.module";
@@ -31,6 +32,7 @@ import { UsersModule } from "./users/users.module";
     }),
     HealthModule,
     MetricsModule,
+    DatabaseModule,
     UsersModule,
     AuthModule,
     ConversationsModule,

@@ -4,7 +4,15 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  OnModuleInit,
+  Optional,
 } from "@nestjs/common";
+import {
+  ConversationType as PrismaConversationType,
+  MessageType as PrismaMessageType,
+  ParticipantRole as PrismaParticipantRole,
+} from "@prisma/client";
+import { PrismaService } from "../database/prisma.service";
 import { UsersService } from "../users/users.service";
 import { UserRole } from "../users/user-role.enum";
 import { MetricsService } from "../metrics/metrics.service";
@@ -25,7 +33,7 @@ import { ParticipantRole } from "./participant-role.enum";
 import { RealtimeEventsService } from "./realtime-events.service";
 
 @Injectable()
-export class ConversationsService {
+export class ConversationsService implements OnModuleInit {
   private readonly conversations = new Map<string, ConversationRecord>();
   private readonly messages = new Map<string, MessageRecord[]>();
   private readonly externalGroupCreations = new Map<
@@ -37,7 +45,57 @@ export class ConversationsService {
     private readonly usersService: UsersService,
     private readonly realtimeEventsService: RealtimeEventsService,
     private readonly metricsService: MetricsService,
+    @Optional() private readonly prismaService?: PrismaService,
   ) {}
+
+  async onModuleInit() {
+    if (!this.prismaService?.enabled) {
+      return;
+    }
+
+    const persistedConversations =
+      await this.prismaService.client.conversation.findMany({
+        include: {
+          participants: true,
+          messages: { orderBy: { createdAt: "asc" } },
+        },
+      });
+
+    for (const persistedConversation of persistedConversations) {
+      const conversation: ConversationRecord = {
+        id: persistedConversation.id,
+        type: persistedConversation.type as ConversationType,
+        name: persistedConversation.name,
+        createdBy: persistedConversation.createdBy,
+        externalRef: persistedConversation.externalRef,
+        participants: persistedConversation.participants.map((participant) => ({
+          userId: participant.userId,
+          role: participant.role as ParticipantRole,
+          joinedAt: participant.joinedAt,
+          lastReadAt: participant.lastReadAt,
+          leftAt: participant.leftAt,
+        })),
+        createdAt: persistedConversation.createdAt,
+        updatedAt: persistedConversation.updatedAt,
+      };
+      const messages: MessageRecord[] = persistedConversation.messages.map(
+        (message) => ({
+          id: message.id,
+          clientMessageId: message.clientMessageId,
+          conversationId: message.conversationId,
+          senderId: message.senderId,
+          content: message.content,
+          messageType: message.messageType as MessageType,
+          createdAt: message.createdAt,
+          updatedAt: message.updatedAt,
+          deletedAt: message.deletedAt,
+        }),
+      );
+
+      this.conversations.set(conversation.id, conversation);
+      this.messages.set(conversation.id, messages);
+    }
+  }
 
   async createDirectConversation(
     currentUserId: string,
@@ -91,6 +149,7 @@ export class ConversationsService {
       updatedAt: now,
     };
 
+    await this.persistNewConversation(conversation);
     this.conversations.set(conversation.id, conversation);
     this.messages.set(conversation.id, []);
     this.realtimeEventsService.emit({
@@ -133,13 +192,16 @@ export class ConversationsService {
       updatedAt: now,
     };
 
-    this.conversations.set(conversation.id, conversation);
-    this.messages.set(conversation.id, []);
-    const systemMessage = this.addSystemMessage(
+    const systemMessage = this.buildSystemMessage(
       conversation.id,
       `Group "${conversation.name}" was created.`,
       now,
     );
+
+    await this.persistNewConversation(conversation, [systemMessage]);
+    this.conversations.set(conversation.id, conversation);
+    this.messages.set(conversation.id, [systemMessage]);
+    this.metricsService.recordMessageCreated();
     this.realtimeEventsService.emit({
       type: "conversation.created",
       data: conversation,
@@ -165,7 +227,7 @@ export class ConversationsService {
         currentUserId,
         dto,
       );
-      this.addInitialSystemMessage(conversation.id, initialSystemMessage);
+      await this.addInitialSystemMessage(conversation.id, initialSystemMessage);
       return conversation;
     }
 
@@ -190,8 +252,11 @@ export class ConversationsService {
       dto,
       normalizedExternalRef,
     )
-      .then((conversation) => {
-        this.addInitialSystemMessage(conversation.id, initialSystemMessage);
+      .then(async (conversation) => {
+        await this.addInitialSystemMessage(
+          conversation.id,
+          initialSystemMessage,
+        );
         return conversation;
       })
       .finally(() => {
@@ -233,11 +298,14 @@ export class ConversationsService {
     const now = new Date();
     conversation.name = name;
     conversation.updatedAt = now;
-    const systemMessage = this.addSystemMessage(
+    const systemMessage = this.buildSystemMessage(
       conversation.id,
       `Group name changed from "${oldName}" to "${name}".`,
       now,
     );
+    await this.persistConversationState(conversation, [systemMessage]);
+    this.messages.get(conversation.id)?.push(systemMessage);
+    this.metricsService.recordMessageCreated();
     this.realtimeEventsService.emit({
       type: "conversation.updated",
       data: conversation,
@@ -292,11 +360,14 @@ export class ConversationsService {
     conversation.updatedAt = now;
 
     const user = await this.usersService.findById(dto.userId);
-    const systemMessage = this.addSystemMessage(
+    const systemMessage = this.buildSystemMessage(
       conversation.id,
       `${user?.username ?? "A user"} is now the group owner.`,
       now,
     );
+    await this.persistConversationState(conversation, [systemMessage]);
+    this.messages.get(conversation.id)?.push(systemMessage);
+    this.metricsService.recordMessageCreated();
     this.realtimeEventsService.emit({
       type: "conversation.updated",
       data: conversation,
@@ -309,7 +380,7 @@ export class ConversationsService {
     return conversation;
   }
 
-  addSystemEvent(conversationId: string, content: string) {
+  async addSystemEvent(conversationId: string, content: string) {
     const conversation = this.conversations.get(conversationId);
 
     if (!conversation) {
@@ -317,12 +388,15 @@ export class ConversationsService {
     }
 
     const now = new Date();
-    const systemMessage = this.addSystemMessage(
+    const systemMessage = this.buildSystemMessage(
       conversationId,
       content.trim(),
       now,
     );
     conversation.updatedAt = now;
+    await this.persistConversationState(conversation, [systemMessage]);
+    this.messages.get(conversation.id)?.push(systemMessage);
+    this.metricsService.recordMessageCreated();
     this.realtimeEventsService.emit({
       type: "conversation.updated",
       data: conversation,
@@ -333,9 +407,13 @@ export class ConversationsService {
     });
   }
 
-  clearAll() {
+  async clearAll() {
     const deletedConversations = this.conversations.size;
     const deletedMessageGroups = this.messages.size;
+
+    if (this.prismaService?.enabled) {
+      await this.prismaService.client.conversation.deleteMany();
+    }
 
     this.conversations.clear();
     this.messages.clear();
@@ -431,9 +509,10 @@ export class ConversationsService {
       deletedAt: null,
     };
 
+    conversation.updatedAt = message.createdAt;
+    await this.persistConversationState(conversation, [message]);
     this.messages.get(conversation.id)?.push(message);
     this.metricsService.recordMessageCreated();
-    conversation.updatedAt = message.createdAt;
     this.realtimeEventsService.emit({ type: "message.created", data: message });
 
     return message;
@@ -511,6 +590,7 @@ export class ConversationsService {
 
     const readAt = new Date();
     participant.lastReadAt = readAt;
+    await this.persistConversationState(conversation);
     this.realtimeEventsService.emit({
       type: "message.read",
       data: { conversationId, userId, readAt },
@@ -544,6 +624,7 @@ export class ConversationsService {
     message.content = content;
     message.updatedAt = now;
     conversation.updatedAt = now;
+    await this.persistMessageUpdate(message, conversation.updatedAt);
     this.realtimeEventsService.emit({ type: "message.updated", data: message });
 
     return message;
@@ -564,6 +645,7 @@ export class ConversationsService {
     message.updatedAt = now;
     message.deletedAt = now;
     conversation.updatedAt = now;
+    await this.persistMessageUpdate(message, conversation.updatedAt);
     this.realtimeEventsService.emit({ type: "message.deleted", data: message });
 
     return message;
@@ -596,11 +678,14 @@ export class ConversationsService {
     const now = new Date();
     participant.leftAt = now;
     conversation.updatedAt = now;
-    const systemMessage = this.addSystemMessage(
+    const systemMessage = this.buildSystemMessage(
       conversation.id,
       `${user?.username ?? "A user"} left the group.`,
       now,
     );
+    await this.persistConversationState(conversation, [systemMessage]);
+    this.messages.get(conversation.id)?.push(systemMessage);
+    this.metricsService.recordMessageCreated();
     const leftState = {
       conversationId,
       userId,
@@ -667,11 +752,14 @@ export class ConversationsService {
     }
 
     conversation.updatedAt = now;
-    const systemMessage = this.addSystemMessage(
+    const systemMessage = this.buildSystemMessage(
       conversation.id,
       `${user.username} joined the group.`,
       now,
     );
+    await this.persistConversationState(conversation, [systemMessage]);
+    this.messages.get(conversation.id)?.push(systemMessage);
+    this.metricsService.recordMessageCreated();
     this.realtimeEventsService.emit({
       type: "conversation.updated",
       data: conversation,
@@ -723,11 +811,14 @@ export class ConversationsService {
     const now = new Date();
     participant.leftAt = now;
     conversation.updatedAt = now;
-    const systemMessage = this.addSystemMessage(
+    const systemMessage = this.buildSystemMessage(
       conversation.id,
       `${user?.username ?? "A user"} was removed from the group.`,
       now,
     );
+    await this.persistConversationState(conversation, [systemMessage]);
+    this.messages.get(conversation.id)?.push(systemMessage);
+    this.metricsService.recordMessageCreated();
     this.realtimeEventsService.emit({
       type: "participant.removed",
       data: {
@@ -840,7 +931,7 @@ export class ConversationsService {
     }
   }
 
-  private addSystemMessage(
+  private buildSystemMessage(
     conversationId: string,
     content: string,
     createdAt = new Date(),
@@ -857,19 +948,151 @@ export class ConversationsService {
       deletedAt: null,
     };
 
-    this.messages.get(conversationId)?.push(message);
-    this.metricsService.recordMessageCreated();
-
     return message;
   }
 
-  private addInitialSystemMessage(
+  private async addInitialSystemMessage(
     conversationId: string,
     initialSystemMessage?: string,
   ) {
     if (initialSystemMessage?.trim()) {
-      this.addSystemEvent(conversationId, initialSystemMessage);
+      await this.addSystemEvent(conversationId, initialSystemMessage);
     }
+  }
+
+  private async persistNewConversation(
+    conversation: ConversationRecord,
+    initialMessages: MessageRecord[] = [],
+  ) {
+    if (!this.prismaService?.enabled) {
+      return;
+    }
+
+    await this.prismaService.client.conversation.create({
+      data: {
+        id: conversation.id,
+        type: conversation.type as unknown as PrismaConversationType,
+        name: conversation.name,
+        createdBy: conversation.createdBy,
+        externalRef: conversation.externalRef ?? null,
+        createdAt: conversation.createdAt,
+        updatedAt: conversation.updatedAt,
+        participants: {
+          create: conversation.participants.map((participant) => ({
+            userId: participant.userId,
+            role: participant.role as unknown as PrismaParticipantRole,
+            joinedAt: participant.joinedAt,
+            lastReadAt: participant.lastReadAt,
+            leftAt: participant.leftAt,
+          })),
+        },
+        messages:
+          initialMessages.length > 0
+            ? {
+                create: initialMessages.map((message) => ({
+                  id: message.id,
+                  clientMessageId: message.clientMessageId,
+                  senderId: message.senderId,
+                  content: message.content,
+                  messageType:
+                    message.messageType as unknown as PrismaMessageType,
+                  createdAt: message.createdAt,
+                  updatedAt: message.updatedAt,
+                  deletedAt: message.deletedAt,
+                })),
+              }
+            : undefined,
+      },
+    });
+  }
+
+  private async persistConversationState(
+    conversation: ConversationRecord,
+    newMessages: MessageRecord[] = [],
+  ) {
+    if (!this.prismaService?.enabled) {
+      return;
+    }
+
+    await this.prismaService.client.$transaction(async (transaction) => {
+      await transaction.conversation.update({
+        where: { id: conversation.id },
+        data: {
+          name: conversation.name,
+          externalRef: conversation.externalRef ?? null,
+          updatedAt: conversation.updatedAt,
+        },
+      });
+
+      for (const participant of conversation.participants) {
+        await transaction.conversationParticipant.upsert({
+          where: {
+            conversationId_userId: {
+              conversationId: conversation.id,
+              userId: participant.userId,
+            },
+          },
+          create: {
+            conversationId: conversation.id,
+            userId: participant.userId,
+            role: participant.role as unknown as PrismaParticipantRole,
+            joinedAt: participant.joinedAt,
+            lastReadAt: participant.lastReadAt,
+            leftAt: participant.leftAt,
+          },
+          update: {
+            role: participant.role as unknown as PrismaParticipantRole,
+            joinedAt: participant.joinedAt,
+            lastReadAt: participant.lastReadAt,
+            leftAt: participant.leftAt,
+          },
+        });
+      }
+
+      for (const message of newMessages) {
+        await transaction.message.create({
+          data: this.toPersistedMessage(message),
+        });
+      }
+    });
+  }
+
+  private async persistMessageUpdate(
+    message: MessageRecord,
+    conversationUpdatedAt: Date,
+  ) {
+    if (!this.prismaService?.enabled) {
+      return;
+    }
+
+    await this.prismaService.client.$transaction([
+      this.prismaService.client.message.update({
+        where: { id: message.id },
+        data: {
+          content: message.content,
+          updatedAt: message.updatedAt,
+          deletedAt: message.deletedAt,
+        },
+      }),
+      this.prismaService.client.conversation.update({
+        where: { id: message.conversationId },
+        data: { updatedAt: conversationUpdatedAt },
+      }),
+    ]);
+  }
+
+  private toPersistedMessage(message: MessageRecord) {
+    return {
+      id: message.id,
+      clientMessageId: message.clientMessageId,
+      conversationId: message.conversationId,
+      senderId: message.senderId,
+      content: message.content,
+      messageType: message.messageType as unknown as PrismaMessageType,
+      createdAt: message.createdAt,
+      updatedAt: message.updatedAt,
+      deletedAt: message.deletedAt,
+    };
   }
 
   private findMessageOrThrow(conversationId: string, messageId: string) {

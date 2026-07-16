@@ -25,9 +25,9 @@ describe("App e2e", () => {
     usersService = app.get(UsersService);
   });
 
-  beforeEach(() => {
-    conversationsService.clearAll();
-    usersService.clearAll();
+  beforeEach(async () => {
+    await conversationsService.clearAll();
+    await usersService.clearAll();
   });
 
   afterAll(async () => {

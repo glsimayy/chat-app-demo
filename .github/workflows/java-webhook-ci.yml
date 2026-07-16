@@ -1,0 +1,42 @@
+name: Java Webhook CI
+
+on:
+  push:
+    paths:
+      - ".github/workflows/java-webhook-ci.yml"
+      - "java-webhook/**"
+      - "docs/backend-contracts.md"
+      - "README.md"
+  pull_request:
+    paths:
+      - ".github/workflows/java-webhook-ci.yml"
+      - "java-webhook/**"
+      - "docs/backend-contracts.md"
+      - "README.md"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-java-webhook:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: java-webhook
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: java-webhook/pom.xml
+
+      - name: Run Java tests
+        run: |
+          chmod +x mvnw
+          ./mvnw --batch-mode test

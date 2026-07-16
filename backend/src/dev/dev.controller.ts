@@ -21,9 +21,9 @@ export class DevController {
     description: "Development reset secret configured on the backend",
   })
   @ApiSuccessResponse(DevResetResponseDto, {
-    description: "Development-only in-memory data reset",
+    description: "Development-only data reset",
   })
-  resetInMemoryData(@Headers("x-dev-secret") providedSecret?: string) {
+  async resetInMemoryData(@Headers("x-dev-secret") providedSecret?: string) {
     if (this.configService.get<string>("NODE_ENV") === "production") {
       throw new ForbiddenException("Dev reset is disabled in production");
     }
@@ -34,9 +34,9 @@ export class DevController {
       throw new ForbiddenException("Invalid or missing dev reset secret");
     }
 
-    return {
-      conversations: this.conversationsService.clearAll(),
-      users: this.usersService.clearAll(),
-    };
+    const conversations = await this.conversationsService.clearAll();
+    const users = await this.usersService.clearAll();
+
+    return { conversations, users };
   }
 }

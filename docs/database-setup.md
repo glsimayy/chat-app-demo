@@ -1,6 +1,6 @@
 # Database Setup
 
-Bu dokuman Database tarafinin local PostgreSQL ve Prisma taslagi ile calismasi icin tutulur.
+Bu dokuman Main Backend'in local PostgreSQL ve Prisma kurulumu icindir.
 
 ## Local PostgreSQL
 
@@ -10,57 +10,48 @@ Repo root klasorunde:
 docker compose up -d postgres
 ```
 
-Baglanti bilgisi:
+Backend icin baglanti bilgisi:
 
 ```text
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/chat_app_demo
 ```
 
-Backend tarafinda `.env.example` icinde ayni connection string bulunur.
+Ayni deger `backend/.env.example` icinde bulunur. Yerel calismada bu dosyayi
+`backend/.env` olarak olusturup gerekli secret degerlerini degistirin.
 
-## Prisma Kontrol
+## Migration Uygulama
 
-Backend klasorunde:
-
-```bash
-cd backend
-npm run prisma:validate
-```
-
-Bu komut DB'ye baglanmadan `backend/prisma/schema.prisma` dosyasinin gecerli olup olmadigini kontrol eder.
-
-## Ilk Migration Icin Onerilen Akis
-
-PostgreSQL ayaktayken:
+PostgreSQL ayaktayken backend klasorunde:
 
 ```bash
-cd backend
-npm run prisma:migrate:dev -- --name init
+npx prisma migrate deploy
 npm run prisma:generate
 ```
 
-Not: Su an Main Backend in-memory servislerle calisiyor. Migration almak DB semasini olusturur ama backend servisleri henuz Prisma client kullanmaz.
+Semayi veritabanina baglanmadan kontrol etmek icin:
+
+```bash
+npm run prisma:validate
+```
+
+Backend `DATABASE_URL` tanimliysa kullanicilari, konusmalari, katilimcilari ve
+mesajlari Prisma ile PostgreSQL'e kaydeder. Degisken tanimli degilse yerel test
+ve hizli gelistirme icin in-memory moda geri doner. In-memory modda sunucu
+kapaninca veri silinir.
 
 ## Model Ozeti
-
-Prisma taslagi su modelleri icerir:
 
 - `User`
 - `Conversation`
 - `ConversationParticipant`
 - `Message`
-
-Enumlar:
-
-- `UserRole`
-- `ConversationType`
-- `ParticipantRole`
-- `MessageType`
+- `UserRole`, `ConversationType`, `ParticipantRole`, `MessageType` enumlari
 
 ## Dikkat Edilecek Noktalar
 
-- `conversation_participants` tablosunda composite primary key: `conversationId + userId`.
-- `leftAt` alanı soft leave icin kullanilir.
+- `conversation_participants` composite primary key kullanir: `conversationId + userId`.
+- `leftAt` soft leave icin kullanilir.
 - `messages.deletedAt` soft delete icin kullanilir.
-- `messages.senderId` nullable; system message veya silinmis user senaryolarinda null olabilir.
-- Direct conversation unique constraint'i henuz schema seviyesinde kesinlestirilmedi. Uygulama katmaninda duplicate direct conversation engelleniyor.
+- `messages.senderId` system mesajlari icin nullable olabilir.
+- `conversations.externalRef` unique'tir; ayni bot olayi ikinci bir grup olusturmaz.
+- Direct conversation tekrari uygulama katmaninda engellenir.
