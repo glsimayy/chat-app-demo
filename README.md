@@ -1,4 +1,4 @@
-# OlleChat - Java Webhook Bot Servisi
+# ElloChat - Java Webhook Bot Servisi
 
 Bu servis, harici sistemlerden gelen müşteri destek taleplerini (Webhook) karşılayan ve otomatik sohbet grubu açılması için NestJS ana backend servisini tetikleyen bağımsız bir Spring Boot mikro servisidir.
 
