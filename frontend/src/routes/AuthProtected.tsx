@@ -4,6 +4,7 @@ import { Spinner } from "reactstrap";
 
 import { getCurrentUser } from "../api";
 import { getLoggedinUser } from "../api/apiCore";
+import { mapBackendUser } from "../api/backendAdapters";
 import { disconnectChatSocket } from "../api/realtime";
 
 const AuthProtected = (props: any) => {
@@ -21,7 +22,19 @@ const AuthProtected = (props: any) => {
     let isMounted = true;
 
     getCurrentUser()
-      .then(() => {
+      .then(currentUser => {
+        const storedUser = getLoggedinUser();
+
+        if (storedUser) {
+          localStorage.setItem(
+            "authUser",
+            JSON.stringify({
+              ...storedUser,
+              ...mapBackendUser(currentUser),
+            }),
+          );
+        }
+
         if (isMounted) {
           setSessionState("authenticated");
         }

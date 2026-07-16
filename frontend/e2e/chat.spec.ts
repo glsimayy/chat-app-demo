@@ -94,36 +94,30 @@ async function openConversation(page: Page, label: string) {
   ).toBeVisible();
 }
 
+async function createAuthenticatedPage(browser: Browser, session: AuthSession) {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto("/auth-login");
+  await page.evaluate(authUser => {
+    window.localStorage.setItem("authUser", JSON.stringify(authUser));
+  }, toFrontendAuthUser(session));
+  await page.goto("/dashboard");
+  await expect(page.getByRole("heading", { name: "Chats" })).toBeVisible();
+
+  return { context, page };
+}
+
 async function createUserPages(browser: Browser) {
-  const user1Context = await browser.newContext();
-  const user2Context = await browser.newContext();
-
-  await Promise.all([
-    user1Context.addInitScript(authUser => {
-      window.localStorage.setItem("authUser", JSON.stringify(authUser));
-    }, toFrontendAuthUser(sessions.user1)),
-    user2Context.addInitScript(authUser => {
-      window.localStorage.setItem("authUser", JSON.stringify(authUser));
-    }, toFrontendAuthUser(sessions.user2)),
-  ]);
-
-  const user1Page = await user1Context.newPage();
-  const user2Page = await user2Context.newPage();
-
-  await Promise.all([
-    user1Page.goto("/dashboard"),
-    user2Page.goto("/dashboard"),
-  ]);
-  await Promise.all([
-    expect(user1Page.getByRole("heading", { name: "Chats" })).toBeVisible(),
-    expect(user2Page.getByRole("heading", { name: "Chats" })).toBeVisible(),
+  const [user1, user2] = await Promise.all([
+    createAuthenticatedPage(browser, sessions.user1),
+    createAuthenticatedPage(browser, sessions.user2),
   ]);
 
   return {
-    user1Context,
-    user2Context,
-    user1Page,
-    user2Page,
+    user1Context: user1.context,
+    user2Context: user2.context,
+    user1Page: user1.page,
+    user2Page: user2.page,
   };
 }
 
@@ -155,6 +149,106 @@ test("development accounts authenticate with the expected roles", async ({
   }
 
   await loginThroughUi(page, accounts.admin);
+});
+
+test("protected routes redirect unauthenticated visitors", async ({ page }) => {
+  await page.goto("/dashboard");
+
+  await expect(page).toHaveURL(/\/auth-login$/);
+  await expect(page.getByRole("button", { name: "Log In" })).toBeVisible();
+});
+
+test("invalid sessions are cleared before the dashboard renders", async ({
+  page,
+}) => {
+  await page.goto("/auth-login");
+  await page.evaluate(() => {
+    window.localStorage.setItem(
+      "authUser",
+      JSON.stringify({
+        id: "invalid-user",
+        role: "admin",
+        accessToken: "invalid.jwt.token",
+      }),
+    );
+  });
+
+  await page.goto("/dashboard");
+
+  await expect(page).toHaveURL(/\/auth-login$/);
+  await expect
+    .poll(() => page.evaluate(() => window.localStorage.getItem("authUser")))
+    .toBeNull();
+});
+
+test("server roles control group creation access", async ({
+  browser,
+  request,
+}) => {
+  const tamperedUserSession: AuthSession = {
+    ...sessions.user1,
+    user: { ...sessions.user1.user, role: "admin" },
+  };
+  const user = await createAuthenticatedPage(browser, tamperedUserSession);
+  const admin = await createAuthenticatedPage(browser, sessions.admin);
+
+  try {
+    await expect(
+      user.page.getByRole("button", { name: "Create group" }),
+    ).toHaveCount(0);
+    await expect(
+      admin.page.getByRole("button", { name: "Create group" }),
+    ).toBeVisible();
+
+    const storedRole = await user.page.evaluate(() => {
+      const authUser = window.localStorage.getItem("authUser");
+      return authUser ? JSON.parse(authUser).role : null;
+    });
+    expect(storedRole).toBe("user");
+
+    const forbiddenResponse = await request.post(
+      `${apiUrl}/conversations/groups`,
+      {
+        headers: {
+          Authorization: `Bearer ${sessions.user1.accessToken}`,
+        },
+        data: {
+          name: `forbidden-group-${Date.now()}`,
+          participantIds: [sessions.user2.user.id],
+        },
+      },
+    );
+    expect(forbiddenResponse.status()).toBe(403);
+  } finally {
+    await closeContexts(user.context, admin.context);
+  }
+});
+
+test("logout clears the session and protects the dashboard", async ({
+  browser,
+}) => {
+  const { context, page } = await createAuthenticatedPage(
+    browser,
+    sessions.user1,
+  );
+
+  try {
+    await page.getByLabel("Open profile menu").click();
+    await page.getByText("Log out", { exact: true }).click();
+
+    await expect(page).toHaveURL(/\/logout$/);
+    await expect(
+      page.getByRole("heading", { name: "You are Logged Out" }),
+    ).toBeVisible();
+    await expect
+      .poll(() => page.evaluate(() => window.localStorage.getItem("authUser")))
+      .toBeNull();
+
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/auth-login$/);
+  } finally {
+    await context.close();
+  }
 });
 
 test("direct messages arrive in the other user's open conversation", async ({

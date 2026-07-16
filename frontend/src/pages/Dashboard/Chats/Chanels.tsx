@@ -10,12 +10,14 @@ import ChatChannel from "./ChatChannel";
 
 interface ChanelsProps {
   channels: Array<ChannelTypes>;
+  canCreateChannel: boolean;
   openCreateChannel: () => void;
   selectedChat: string | number;
   onSelectChat: (id: number | string, isChannel?: boolean) => void;
 }
 const Chanels = ({
   channels,
+  canCreateChannel,
   openCreateChannel,
   selectedChat,
   onSelectChat,
@@ -28,16 +30,16 @@ const Chanels = ({
             Channels
           </h4>
         </div>
-        <div className="flex-shrink-0">
-          <div id="create-group">
-            {/* Button trigger modal */}
-            <AddButton onClick={openCreateChannel} />{" "}
-            {/* addgroup-exampleModal */}
+        {canCreateChannel && (
+          <div className="flex-shrink-0">
+            <div id="create-group">
+              <AddButton ariaLabel="Create group" onClick={openCreateChannel} />
+            </div>
+            <UncontrolledTooltip target="create-group" placement="bottom">
+              Create group
+            </UncontrolledTooltip>
           </div>
-          <UncontrolledTooltip target="create-group" placement="bottom">
-            Create group
-          </UncontrolledTooltip>
-        </div>
+        )}
       </div>
       <div className="chat-message-list">
         <ul className="list-unstyled chat-list chat-user-list mb-3">
