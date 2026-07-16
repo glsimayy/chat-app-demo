@@ -8,7 +8,7 @@ Bu dokuman Main Backend, Java ve Database tarafinin ayni kontrata gore calismasi
 - Health check: `GET /api/health`
 - Swagger UI: `GET /api/docs`
 - Swagger JSON: `GET /api/docs-json`
-- Demo test ekrani: `GET /demo`
+- Demo test ekrani: `GET /demo` (`SERVE_DEMO_UI=true`)
 - Socket.IO namespace: `/chat`
 - Admin metrics: `GET /api/metrics`
 - Postman collection: `docs/postman/chat-app-demo.postman_collection.json`
@@ -18,7 +18,9 @@ Bu dokuman Main Backend, Java ve Database tarafinin ayni kontrata gore calismasi
 - `CORS_ORIGIN` tek origin veya virgul ile ayrilmis coklu origin alabilir.
 - Production ortaminda `CORS_ORIGIN=*` kabul edilmez. Ayni allowlist HTTP ve
   Socket.IO icin kullanilir.
-- `DATABASE_URL` su an opsiyoneldir, Prisma gecisinde kullanilacak.
+- `DATABASE_URL` development/test ortaminda opsiyonel, production'da zorunludur.
+- `DEMO_USERS_ENABLED`, `DEV_ROUTES_ENABLED` ve `SERVE_DEMO_UI` development
+  ozelliklerini yonetir ve production'da `false` olmalidir.
 - Production ortaminda `JWT_SECRET` ve `BOT_WEBHOOK_SECRET` en az 32 karakter olmalidir.
 - `SWAGGER_ENABLED` sadece `true` veya `false` olabilir ve production'da
   varsayilan olarak kapalidir.
@@ -132,6 +134,9 @@ Kayitli kullanicinin public profil bilgisini dondurur. Endpoint JWT ister.
 ### Dev
 
 `POST /api/dev/reset`
+
+Route sadece `DEV_ROUTES_ENABLED=true` iken aciktir ve dogru `x-dev-secret`
+header'i ister. Production ortaminda 404 doner.
 
 Sadece local/dev kullanım içindir. In-memory user, conversation ve message verilerini temizler. Smoke test sonrası manuel demo denemeden once kullanılabilir. Production ortamında kapalıdır.
 

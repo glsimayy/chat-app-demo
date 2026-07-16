@@ -19,9 +19,10 @@ politikasi `npm` komutunu engelliyorsa ayni komutlar `npm.cmd install` ve
 
 ## Backend
 
-Backend NestJS ile yazildi. `DATABASE_URL` tanimliysa PostgreSQL + Prisma ile
-kalici, tanimli degilse gelistirme ve test icin in-memory calisir. In-memory
-modda server restart edilince local veriler sifirlanir.
+Backend NestJS ile yazildi. Gelistirme ve test ortaminda `DATABASE_URL`
+tanimliysa PostgreSQL + Prisma ile kalici, tanimli degilse in-memory calisir.
+Production ortaminda `DATABASE_URL` zorunludur. In-memory modda server restart
+edilince local veriler sifirlanir.
 
 ### Kurulum
 
@@ -36,6 +37,9 @@ Production notlari:
 
 - `JWT_SECRET` ve `BOT_WEBHOOK_SECRET` en az 32 karakter olmalidir.
 - `CORS_ORIGIN` wildcard (`*`) olamaz.
+- `DATABASE_URL` gecerli bir PostgreSQL baglanti adresi olmalidir.
+- `DEMO_USERS_ENABLED`, `DEV_ROUTES_ENABLED` ve `SERVE_DEMO_UI` production'da
+  `false` olmalidir.
 - Swagger varsayilan olarak kapalidir.
 - HTTP ve Socket.IO rate limit ayarlari `.env.example` icinden degistirilebilir.
 
@@ -59,12 +63,14 @@ Local adresler:
 - API: `http://localhost:3000/api`
 - Health: `http://localhost:3000/api/health`
 - Swagger: `http://localhost:3000/api/docs`
-- Demo test ekrani: `http://localhost:3000/demo`
+- Demo test ekrani: `http://localhost:3000/demo` (`SERVE_DEMO_UI=true`)
 - Socket.IO namespace: `http://localhost:3000/chat`
 - Runtime metrics (admin): `http://localhost:3000/api/metrics`
 - Dev reset: `POST http://localhost:3000/api/dev/reset`
+  (`DEV_ROUTES_ENABLED=true`)
 
-Development modunda backend her acildiginda su demo hesaplari hazirlanir:
+Development modunda `DEMO_USERS_ENABLED=true` ise backend her acildiginda su
+demo hesaplari hazirlanir:
 
 | Rol   | Kullanici adi | E-posta            | Sifre       |
 | ----- | ------------- | ------------------ | ----------- |
@@ -139,10 +145,11 @@ npm start
 ```
 
 Frontend `npm start` ile sabit olarak `http://localhost:5173` adresinde calisir.
-API adresi gerekirse
-`REACT_APP_API_URL` ile degistirilebilir; varsayilan deger
-`http://localhost:3000/api` olur. Mesajlar socket bagliyken ACK ile gonderilir,
-baglanti yoksa ayni `clientMessageId` ile REST fallback kullanilir.
+API ve Socket adresleri `frontend/.env.example` referans alinarak
+`REACT_APP_API_URL` ve `REACT_APP_SOCKET_URL` ile degistirilebilir. Varsayilan
+adresler `http://localhost:3000/api` ve `http://localhost:3000/chat` olur.
+Mesajlar socket bagliyken ACK ile gonderilir, baglanti yoksa ayni
+`clientMessageId` ile REST fallback kullanilir.
 
 Frontend kontrolleri:
 
@@ -186,5 +193,7 @@ message akislarini gercek frontend, backend ve Socket.IO uzerinde kontrol eder.
 - Bot group endpointi JWT yerine `x-bot-secret` header'i kullanir.
 - Auth endpointleri HTTP rate limit, Socket.IO eventleri socket bazli rate limit uygular.
 - Database model kontrati `docs/backend-contracts.md` icinde tutulur.
-- `DATABASE_URL` opsiyoneldir; tanimlandiginda Prisma kaliciligi otomatik aktif olur.
+- `DATABASE_URL` sadece development/test icin opsiyoneldir; production'da zorunludur.
 - Smoke test local server'da test kullanicilari olusturur. Manuel demo oncesi `POST /api/dev/reset` ile gelistirme verisi temizlenebilir.
+- v0.1 release kapilari ve production baslatma sirasi `docs/release-v0.1.md`
+  icinde tutulur.

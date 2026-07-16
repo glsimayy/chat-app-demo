@@ -3,11 +3,19 @@ import * as bcrypt from "bcrypt";
 import { UserRole } from "./user-role.enum";
 import { UsersService } from "./users.service";
 
-function createConfigService(nodeEnv: string) {
+function createConfigService(nodeEnv: string, demoUsersEnabled?: string) {
   return {
-    get: jest.fn((key: string, fallback: unknown) =>
-      key === "NODE_ENV" ? nodeEnv : fallback,
-    ),
+    get: jest.fn((key: string, fallback: unknown) => {
+      if (key === "NODE_ENV") {
+        return nodeEnv;
+      }
+
+      if (key === "DEMO_USERS_ENABLED") {
+        return demoUsersEnabled ?? fallback;
+      }
+
+      return fallback;
+    }),
   } as unknown as ConfigService;
 }
 
@@ -34,6 +42,16 @@ describe("UsersService development users", () => {
 
   it("does not seed users outside development", async () => {
     const service = new UsersService(createConfigService("test"));
+
+    await service.onModuleInit();
+
+    await expect(service.findAll()).resolves.toEqual([]);
+  });
+
+  it("allows demo users to be disabled explicitly in development", async () => {
+    const service = new UsersService(
+      createConfigService("development", "false"),
+    );
 
     await service.onModuleInit();
 

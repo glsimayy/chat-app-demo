@@ -53,6 +53,9 @@ jobs:
       RATE_LIMIT_MAX: "120"
       SOCKET_RATE_LIMIT_TTL_MS: "10000"
       SOCKET_RATE_LIMIT_MAX: "60"
+      DEMO_USERS_ENABLED: "false"
+      DEV_ROUTES_ENABLED: "false"
+      SERVE_DEMO_UI: "false"
 
     steps:
       - name: Checkout

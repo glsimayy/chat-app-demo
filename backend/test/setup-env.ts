@@ -9,3 +9,6 @@ process.env.RATE_LIMIT_TTL_MS = "60000";
 process.env.RATE_LIMIT_MAX = "120";
 process.env.SOCKET_RATE_LIMIT_TTL_MS = "10000";
 process.env.SOCKET_RATE_LIMIT_MAX = "60";
+process.env.DEMO_USERS_ENABLED = "false";
+process.env.DEV_ROUTES_ENABLED = "false";
+process.env.SERVE_DEMO_UI = "false";

@@ -1,3 +1,5 @@
+import { parseCorsOrigin } from "./cors-origin";
+
 export function validateEnv(config: Record<string, unknown>) {
   const nodeEnv = String(config.NODE_ENV ?? "development");
   const port = Number(config.PORT ?? 3000);
@@ -29,9 +31,27 @@ export function validateEnv(config: Record<string, unknown>) {
     60,
     "SOCKET_RATE_LIMIT_MAX",
   );
-  const jwtSecret = String(config.JWT_SECRET ?? "dev-secret");
+  const jwtSecret = String(config.JWT_SECRET ?? "dev-secret").trim();
   const botWebhookSecret = String(
     config.BOT_WEBHOOK_SECRET ?? "dev-bot-secret",
+  ).trim();
+  const databaseUrl = config.DATABASE_URL
+    ? String(config.DATABASE_URL).trim()
+    : undefined;
+  const demoUsersEnabled = parseBoolean(
+    config.DEMO_USERS_ENABLED,
+    nodeEnv === "development",
+    "DEMO_USERS_ENABLED",
+  );
+  const devRoutesEnabled = parseBoolean(
+    config.DEV_ROUTES_ENABLED,
+    nodeEnv === "development",
+    "DEV_ROUTES_ENABLED",
+  );
+  const serveDemoUi = parseBoolean(
+    config.SERVE_DEMO_UI,
+    nodeEnv === "development",
+    "SERVE_DEMO_UI",
   );
 
   if (!["development", "test", "production"].includes(nodeEnv)) {
@@ -54,11 +74,21 @@ export function validateEnv(config: Record<string, unknown>) {
     throw new Error("CORS_ORIGIN cannot be empty");
   }
 
+  parseCorsOrigin(corsOrigin);
+
   if (!/^\d+(b|kb|mb)$/.test(bodyLimit)) {
     throw new Error("BODY_LIMIT must use b, kb, or mb units");
   }
 
+  if (databaseUrl) {
+    validateDatabaseUrl(databaseUrl);
+  }
+
   if (nodeEnv === "production") {
+    if (!databaseUrl) {
+      throw new Error("DATABASE_URL is required in production");
+    }
+
     if (corsOrigin === "*") {
       throw new Error("CORS_ORIGIN cannot be wildcard in production");
     }
@@ -74,6 +104,12 @@ export function validateEnv(config: Record<string, unknown>) {
         "BOT_WEBHOOK_SECRET must be at least 32 characters in production",
       );
     }
+
+    if (demoUsersEnabled || devRoutesEnabled || serveDemoUi) {
+      throw new Error(
+        "DEMO_USERS_ENABLED, DEV_ROUTES_ENABLED, and SERVE_DEMO_UI must be false in production",
+      );
+    }
   }
 
   return {
@@ -87,14 +123,41 @@ export function validateEnv(config: Record<string, unknown>) {
     RATE_LIMIT_MAX: String(rateLimitMax),
     SOCKET_RATE_LIMIT_TTL_MS: String(socketRateLimitTtlMs),
     SOCKET_RATE_LIMIT_MAX: String(socketRateLimitMax),
-    DATABASE_URL: config.DATABASE_URL ? String(config.DATABASE_URL) : undefined,
+    DATABASE_URL: databaseUrl,
     JWT_SECRET: jwtSecret,
     JWT_EXPIRES_IN: String(config.JWT_EXPIRES_IN ?? "1d"),
     BOT_WEBHOOK_SECRET: botWebhookSecret,
+    DEMO_USERS_ENABLED: String(demoUsersEnabled),
+    DEV_ROUTES_ENABLED: String(devRoutesEnabled),
+    SERVE_DEMO_UI: String(serveDemoUi),
     DEV_RESET_SECRET: config.DEV_RESET_SECRET
       ? String(config.DEV_RESET_SECRET)
       : undefined,
   };
+}
+
+function validateDatabaseUrl(value: string) {
+  try {
+    const url = new URL(value);
+
+    if (!["postgres:", "postgresql:"].includes(url.protocol)) {
+      throw new Error();
+    }
+  } catch {
+    throw new Error("DATABASE_URL must be a valid PostgreSQL connection URL");
+  }
+}
+
+function parseBoolean(value: unknown, fallback: boolean, variableName: string) {
+  const normalized = String(value ?? fallback)
+    .trim()
+    .toLowerCase();
+
+  if (!["true", "false"].includes(normalized)) {
+    throw new Error(`${variableName} must be true or false`);
+  }
+
+  return normalized === "true";
 }
 
 function parsePositiveInteger(

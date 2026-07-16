@@ -239,6 +239,27 @@ describe("App e2e", () => {
     });
   });
 
+  it("rate limits repeated invalid bot webhook attempts", async () => {
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      await request(app.getHttpServer())
+        .post("/api/bot/create-group")
+        .set("x-bot-secret", "wrong-secret")
+        .send({})
+        .expect(401);
+    }
+
+    const limited = await request(app.getHttpServer())
+      .post("/api/bot/create-group")
+      .set("x-bot-secret", "wrong-secret")
+      .send({})
+      .expect(429);
+
+    expect(limited.body).toMatchObject({
+      success: false,
+      statusCode: 429,
+    });
+  });
+
   async function register(username: string) {
     const response = await request(app.getHttpServer())
       .post("/api/auth/register")

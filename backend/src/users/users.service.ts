@@ -62,10 +62,14 @@ export class UsersService implements OnModuleInit {
       this.logger.log(`Loaded ${persistedUsers.length} users from PostgreSQL`);
     }
 
-    if (
-      this.configService.get<string>("NODE_ENV", "development") !==
-      "development"
-    ) {
+    const nodeEnv = this.configService.get<string>("NODE_ENV", "development");
+    const demoUsersEnabled =
+      this.configService.get<string>(
+        "DEMO_USERS_ENABLED",
+        nodeEnv === "development" ? "true" : "false",
+      ) === "true";
+
+    if (!demoUsersEnabled) {
       return;
     }
 

@@ -1,4 +1,10 @@
-import { Controller, ForbiddenException, Headers, Post } from "@nestjs/common";
+import {
+  Controller,
+  ForbiddenException,
+  Headers,
+  NotFoundException,
+  Post,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ApiHeader, ApiTags } from "@nestjs/swagger";
 import { ApiSuccessResponse } from "../common/swagger/api-success-response.decorator";
@@ -24,8 +30,10 @@ export class DevController {
     description: "Development-only data reset",
   })
   async resetInMemoryData(@Headers("x-dev-secret") providedSecret?: string) {
-    if (this.configService.get<string>("NODE_ENV") === "production") {
-      throw new ForbiddenException("Dev reset is disabled in production");
+    if (
+      this.configService.get<string>("DEV_ROUTES_ENABLED", "false") !== "true"
+    ) {
+      throw new NotFoundException("Route not found");
     }
 
     const expectedSecret = this.configService.get<string>("DEV_RESET_SECRET");

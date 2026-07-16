@@ -1,5 +1,39 @@
 # Daily Log
 
+## 16.07.2026 Persembe
+
+### Main Backend v0.1 Hazirligi
+
+- `main-backend-release-v01` branch'i guncel `emir_frontend` tabanindan acildi.
+- Production ortaminda `DATABASE_URL` zorunlu hale getirildi.
+- PostgreSQL disindaki database URL'leri baslangicta reddediliyor.
+- CORS origin listesi HTTP/HTTPS origin formatina gore dogrulaniyor.
+- Demo kullanicilar, dev route'lari ve demo UI ayri env bayraklarina baglandi.
+- Bu uc development ozelligi production ortaminda zorla kapali hale getirildi.
+- Dev reset route'u kapaliyken 404 donuyor.
+- Java webhook icin bot secret kontrolu sabit zamanli karsilastirmaya gecirildi.
+- Frontend API ve Socket URL'leri ayri production env degerleriyle ayarlanabilir hale getirildi.
+- Graceful shutdown hook'u aktif edildi.
+- v0.1 production env ve release gate dokumani eklendi.
+
+### Verification
+
+- Backend uygulama ve test typecheck basarili.
+- 27 backend unit testi basarili.
+- 8 backend e2e testi basarili.
+- Backend production build ve Prisma schema validation basarili.
+- Frontend typecheck ve unit testi basarili.
+- Frontend production build basarili.
+- 8 Playwright testi basarili.
+- Auth ve bot webhook rate limit senaryolari 429 cevabiyla dogrulandi.
+- Test sonrasinda 3000 ve 5173 portlari kapali birakildi.
+
+### Bekleyen Bagimliliklar
+
+- Database branch'inden gercek PostgreSQL restart, backup ve restore kaniti.
+- Java branch'inden container, readiness ve backend-down testleri.
+- Iki PR sonrasi final compose ve v0.1 release adayi testi.
+
 ## 13.07.2026 Pazartesi
 
 ### Main Backend

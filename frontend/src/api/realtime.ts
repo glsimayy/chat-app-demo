@@ -5,10 +5,6 @@ import { getLoggedinUser } from "./apiCore";
 let chatSocket: Socket | null = null;
 let activeToken: string | null = null;
 
-const getSocketUrl = () => {
-  return config.API_URL.replace(/\/api\/?$/, "") + "/chat";
-};
-
 const getToken = () => {
   const user = getLoggedinUser();
   return user?.accessToken || user?.token || null;
@@ -27,7 +23,7 @@ export const getChatSocket = () => {
 
   chatSocket?.disconnect();
   activeToken = token;
-  chatSocket = io(getSocketUrl(), {
+  chatSocket = io(config.SOCKET_URL, {
     autoConnect: false,
     auth: { token },
     transports: ["websocket", "polling"],

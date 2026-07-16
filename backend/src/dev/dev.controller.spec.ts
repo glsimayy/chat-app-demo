@@ -1,0 +1,69 @@
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { ConversationsService } from "../conversations/conversations.service";
+import { UsersService } from "../users/users.service";
+import { DevController } from "./dev.controller";
+
+function createController(config: Record<string, string | undefined>) {
+  const configService = {
+    get: jest.fn((key: string, fallback?: string) => config[key] ?? fallback),
+  } as unknown as ConfigService;
+  const conversationsService = {
+    clearAll: jest.fn().mockResolvedValue({ deletedConversations: 2 }),
+  } as unknown as ConversationsService;
+  const usersService = {
+    clearAll: jest.fn().mockResolvedValue({ deletedUsers: 3 }),
+  } as unknown as UsersService;
+
+  return {
+    controller: new DevController(
+      configService,
+      conversationsService,
+      usersService,
+    ),
+    conversationsService,
+    usersService,
+  };
+}
+
+describe("DevController", () => {
+  it("hides dev routes when they are disabled", async () => {
+    const { controller } = createController({
+      DEV_ROUTES_ENABLED: "false",
+      DEV_RESET_SECRET: "reset-secret",
+    });
+
+    await expect(controller.resetInMemoryData("reset-secret")).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it("rejects an invalid reset secret", async () => {
+    const { controller } = createController({
+      DEV_ROUTES_ENABLED: "true",
+      DEV_RESET_SECRET: "reset-secret",
+    });
+
+    await expect(controller.resetInMemoryData("wrong-secret")).rejects.toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it("clears conversations and users with the configured secret", async () => {
+    const { controller, conversationsService, usersService } = createController(
+      {
+        DEV_ROUTES_ENABLED: "true",
+        DEV_RESET_SECRET: "reset-secret",
+      },
+    );
+
+    await expect(controller.resetInMemoryData("reset-secret")).resolves.toEqual(
+      {
+        conversations: { deletedConversations: 2 },
+        users: { deletedUsers: 3 },
+      },
+    );
+    expect(conversationsService.clearAll).toHaveBeenCalledTimes(1);
+    expect(usersService.clearAll).toHaveBeenCalledTimes(1);
+  });
+});

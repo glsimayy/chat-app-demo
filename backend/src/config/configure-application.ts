@@ -19,11 +19,15 @@ export function configureApplication(app: NestExpressApplication) {
   const bodyLimit = configService.get<string>("BODY_LIMIT", "1mb");
   const swaggerEnabled =
     configService.get<string>("SWAGGER_ENABLED", "true") === "true";
+  const serveDemoUi =
+    configService.get<string>("SERVE_DEMO_UI", "true") === "true";
 
   app.setGlobalPrefix(apiPrefix);
-  app.useStaticAssets(join(process.cwd(), "frontend"), {
-    prefix: "/demo",
-  });
+  if (serveDemoUi) {
+    app.useStaticAssets(join(process.cwd(), "frontend"), {
+      prefix: "/demo",
+    });
+  }
   app.enableCors({ origin: corsOrigin, credentials: true });
   app.useWebSocketAdapter(new ConfiguredIoAdapter(app, corsOrigin));
   app.useBodyParser("json", { limit: bodyLimit });
