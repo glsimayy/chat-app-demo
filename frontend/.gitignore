@@ -10,6 +10,9 @@
 
 # production
 /build
+/playwright-report
+/test-results
+/blob-report
 
 .env
 # misc

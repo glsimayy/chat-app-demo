@@ -1,0 +1,13 @@
+{
+  "name": "ello-chat-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names backend,frontend \"npm --prefix backend run start:dev\" \"npm --prefix frontend start\"",
+    "dev:backend": "npm --prefix backend run start:dev",
+    "dev:frontend": "npm --prefix frontend start"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
+  }
+}

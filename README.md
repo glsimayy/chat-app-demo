@@ -2,6 +2,21 @@
 
 Realtime chat demo backend.
 
+## Tum Uygulamayi Calistirma
+
+Backend ve frontend bagimliliklari kurulduktan sonra repo kok klasorunde:
+
+```bash
+npm install
+npm run dev
+```
+
+Bu komut backend'i `http://localhost:3000`, frontend'i
+`http://localhost:5173` adresinde birlikte baslatir. `Ctrl+C` iki sureci de
+kapatir; Windows kapanis onayi sorarsa `Y` girilebilir. PowerShell script
+politikasi `npm` komutunu engelliyorsa ayni komutlar `npm.cmd install` ve
+`npm.cmd run dev` olarak calistirilabilir.
+
 ## Backend
 
 Backend NestJS ile yazildi ve su an in-memory data ile calisir. Server restart edilince local veriler sifirlanir.
@@ -46,11 +61,11 @@ Local adresler:
 
 Development modunda backend her acildiginda su demo hesaplari hazirlanir:
 
-| Rol | Kullanici adi | E-posta | Sifre |
-| --- | --- | --- | --- |
-| Admin | `admin` | `admin@ello.local` | `Admin123!` |
-| User | `user1` | `user1@ello.local` | `User123!` |
-| User | `user2` | `user2@ello.local` | `User123!` |
+| Rol   | Kullanici adi | E-posta            | Sifre       |
+| ----- | ------------- | ------------------ | ----------- |
+| Admin | `admin`       | `admin@ello.local` | `Admin123!` |
+| User  | `user1`       | `user1@ello.local` | `User123!`  |
+| User  | `user2`       | `user2@ello.local` | `User123!`  |
 
 ### Kontrol
 
@@ -100,10 +115,24 @@ npm install
 npm start
 ```
 
-Demo UI `http://localhost:5173` adresinde calisir. API adresi gerekirse
+Frontend `npm start` ile sabit olarak `http://localhost:5173` adresinde calisir.
+API adresi gerekirse
 `REACT_APP_API_URL` ile degistirilebilir; varsayilan deger
 `http://localhost:3000/api` olur. Mesajlar socket bagliyken ACK ile gonderilir,
 baglanti yoksa ayni `clientMessageId` ile REST fallback kullanilir.
+
+Frontend kontrolleri:
+
+```bash
+npm run typecheck
+npm run test:ci
+npm run build
+npx playwright install chromium
+npm run test:e2e
+```
+
+Playwright testi development hesaplariyla admin login, direct message ve group
+message akislarini gercek frontend, backend ve Socket.IO uzerinde kontrol eder.
 
 ## Ana Ozellikler
 
