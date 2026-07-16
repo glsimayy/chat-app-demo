@@ -130,11 +130,20 @@ const readMessage = async (id: string | number) => {
 const receiveMessageFromUser = (id: string | number) =>
   getChatUserConversations(id);
 
+const updateMessage = (
+  conversationId: number | string,
+  messageId: number | string,
+  content: string,
+) =>
+  api.patch(`/conversations/${conversationId}/messages/${messageId}`, {
+    content,
+  });
+
 const deleteMessage = async (
-  userId: number | string,
-  messageId: number | string
+  conversationId: number | string,
+  messageId: number | string,
 ) => {
-  await api.delete(`/conversations/${userId}/messages/${messageId}`);
+  await api.delete(`/conversations/${conversationId}/messages/${messageId}`);
   return "Message deleted";
 };
 
@@ -192,6 +201,7 @@ export {
   receiveMessage,
   readMessage,
   receiveMessageFromUser,
+  updateMessage,
   deleteMessage,
   forwardMessage,
   deleteUserMessages,

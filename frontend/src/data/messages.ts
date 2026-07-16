@@ -15,9 +15,12 @@ export interface ImageTypes {
   downloadLink: string;
 }
 export interface MessagesTypes {
-  mId: number;
+  mId: string | number;
   text?: string;
   time: string;
+  updatedAt?: string | null;
+  isEdited?: boolean;
+  isDeleted?: boolean;
   meta: {
     receiver: string | number;
     sender: string | number;

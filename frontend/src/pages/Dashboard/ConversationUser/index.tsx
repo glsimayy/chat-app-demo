@@ -11,7 +11,6 @@ import {
   getChatUserDetails,
   getChatUserConversations,
   onSendMessage,
-  deleteMessage,
 } from "../../../redux/actions";
 
 // hooks
@@ -27,6 +26,10 @@ import GroupManagement from "./GroupManagement";
 import { MessagesTypes } from "../../../data/messages";
 
 import { getChatSocket } from "../../../api/realtime";
+import {
+  deleteMessage as deleteMessageApi,
+  updateMessage as updateMessageApi,
+} from "../../../api/chats";
 
 interface IndexProps {
   isChannel: boolean;
@@ -41,7 +44,6 @@ const Index = ({ isChannel }: IndexProps) => {
       chatUserDetails: state.chatUserDetails,
       chatUserConversations: state.chatUserConversations,
       isUserMessageSent: state.isUserMessageSent,
-      isMessageDeleted: state.isMessageDeleted,
       isMessageForwarded: state.isMessageForwarded,
       isUserMessagesDeleted: state.isUserMessagesDeleted,
       isImageDeleted: state.isImageDeleted,
@@ -52,7 +54,6 @@ const Index = ({ isChannel }: IndexProps) => {
     chatUserDetails,
     chatUserConversations,
     isUserMessageSent,
-    isMessageDeleted,
     isMessageForwarded,
     isUserMessagesDeleted,
     isImageDeleted,
@@ -203,7 +204,6 @@ const Index = ({ isChannel }: IndexProps) => {
   useEffect(() => {
     if (
       isUserMessageSent ||
-      isMessageDeleted ||
       isMessageForwarded ||
       isUserMessagesDeleted ||
       isImageDeleted
@@ -214,7 +214,6 @@ const Index = ({ isChannel }: IndexProps) => {
     dispatch,
     isUserMessageSent,
     chatUserDetails,
-    isMessageDeleted,
     isMessageForwarded,
     isUserMessagesDeleted,
     isImageDeleted,
@@ -358,8 +357,29 @@ const Index = ({ isChannel }: IndexProps) => {
     userProfile?.uid,
   ]);
 
-  const onDeleteMessage = (messageId: string | number) => {
-    dispatch(deleteMessage(chatUserDetails.id, messageId));
+  const onEditMessage = async (
+    messageId: string | number,
+    content: string,
+  ) => {
+    try {
+      setRealtimeError("");
+      await updateMessageApi(chatUserDetails.id, messageId, content);
+      refreshCurrentConversation();
+    } catch (error: any) {
+      setRealtimeError(String(error || "Message could not be updated"));
+      throw error;
+    }
+  };
+
+  const onDeleteMessage = async (messageId: string | number) => {
+    try {
+      setRealtimeError("");
+      await deleteMessageApi(chatUserDetails.id, messageId);
+      refreshCurrentConversation();
+    } catch (error: any) {
+      setRealtimeError(String(error || "Message could not be deleted"));
+      throw error;
+    }
   };
 
   return (
@@ -404,6 +424,7 @@ const Index = ({ isChannel }: IndexProps) => {
       <Conversation
         chatUserConversations={chatUserConversations}
         chatUserDetails={chatUserDetails}
+        onEdit={onEditMessage}
         onDelete={onDeleteMessage}
         onSetReplyData={onSetReplyData}
         isChannel={isChannel}

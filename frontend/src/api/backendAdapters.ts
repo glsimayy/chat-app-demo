@@ -122,11 +122,15 @@ export const mapConversationDetails = (
 
 export const mapMessage = (message: any) => {
   const currentUserId = getCurrentUserId();
+  const isDeleted = Boolean(message.deletedAt);
 
   return {
     mId: message.id,
-    text: message.deletedAt ? "This message was deleted" : message.content,
+    text: isDeleted ? "This message was deleted" : message.content,
     time: message.createdAt || new Date().toISOString(),
+    updatedAt: message.updatedAt,
+    isEdited: Boolean(message.updatedAt) && !isDeleted,
+    isDeleted,
     meta: {
       receiver: message.conversationId,
       sender: message.senderId || "system",

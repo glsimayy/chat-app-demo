@@ -21,13 +21,15 @@ import { forwardMessage, deleteImage } from "../../../redux/actions";
 interface ConversationProps {
   chatUserConversations: any;
   chatUserDetails: any;
-  onDelete: (messageId: string | number) => any;
+  onEdit: (messageId: string | number, content: string) => Promise<void>;
+  onDelete: (messageId: string | number) => Promise<void>;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   isChannel: boolean;
 }
 const Conversation = ({
   chatUserDetails,
   chatUserConversations,
+  onEdit,
   onDelete,
   onSetReplyData,
   isChannel,
@@ -134,6 +136,7 @@ const Conversation = ({
               message={message}
               key={key}
               chatUserDetails={chatUserDetails}
+              onEdit={onEdit}
               onDelete={onDelete}
               onSetReplyData={onSetReplyData}
               isFromMe={isFromMe}

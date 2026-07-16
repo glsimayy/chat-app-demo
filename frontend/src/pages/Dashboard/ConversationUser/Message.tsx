@@ -4,6 +4,13 @@ import {
   DropdownMenu,
   DropdownItem,
   UncontrolledDropdown,
+  Button,
+  Input,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  Spinner,
 } from "reactstrap";
 import classnames from "classnames";
 import { Link } from "react-router-dom";
@@ -29,15 +36,28 @@ import { formateDate } from "../../../utils";
 import RepliedMessage from "./RepliedMessage";
 
 interface MenuProps {
-  onDelete: () => any;
+  canModify: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
   onReply: () => any;
   onForward: () => void;
 }
 
-const Menu = ({ onDelete, onReply, onForward }: MenuProps) => {
+const Menu = ({
+  canModify,
+  onEdit,
+  onDelete,
+  onReply,
+  onForward,
+}: MenuProps) => {
   return (
     <UncontrolledDropdown className="align-self-start message-box-drop">
-      <DropdownToggle className="btn btn-toggle" role="button" tag={"a"}>
+      <DropdownToggle
+        aria-label="Message actions"
+        className="btn btn-toggle"
+        tag="button"
+        type="button"
+      >
         <i className="ri-more-2-fill"></i>
       </DropdownToggle>
       <DropdownMenu>
@@ -55,6 +75,14 @@ const Menu = ({ onDelete, onReply, onForward }: MenuProps) => {
         >
           Forward <i className="bx bx-share-alt ms-2 text-muted"></i>
         </DropdownItem>
+        {canModify && (
+          <DropdownItem
+            className="d-flex align-items-center justify-content-between"
+            onClick={onEdit}
+          >
+            Edit <i className="bx bx-edit text-muted ms-2"></i>
+          </DropdownItem>
+        )}
         <DropdownItem
           className="d-flex align-items-center justify-content-between"
           to="#"
@@ -73,12 +101,14 @@ const Menu = ({ onDelete, onReply, onForward }: MenuProps) => {
         >
           Mark as Unread <i className="bx bx-message-error text-muted ms-2"></i>
         </DropdownItem>
-        <DropdownItem
-          className="d-flex align-items-center justify-content-between delete-item"
-          onClick={onDelete}
-        >
-          Delete <i className="bx bx-trash text-muted ms-2"></i>
-        </DropdownItem>
+        {canModify && (
+          <DropdownItem
+            className="d-flex align-items-center justify-content-between delete-item"
+            onClick={onDelete}
+          >
+            Delete <i className="bx bx-trash text-muted ms-2"></i>
+          </DropdownItem>
+        )}
       </DropdownMenu>
     </UncontrolledDropdown>
   );
@@ -293,7 +323,8 @@ const Typing = () => {
 interface MessageProps {
   message: MessagesTypes;
   chatUserDetails: any;
-  onDelete: (messageId: string | number) => any;
+  onEdit: (messageId: string | number, content: string) => Promise<void>;
+  onDelete: (messageId: string | number) => Promise<void>;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   isFromMe: boolean;
   onOpenForward: (message: MessagesTypes) => void;
@@ -304,6 +335,7 @@ interface MessageProps {
 const Message = ({
   message,
   chatUserDetails,
+  onEdit,
   onDelete,
   onSetReplyData,
   isFromMe,
@@ -312,6 +344,11 @@ const Message = ({
   onDeleteImage,
 }: MessageProps) => {
   const { userProfile } = useProfile();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(message.text || "");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const hasImages = message.image && message.image.length;
   const hasAttachments = message.attachments && message.attachments.length;
   const hasText = message.text;
@@ -341,8 +378,44 @@ const Message = ({
     ? `${message.meta.userData.firstName} ${message.meta.userData.lastName}`
     : "-";
   const fullName = isChannel ? channdelSenderFullname : chatUserFullName;
-  const onDeleteMessage = () => {
-    onDelete(message.mId);
+  const canModify = isFromMe && !message.isDeleted;
+  const onStartEdit = () => {
+    setEditText(message.text || "");
+    setIsEditing(true);
+  };
+  const onCancelEdit = () => {
+    setEditText(message.text || "");
+    setIsEditing(false);
+  };
+  const onSaveEdit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const content = editText.trim();
+
+    if (!content || content === message.text) {
+      onCancelEdit();
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      await onEdit(message.mId, content);
+      setIsEditing(false);
+    } catch {
+      // The conversation alert displays the API error.
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  const onDeleteMessage = async () => {
+    try {
+      setIsDeleting(true);
+      await onDelete(message.mId);
+      setIsDeleteConfirmOpen(false);
+    } catch {
+      // The conversation alert displays the API error.
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const onClickReply = () => {
@@ -359,6 +432,7 @@ const Message = ({
   };
   return (
     <li
+      data-message-id={String(message.mId)}
       className={classnames(
         "chat-list",
         { right: isFromMe },
@@ -419,9 +493,53 @@ const Message = ({
                     />
                   )}
 
-                  {hasText && (
+                  {isEditing ? (
+                    <form
+                      className="d-flex align-items-center gap-1"
+                      onSubmit={onSaveEdit}
+                    >
+                      <Input
+                        bsSize="sm"
+                        aria-label="Edit message"
+                        autoFocus
+                        disabled={isSaving}
+                        maxLength={2000}
+                        value={editText}
+                        onChange={event => setEditText(event.target.value)}
+                      />
+                      <Button
+                        size="sm"
+                        color="primary"
+                        type="submit"
+                        title="Save edit"
+                        aria-label="Save message edit"
+                        disabled={
+                          isSaving ||
+                          !editText.trim() ||
+                          editText.trim() === message.text
+                        }
+                      >
+                        {isSaving ? (
+                          <Spinner size="sm" />
+                        ) : (
+                          <i className="bx bx-check" aria-hidden="true"></i>
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        color="light"
+                        type="button"
+                        title="Cancel edit"
+                        aria-label="Cancel message edit"
+                        disabled={isSaving}
+                        onClick={onCancelEdit}
+                      >
+                        <i className="bx bx-x" aria-hidden="true"></i>
+                      </Button>
+                    </form>
+                  ) : hasText ? (
                     <p className="mb-0 ctext-content">{message.text}</p>
-                  )}
+                  ) : null}
 
                   {/* typing start */}
                   {isTyping && <Typing />}
@@ -434,8 +552,10 @@ const Message = ({
                   {/* files message end */}
                 </div>
                 <Menu
+                  canModify={canModify}
+                  onEdit={onStartEdit}
                   onForward={onForwardMessage}
-                  onDelete={onDeleteMessage}
+                  onDelete={() => setIsDeleteConfirmOpen(true)}
                   onReply={onClickReply}
                 />
               </>
@@ -464,6 +584,9 @@ const Message = ({
                 <small className={classnames("text-muted", "mb-0", "me-2")}>
                   {date}
                 </small>
+                {message.isEdited && (
+                  <small className="text-muted me-2">edited</small>
+                )}
                 You
               </>
             ) : (
@@ -472,11 +595,43 @@ const Message = ({
                 <small className={classnames("text-muted", "mb-0", "ms-2")}>
                   {date}
                 </small>
+                {message.isEdited && (
+                  <small className="text-muted ms-2">edited</small>
+                )}
               </>
             )}
           </div>
         </div>
       </div>
+      <Modal
+        centered
+        isOpen={isDeleteConfirmOpen}
+        toggle={() => !isDeleting && setIsDeleteConfirmOpen(false)}
+      >
+        <ModalHeader
+          toggle={() => !isDeleting && setIsDeleteConfirmOpen(false)}
+        >
+          Delete message
+        </ModalHeader>
+        <ModalBody>This message will be removed for everyone.</ModalBody>
+        <ModalFooter>
+          <Button
+            color="light"
+            disabled={isDeleting}
+            onClick={() => setIsDeleteConfirmOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            color="danger"
+            disabled={isDeleting}
+            onClick={onDeleteMessage}
+          >
+            {isDeleting && <Spinner size="sm" className="me-2" />}
+            Delete message
+          </Button>
+        </ModalFooter>
+      </Modal>
     </li>
   );
 };
