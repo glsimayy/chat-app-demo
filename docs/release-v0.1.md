@@ -52,8 +52,8 @@ Java webhook environment degerleri `java-webhook/README.md` ile ayni tutulur.
 - [ ] Backend unit, e2e, build ve Prisma kontrolleri gecti.
 - [ ] Frontend typecheck, unit, build ve Playwright kontrolleri gecti.
 - [ ] Java testleri ve Java CI gecti.
-- [ ] Bos PostgreSQL veritabaninda migration basarili.
-- [ ] Backend ve DB restart sonrasinda kullanici ve mesajlar korundu.
+- [x] Bos PostgreSQL veritabaninda migration basarili.
+- [x] Backend ve DB restart sonrasinda kullanici ve mesajlar korundu.
 - [ ] Iki farkli cihazda direct ve group realtime mesajlasma calisti.
 - [ ] USER ve ADMIN yetki kontrolleri gecti.
 - [ ] Ayni ticket iki kez geldiginde tek bot grubu olustu.

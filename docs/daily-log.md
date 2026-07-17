@@ -33,6 +33,15 @@
 - Tekrarlanan kullanici ve conversation liste istekleri birlestirilerek gereksiz 429 cevaplari azaltildi.
 - Contacts, grup yonetimi ve gruptan ayrilma Playwright senaryolari eklendi.
 
+### PostgreSQL Kalicilik Testi
+
+- Docker PostgreSQL container'i `postgres:16-alpine` ile baslatildi.
+- Prisma migration bos local PostgreSQL veritabanina uygulandi.
+- `PERSISTENCE TEST` grubu, iki aktif katilimci ve marker mesaj olusturuldu.
+- Backend kapatilarak yeniden acildi; kullanici, grup, katilimci ve mesajlar korundu.
+- PostgreSQL container yeniden baslatildi; ayni veriler volume uzerinden korundu.
+- `restart-sonrasi-kalmali-001` marker mesaji hem arayuzden hem dogrudan SQL sorgusuyla dogrulandi.
+
 ### Verification
 
 - Frontend typecheck, 3 unit testi, 11 Playwright senaryosu ve production build basarili.
