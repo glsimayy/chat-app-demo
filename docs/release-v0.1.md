@@ -49,17 +49,19 @@ Java webhook environment degerleri `java-webhook/README.md` ile ayni tutulur.
 
 ## Release Gate
 
-- [ ] Backend unit, e2e, build ve Prisma kontrolleri gecti.
-- [ ] Frontend typecheck, unit, build ve Playwright kontrolleri gecti.
+- [x] Backend unit, e2e, build ve Prisma kontrolleri gecti.
+- [x] Frontend typecheck, unit, build ve Playwright kontrolleri gecti.
 - [ ] Java testleri ve Java CI gecti.
 - [x] Bos PostgreSQL veritabaninda migration basarili.
 - [x] Backend ve DB restart sonrasinda kullanici ve mesajlar korundu.
 - [ ] Iki farkli cihazda direct ve group realtime mesajlasma calisti.
-- [ ] USER ve ADMIN yetki kontrolleri gecti.
+- [x] USER ve ADMIN yetki kontrolleri gecti.
 - [ ] Ayni ticket iki kez geldiginde tek bot grubu olustu.
-- [ ] Dev reset, demo kullanicilar ve demo UI production'da kapali.
+- [x] Dev reset, demo kullanicilar ve demo UI production'da kapali.
 - [ ] Repo secret taramasi temiz.
-- [ ] Bilinen kisitlar release notuna yazildi.
+- [x] Bilinen kisitlar release notuna yazildi.
+
+Release notu taslagi: `docs/release-notes-v0.1.md`
 
 ## Release Komutlari
 

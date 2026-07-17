@@ -57,13 +57,13 @@ const LogoDarkSVG = () => {
 const Logo = () => {
   return (
     <div className="navbar-brand-box">
-      <Link to="#" className="logo logo-dark">
+      <Link to="/dashboard" className="logo logo-dark" aria-label="ellO home">
         <span className="logo-sm">
           <LogoLightSVG />
         </span>
       </Link>
 
-      <Link to="#" className="logo logo-light">
+      <Link to="/dashboard" className="logo logo-light" aria-label="ellO home">
         <span className="logo-sm">
           <LogoDarkSVG />
         </span>
@@ -102,8 +102,8 @@ const MenuNavItem = ({ item, selectedTab, onChangeTab }: MenuNavItemProps) => {
           href="#"
           active={selectedTab === item.tabId}
           id={item.key}
-          role="tab"
           aria-label={item.tooltipTitle}
+          aria-current={selectedTab === item.tabId ? "page" : undefined}
           onClick={onClick}
         >
           <i className={item.icon}></i>
@@ -234,7 +234,7 @@ const SideMenu = ({ onChangeLayoutMode }: any) => {
 
       {/* Start side-menu nav */}
       <div className="flex-lg-column my-0 sidemenu-navigation">
-        <Nav pills className="side-menu-nav" role="tablist">
+        <Nav pills className="side-menu-nav" aria-label="Primary navigation">
           {(menuItems || []).map((item: MenuItemType, key: number) => (
             <MenuNavItem
               item={item}

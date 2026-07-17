@@ -15,6 +15,7 @@ const InputSection = ({ value, onChange }: InputSectionProps) => {
         type="text"
         className="form-control form-control-lg chat-input"
         id="chat-input"
+        aria-label="Message"
         placeholder="Type your message..."
         value={value || ""}
         onChange={(e: any) => {

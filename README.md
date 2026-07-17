@@ -197,3 +197,5 @@ message akislarini gercek frontend, backend ve Socket.IO uzerinde kontrol eder.
 - Smoke test local server'da test kullanicilari olusturur. Manuel demo oncesi `POST /api/dev/reset` ile gelistirme verisi temizlenebilir.
 - v0.1 release kapilari ve production baslatma sirasi `docs/release-v0.1.md`
   icinde tutulur.
+- v0.1 ozellikleri, bekleyen teslimler ve bilinen kisitlar
+  `docs/release-notes-v0.1.md` icinde tutulur.

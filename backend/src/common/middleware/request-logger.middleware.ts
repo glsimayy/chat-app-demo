@@ -6,6 +6,35 @@ type RequestWithId = Request & {
   requestId?: string;
 };
 
+const SENSITIVE_QUERY_PARAMETER =
+  /(password|passcode|secret|token|authorization|api[-_]?key)/i;
+
+export function sanitizeRequestPath(originalUrl: string) {
+  try {
+    const url = new URL(originalUrl, "http://localhost");
+
+    for (const key of url.searchParams.keys()) {
+      if (SENSITIVE_QUERY_PARAMETER.test(key)) {
+        url.searchParams.set(key, "REDACTED");
+      }
+    }
+
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return originalUrl.split("?", 1)[0] ?? "/";
+  }
+}
+
+export function normalizeRequestId(header: string | string[] | undefined) {
+  const candidate = Array.isArray(header) ? header[0] : header;
+
+  if (candidate && /^[A-Za-z0-9._:-]{1,128}$/.test(candidate)) {
+    return candidate;
+  }
+
+  return crypto.randomUUID();
+}
+
 @Injectable()
 export class RequestLoggerMiddleware implements NestMiddleware {
   private readonly logger = new Logger(RequestLoggerMiddleware.name);
@@ -25,7 +54,7 @@ export class RequestLoggerMiddleware implements NestMiddleware {
         type: "http_request",
         requestId,
         method: request.method,
-        path: request.originalUrl,
+        path: sanitizeRequestPath(request.originalUrl),
         statusCode: response.statusCode,
         durationMs,
       });
@@ -49,12 +78,6 @@ export class RequestLoggerMiddleware implements NestMiddleware {
   }
 
   private getRequestId(request: Request) {
-    const header = request.headers["x-request-id"];
-
-    if (Array.isArray(header)) {
-      return header[0] ?? crypto.randomUUID();
-    }
-
-    return header ?? crypto.randomUUID();
+    return normalizeRequestId(request.headers["x-request-id"]);
   }
 }

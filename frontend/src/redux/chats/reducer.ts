@@ -11,6 +11,7 @@ export const INIT_STATE: ChatsState = {
   isOpenUserDetails: false,
   channelDetails: {},
   archiveContacts: [],
+  error: "",
 };
 
 const Chats = (state = INIT_STATE, action: any) => {
@@ -145,12 +146,14 @@ const Chats = (state = INIT_STATE, action: any) => {
         case ChatsActionTypes.GET_DIRECT_MESSAGES:
           return {
             ...state,
+            error: String(action.payload.error || "Chat list could not load."),
             isDirectMessagesFetched: false,
             getDirectMessagesLoading: false,
           };
         case ChatsActionTypes.GET_CHANNELS:
           return {
             ...state,
+            error: String(action.payload.error || "Chat list could not load."),
             isChannelsFetched: false,
             getChannelsLoading: false,
           };
@@ -245,12 +248,14 @@ const Chats = (state = INIT_STATE, action: any) => {
     case ChatsActionTypes.GET_DIRECT_MESSAGES:
       return {
         ...state,
+        error: "",
         isDirectMessagesFetched: false,
         getDirectMessagesLoading: true,
       };
     case ChatsActionTypes.GET_CHANNELS:
       return {
         ...state,
+        error: "",
         isChannelsFetched: false,
         getChannelsLoading: true,
       };

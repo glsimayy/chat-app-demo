@@ -12,8 +12,12 @@ interface StartButtonsProps {
   setemojiPicker: any;
 }
 
-const StartButtons = ({ onToggle, onEmojiClick, emojiPicker, setemojiPicker }: StartButtonsProps) => {
-
+const StartButtons = ({
+  onToggle,
+  onEmojiClick,
+  emojiPicker,
+  setemojiPicker,
+}: StartButtonsProps) => {
   return (
     <div className="chat-input-links me-md-2">
       <div className="links-list-item" id="more-menu">
@@ -22,6 +26,8 @@ const StartButtons = ({ onToggle, onEmojiClick, emojiPicker, setemojiPicker }: S
           className="btn btn-link text-decoration-none btn-lg waves-effect"
           onClick={onToggle}
           color="none"
+          title="More message options"
+          aria-label="More message options"
         >
           <i className="bx bx-dots-horizontal-rounded align-middle"></i>
         </Button>
@@ -29,7 +35,9 @@ const StartButtons = ({ onToggle, onEmojiClick, emojiPicker, setemojiPicker }: S
       <UncontrolledTooltip target="more-menu" placement="top">
         More
       </UncontrolledTooltip>
-      {emojiPicker && <Picker onEmojiClick={onEmojiClick} width={350} height={382} />}
+      {emojiPicker && (
+        <Picker onEmojiClick={onEmojiClick} width={350} height={382} />
+      )}
       <div className="links-list-item" id="emoji">
         <Button
           type="button"
@@ -37,6 +45,8 @@ const StartButtons = ({ onToggle, onEmojiClick, emojiPicker, setemojiPicker }: S
           id="emoji-btn"
           color="none"
           onClick={() => setemojiPicker(!emojiPicker)}
+          title="Choose emoji"
+          aria-label="Choose emoji"
         >
           <i className="bx bx-smile align-middle"></i>
         </Button>

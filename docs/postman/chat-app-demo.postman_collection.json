@@ -81,10 +81,10 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "const data = pm.response.json().data;",
-              "pm.collectionVariables.set('adminToken', data.accessToken);",
-              "pm.collectionVariables.set('adminId', data.user.id);",
-              "pm.test('First user is admin', function () { pm.expect(data.user.role).to.eql('admin'); });"
+              "const responseData = pm.response.json().data;",
+              "pm.collectionVariables.set('adminToken', responseData.accessToken);",
+              "pm.collectionVariables.set('adminId', responseData.user.id);",
+              "pm.test('First user is admin', function () { pm.expect(responseData.user.role).to.eql('admin'); });"
             ]
           }
         }
@@ -107,9 +107,9 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "const data = pm.response.json().data;",
-              "pm.collectionVariables.set('memberToken', data.accessToken);",
-              "pm.collectionVariables.set('memberId', data.user.id);"
+              "const responseData = pm.response.json().data;",
+              "pm.collectionVariables.set('memberToken', responseData.accessToken);",
+              "pm.collectionVariables.set('memberId', responseData.user.id);"
             ]
           }
         }
@@ -173,9 +173,9 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "const data = pm.response.json().data;",
-              "pm.collectionVariables.set('directConversationId', data.id);",
-              "pm.test('Direct conversation returned', function () { pm.expect(data.type).to.eql('direct'); });"
+              "const responseData = pm.response.json().data;",
+              "pm.collectionVariables.set('directConversationId', responseData.id);",
+              "pm.test('Direct conversation returned', function () { pm.expect(responseData.type).to.eql('direct'); });"
             ]
           }
         }
@@ -198,9 +198,9 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "const data = pm.response.json().data;",
-              "pm.collectionVariables.set('firstMessageId', data.id);",
-              "pm.test('Client message id is preserved', function () { pm.expect(data.clientMessageId).to.eql(pm.collectionVariables.get('clientMessageId')); });"
+              "const responseData = pm.response.json().data;",
+              "pm.collectionVariables.set('firstMessageId', responseData.id);",
+              "pm.test('Client message id is preserved', function () { pm.expect(responseData.clientMessageId).to.eql(pm.collectionVariables.get('clientMessageId')); });"
             ]
           }
         }
@@ -249,9 +249,9 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "const data = pm.response.json().data;",
-              "pm.collectionVariables.set('groupConversationId', data.id);",
-              "pm.test('Group conversation returned', function () { pm.expect(data.type).to.eql('group'); });"
+              "const responseData = pm.response.json().data;",
+              "pm.collectionVariables.set('groupConversationId', responseData.id);",
+              "pm.test('Group conversation returned', function () { pm.expect(responseData.type).to.eql('group'); });"
             ]
           }
         }
@@ -272,7 +272,7 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Guest was added', function () { pm.expect(pm.response.json().data.userId).to.eql(pm.collectionVariables.get('guestId')); });"
+              "pm.test('Guest was added', function () { const participants = pm.response.json().data; pm.expect(participants.some(function (participant) { return participant.userId === pm.collectionVariables.get('guestId') && !participant.leftAt; })).to.eql(true); });"
             ]
           }
         }
@@ -292,7 +292,7 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Guest was removed', function () { pm.expect(pm.response.json().data.leftAt).to.be.a('string'); });"
+              "pm.test('Guest was removed', function () { const participants = pm.response.json().data; pm.expect(participants.some(function (participant) { return participant.userId === pm.collectionVariables.get('guestId'); })).to.eql(false); });"
             ]
           }
         }

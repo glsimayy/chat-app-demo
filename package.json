@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "concurrently --kill-others-on-fail --names backend,frontend \"npm --prefix backend run start:dev\" \"npm --prefix frontend start\"",
     "dev:backend": "npm --prefix backend run start:dev",
-    "dev:frontend": "npm --prefix frontend start"
+    "dev:frontend": "npm --prefix frontend start",
+    "test:contract": "npx --yes newman@6.2.2 run docs/postman/chat-app-demo.postman_collection.json",
+    "check:licenses": "node scripts/check-licenses.js"
   },
   "devDependencies": {
     "concurrently": "^10.0.3"

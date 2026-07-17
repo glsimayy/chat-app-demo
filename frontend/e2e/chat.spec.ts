@@ -2,10 +2,12 @@ import {
   APIRequestContext,
   Browser,
   BrowserContext,
+  BrowserContextOptions,
   Page,
   expect,
   test,
 } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 
 const apiUrl = "http://127.0.0.1:3000/api";
 const accounts = {
@@ -73,7 +75,7 @@ async function loginThroughUi(
 ) {
   await page.goto("/auth-login");
   await page.getByLabel("Email").fill(account.email);
-  await page.getByLabel("Password").fill(account.password);
+  await page.getByRole("textbox", { name: "Password", exact: true }).fill(account.password);
   await page.getByRole("button", { name: "Log In" }).click();
 
   await expect(page).toHaveURL(/\/dashboard$/);
@@ -94,8 +96,12 @@ async function openConversation(page: Page, label: string) {
   ).toBeVisible();
 }
 
-async function createAuthenticatedPage(browser: Browser, session: AuthSession) {
-  const context = await browser.newContext();
+async function createAuthenticatedPage(
+  browser: Browser,
+  session: AuthSession,
+  contextOptions: BrowserContextOptions = {},
+) {
+  const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
   await page.goto("/auth-login");
   await page.evaluate(authUser => {
@@ -181,6 +187,24 @@ test("invalid sessions are cleared before the dashboard renders", async ({
     .toBeNull();
 });
 
+test("login shows an actionable error while the backend is unreachable", async ({
+  page,
+}) => {
+  await page.route("**/api/auth/login", route =>
+    route.abort("connectionrefused"),
+  );
+  await page.goto("/auth-login");
+  await page.getByLabel("Email").fill(accounts.user1.email);
+  await page.getByRole("textbox", { name: "Password", exact: true }).fill(accounts.user1.password);
+  await page.getByRole("button", { name: "Log In" }).click();
+
+  await expect(
+    page.getByText("Server unavailable. Check your connection and try again.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+});
+
 test("server roles control group creation access", async ({
   browser,
   request,
@@ -242,7 +266,7 @@ test("contacts open or create a direct conversation", async ({
   const admin = await createAuthenticatedPage(browser, sessions.admin);
 
   try {
-    await admin.page.getByRole("tab", { name: "Contacts" }).click();
+    await admin.page.getByRole("link", { name: "Contacts", exact: true }).click();
     const contact = admin.page
       .locator(".contact-list li")
       .filter({ hasText: username });
@@ -312,8 +336,111 @@ test("direct messages arrive in the other user's open conversation", async ({
 
     await expect(user1Page.getByText(message, { exact: true })).toBeVisible();
     await expect(user2Page.getByText(message, { exact: true })).toBeVisible();
+    await expect(user1Page.getByText(message, { exact: true })).toHaveCount(1);
+    await expect(user2Page.getByText(message, { exact: true })).toHaveCount(1);
+
+    const reply = `direct-reply-e2e-${Date.now()}`;
+    await user2Page.locator("#chat-input").fill(reply);
+    await user2Page.locator("#chat-input").press("Enter");
+
+    await expect(user1Page.getByText(reply, { exact: true })).toBeVisible();
+    await expect(user2Page.getByText(reply, { exact: true })).toBeVisible();
+    await expect(user1Page.getByText(reply, { exact: true })).toHaveCount(1);
+    await expect(user2Page.getByText(reply, { exact: true })).toHaveCount(1);
   } finally {
     await closeContexts(user1Context, user2Context);
+  }
+});
+
+test("an open conversation reconnects after a temporary network outage", async ({
+  browser,
+}) => {
+  const user = await createAuthenticatedPage(browser, sessions.user1);
+
+  try {
+    await openConversation(user.page, "user2");
+    await user.context.setOffline(true);
+    await expect(
+      user.page.getByText("REST fallback active", { exact: true }),
+    ).toBeVisible({ timeout: 10_000 });
+
+    await user.context.setOffline(false);
+    await expect(
+      user.page.getByText("Realtime connected", { exact: true }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    const message = `reconnect-e2e-${Date.now()}`;
+    await user.page.locator("#chat-input").fill(message);
+    await user.page.locator("#chat-input").press("Enter");
+    await expect(user.page.getByText(message, { exact: true })).toHaveCount(1);
+  } finally {
+    await user.context.close();
+  }
+});
+
+test("the core chat flow fits a mobile viewport without horizontal overflow", async ({
+  browser,
+}) => {
+  const user = await createAuthenticatedPage(browser, sessions.user1, {
+    viewport: { width: 390, height: 844 },
+  });
+
+  try {
+    await expect(
+      user.page.getByRole("heading", { name: "Chats" }),
+    ).toBeVisible();
+    await openConversation(user.page, "user2");
+    await expect(user.page.locator("#chat-input")).toBeVisible();
+
+    const layout = await user.page.evaluate(() => ({
+      viewportWidth: window.innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+    }));
+    expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth + 1);
+
+    const inputBox = await user.page.locator("#chat-input").boundingBox();
+    expect(inputBox).not.toBeNull();
+    expect(inputBox?.x ?? -1).toBeGreaterThanOrEqual(0);
+    expect((inputBox?.x ?? 0) + (inputBox?.width ?? 0)).toBeLessThanOrEqual(
+      390,
+    );
+  } finally {
+    await user.context.close();
+  }
+});
+
+test("login and dashboard have no serious accessibility violations", async ({
+  browser,
+}) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  try {
+    await page.goto("/auth-login");
+    const loginResults = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa"])
+      .analyze();
+    expect(
+      loginResults.violations.filter(violation =>
+        ["serious", "critical"].includes(violation.impact || ""),
+      ),
+    ).toEqual([]);
+
+    await page.evaluate(authUser => {
+      window.localStorage.setItem("authUser", JSON.stringify(authUser));
+    }, toFrontendAuthUser(sessions.user1));
+    await page.goto("/dashboard");
+    await expect(page.getByRole("heading", { name: "Chats" })).toBeVisible();
+    const dashboardResults = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa"])
+      .analyze();
+    expect(
+      dashboardResults.violations.filter(violation =>
+        ["serious", "critical"].includes(violation.impact || ""),
+      ),
+    ).toEqual([]);
+  } finally {
+    await context.close();
   }
 });
 
@@ -435,6 +562,17 @@ test("group messages arrive in the other participant's open conversation", async
 
     await expect(user1Page.getByText(message, { exact: true })).toBeVisible();
     await expect(user2Page.getByText(message, { exact: true })).toBeVisible();
+    await expect(user1Page.getByText(message, { exact: true })).toHaveCount(1);
+    await expect(user2Page.getByText(message, { exact: true })).toHaveCount(1);
+
+    const reply = `group-reply-e2e-${Date.now()}`;
+    await user2Page.locator("#chat-input").fill(reply);
+    await user2Page.locator("#chat-input").press("Enter");
+
+    await expect(user1Page.getByText(reply, { exact: true })).toBeVisible();
+    await expect(user2Page.getByText(reply, { exact: true })).toBeVisible();
+    await expect(user1Page.getByText(reply, { exact: true })).toHaveCount(1);
+    await expect(user2Page.getByText(reply, { exact: true })).toHaveCount(1);
   } finally {
     await closeContexts(user1Context, user2Context);
   }

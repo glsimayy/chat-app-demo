@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import classnames from "classnames";
+import { Alert, Button } from "reactstrap";
 
 // hooks
 import { useRedux } from "../../hooks/index";
@@ -31,10 +32,16 @@ const Index = (props: IndexProps) => {
     (state: any) => state.Chats,
     state => ({
       selectedChat: state.selectedChat,
+      error: state.error,
     }),
   );
   // Inside your component
-  const { selectedChat } = useAppSelector(errorData);
+  const { selectedChat, error } = useAppSelector(errorData);
+
+  const retryChatLists = () => {
+    dispatch(getDirectMessages());
+    dispatch(getChannels());
+  };
 
   useEffect(() => {
     const socket = getChatSocket();
@@ -96,6 +103,17 @@ const Index = (props: IndexProps) => {
         id="user-chat"
       >
         <div className="user-chat-overlay" id="user-chat-overlay"></div>
+        {error && (
+          <Alert
+            color="danger"
+            className="rounded-0 mb-0 d-flex align-items-center justify-content-between gap-3"
+          >
+            <span>{error}</span>
+            <Button color="danger" outline size="sm" onClick={retryChatLists}>
+              Retry
+            </Button>
+          </Alert>
+        )}
         {selectedChat !== null ? (
           <div className="chat-content d-lg-flex">
             <div className="w-100 overflow-hidden position-relative">

@@ -1,10 +1,8 @@
 import axios from "axios";
 import config from "../config";
+import { ApiErrorDetails, normalizeApiError } from "./apiErrors";
 
-export interface ApiErrorDetails {
-  message: string;
-  retryAfterSeconds?: number;
-}
+export type { ApiErrorDetails } from "./apiErrors";
 
 // default
 axios.defaults.baseURL = config.API_URL;
@@ -49,10 +47,7 @@ axios.interceptors.response.use(
     return payload;
   },
   function (error: any) {
-    // Any status codes that falls outside the range of 2xx cause this function to trigger
-    let message;
     const status = error.response?.status || error.status;
-    const responseMessage = error.response?.data?.message;
     const requestUrl = error.config?.url || "";
     const isLoginRequest = requestUrl.endsWith("/auth/login");
     const isPublicAuthRequest = ["/auth/login", "/auth/register"].some(path =>
@@ -68,40 +63,16 @@ axios.interceptors.response.use(
     }
 
     if (status === 429 && isLoginRequest) {
-      const parsedRetryAfter = Number(error.response?.headers?.["retry-after"]);
+      const normalized = normalizeApiError(error);
       const rateLimitError: ApiErrorDetails = {
         message: "Too many login attempts.",
-        retryAfterSeconds:
-          Number.isFinite(parsedRetryAfter) && parsedRetryAfter > 0
-            ? Math.ceil(parsedRetryAfter)
-            : 60,
+        retryAfterSeconds: normalized.retryAfterSeconds,
       };
 
       return Promise.reject(rateLimitError);
     }
 
-    if (responseMessage) {
-      return Promise.reject(
-        Array.isArray(responseMessage)
-          ? responseMessage.join(", ")
-          : responseMessage,
-      );
-    }
-
-    switch (status) {
-      case 500:
-        message = "Internal Server Error";
-        break;
-      case 401:
-        message = "Invalid credentials";
-        break;
-      case 404:
-        message = "Sorry! the data you are looking for could not be found";
-        break;
-      default:
-        message = error.message || error;
-    }
-    return Promise.reject(message);
+    return Promise.reject(normalizeApiError(error).message);
   },
 );
 

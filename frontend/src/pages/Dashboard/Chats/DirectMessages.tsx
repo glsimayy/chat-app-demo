@@ -36,7 +36,11 @@ const DirectMessages = ({
         <div className="flex-shrink-0">
           <div id="new-message" title="New Message">
             {/* Button trigger modal */}
-            <AddButton onClick={openAddContact} /> {/* contactModal */}
+            <AddButton
+              ariaLabel="New direct message"
+              onClick={openAddContact}
+            />{" "}
+            {/* contactModal */}
           </div>
           <UncontrolledTooltip target="new-message" placement="bottom">
             New Message

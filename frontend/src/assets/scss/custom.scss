@@ -95,8 +95,24 @@
     position: relative;
     flex-shrink: 0;
   }
+
+  .chat-input-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+
+    > .col,
+    > .col-auto {
+      width: auto;
+      min-width: 0;
+    }
+  }
 }
 
 .cursor-pointer {
   cursor: pointer;
+}
+
+body:not([data-bs-theme="dark"]) .chat-leftsidebar .text-muted,
+body[data-bs-theme="light"] .chat-leftsidebar .text-muted {
+  color: #626a73 !important;
 }

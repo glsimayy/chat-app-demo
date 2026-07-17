@@ -54,6 +54,8 @@ const PasswordInput: React.FunctionComponent<PasswordInputProps> = ({
               setShowPassword(!showPassword);
             }}
             data-password={showPassword ? "true" : "false"}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            aria-pressed={showPassword}
           >
             <i className="ri-eye-fill align-middle"></i>
           </button>

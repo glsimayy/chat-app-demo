@@ -71,14 +71,13 @@ const Index = ({
     }
   }, [text, images, files]);
 
-  // emoji picker 
+  // emoji picker
   const [emojiArray, setemojiArray] = useState<any>("");
   const [emojiPicker, setemojiPicker] = useState<boolean>(false);
   const onEmojiClick = (event: any) => {
     setemojiArray([...emojiArray, event.emoji]);
     setText(text + event.emoji);
   };
-
 
   // Submit Message
   const onSubmit = () => {
@@ -132,7 +131,7 @@ const Index = ({
           onSubmit();
         }}
       >
-        <div className="row g-0 align-items-center">
+        <div className="row g-0 align-items-center chat-input-row">
           <div className="col-auto">
             <StartButtons
               onToggle={onToggle}

@@ -8,6 +8,10 @@ const DEV_RESET_SECRET =
   process.env.DEV_RESET_SECRET ?? "change-me-for-dev-reset";
 const CLIENT_COUNT = Number(process.env.LOAD_CLIENTS ?? 5);
 const MESSAGES_PER_CLIENT = Number(process.env.LOAD_MESSAGES_PER_CLIENT ?? 10);
+const MAX_P95_MS = Number(process.env.LOAD_MAX_P95_MS ?? 2000);
+const MIN_THROUGHPUT_PER_SECOND = Number(
+  process.env.LOAD_MIN_THROUGHPUT_PER_SECOND ?? 1,
+);
 
 function assert(condition, message) {
   if (!condition) {
@@ -21,9 +25,7 @@ async function request(method, path, body, token) {
     headers: {
       "content-type": "application/json",
       ...(token ? { authorization: `Bearer ${token}` } : {}),
-      ...(path === "/dev/reset"
-        ? { "x-dev-secret": DEV_RESET_SECRET }
-        : {}),
+      ...(path === "/dev/reset" ? { "x-dev-secret": DEV_RESET_SECRET } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -97,8 +99,14 @@ async function main() {
     Number.isInteger(MESSAGES_PER_CLIENT) && MESSAGES_PER_CLIENT > 0,
     "LOAD_MESSAGES_PER_CLIENT must be a positive integer",
   );
+  assert(MAX_P95_MS > 0, "LOAD_MAX_P95_MS must be positive");
+  assert(
+    MIN_THROUGHPUT_PER_SECOND > 0,
+    "LOAD_MIN_THROUGHPUT_PER_SECOND must be positive",
+  );
 
   const sockets = [];
+  const senderSockets = [];
 
   try {
     await request("POST", "/dev/reset");
@@ -119,10 +127,43 @@ async function main() {
       { participantId: recipient.user.id },
       sender.accessToken,
     );
+    const totalMessages = CLIENT_COUNT * MESSAGES_PER_CLIENT;
+    assert(
+      totalMessages <= 100,
+      "This load check supports at most 100 messages per run",
+    );
+
+    const receivedMessageIds = new Set();
+    let duplicateEvents = 0;
+    let resolveAllMessages;
+    const allMessagesReceived = new Promise((resolve) => {
+      resolveAllMessages = resolve;
+    });
+    const recipientSocket = await connect(recipient.accessToken);
+    sockets.push(recipientSocket);
+    recipientSocket.on("message:new", (message) => {
+      if (message?.conversationId !== conversation.id) {
+        return;
+      }
+
+      if (receivedMessageIds.has(message.id)) {
+        duplicateEvents += 1;
+      } else {
+        receivedMessageIds.add(message.id);
+      }
+
+      if (receivedMessageIds.size === totalMessages) {
+        resolveAllMessages();
+      }
+    });
+    await emitWithAck(recipientSocket, "conversation:sync", {
+      conversationIds: [conversation.id],
+    });
 
     for (let index = 0; index < CLIENT_COUNT; index += 1) {
       const socket = await connect(sender.accessToken);
       sockets.push(socket);
+      senderSockets.push(socket);
       await emitWithAck(socket, "conversation:sync", {
         conversationIds: [conversation.id],
       });
@@ -132,7 +173,7 @@ async function main() {
     const startedAt = performance.now();
 
     await Promise.all(
-      sockets.map(async (socket, clientIndex) => {
+      senderSockets.map(async (socket, clientIndex) => {
         for (
           let messageIndex = 0;
           messageIndex < MESSAGES_PER_CLIENT;
@@ -156,7 +197,15 @@ async function main() {
     );
 
     const durationMs = performance.now() - startedAt;
-    const totalMessages = CLIENT_COUNT * MESSAGES_PER_CLIENT;
+    await Promise.race([
+      allMessagesReceived,
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Timed out waiting for realtime messages")),
+          10_000,
+        ),
+      ),
+    ]);
     const history = await request(
       "GET",
       `/conversations/${conversation.id}/messages?limit=100`,
@@ -168,6 +217,25 @@ async function main() {
       history.items.length === totalMessages,
       `Expected ${totalMessages} messages, received ${history.items.length}`,
     );
+    assert(
+      receivedMessageIds.size === totalMessages,
+      `Expected ${totalMessages} realtime messages, received ${receivedMessageIds.size}`,
+    );
+    assert(
+      duplicateEvents === 0,
+      `Received ${duplicateEvents} duplicate events`,
+    );
+
+    const p95 = percentile(latencies, 95);
+    const throughputPerSecond = (totalMessages / durationMs) * 1000;
+    assert(
+      p95 <= MAX_P95_MS,
+      `p95 latency ${p95.toFixed(2)}ms exceeded ${MAX_P95_MS}ms`,
+    );
+    assert(
+      throughputPerSecond >= MIN_THROUGHPUT_PER_SECOND,
+      `Throughput ${throughputPerSecond.toFixed(2)}/s was below ${MIN_THROUGHPUT_PER_SECOND}/s`,
+    );
 
     console.log(
       JSON.stringify(
@@ -177,13 +245,17 @@ async function main() {
           messagesPerClient: MESSAGES_PER_CLIENT,
           totalMessages,
           durationMs: Number(durationMs.toFixed(2)),
-          throughputPerSecond: Number(
-            ((totalMessages / durationMs) * 1000).toFixed(2),
-          ),
+          realtimeMessagesReceived: receivedMessageIds.size,
+          duplicateEvents,
+          throughputPerSecond: Number(throughputPerSecond.toFixed(2)),
           ackLatencyMs: {
             p50: Number(percentile(latencies, 50).toFixed(2)),
-            p95: Number(percentile(latencies, 95).toFixed(2)),
+            p95: Number(p95.toFixed(2)),
             max: Number(Math.max(...latencies).toFixed(2)),
+          },
+          thresholds: {
+            maxP95Ms: MAX_P95_MS,
+            minThroughputPerSecond: MIN_THROUGHPUT_PER_SECOND,
           },
         },
         null,

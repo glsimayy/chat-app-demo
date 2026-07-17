@@ -230,7 +230,7 @@ const Index = (props: IndexProps) => {
             <div className="flex-shrink-0">
               <div id="add-contact">
                 {/* Button trigger modal */}
-                <AddButton onClick={openModal} />
+                <AddButton ariaLabel="Add contact" onClick={openModal} />
               </div>
               <UncontrolledTooltip target="add-contact" placement="bottom">
                 Add Contact
@@ -245,8 +245,14 @@ const Index = (props: IndexProps) => {
                 type="text"
                 className="form-control bg-light border-0 pe-0"
                 placeholder="Search here.."
+                aria-label="Search chats"
               />
-              <Button color="light" type="button" id="searchbtn-addon">
+              <Button
+                color="light"
+                type="button"
+                id="searchbtn-addon"
+                aria-label="Search chats"
+              >
                 <i className="bx bx-search align-middle"></i>
               </Button>
             </div>

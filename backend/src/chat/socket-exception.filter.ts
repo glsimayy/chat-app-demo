@@ -85,8 +85,10 @@ export class SocketExceptionFilter implements WsExceptionFilter {
     }
 
     this.logger.error(
-      "Unhandled socket exception",
-      exception instanceof Error ? exception.stack : String(exception),
+      JSON.stringify({
+        type: "socket_unhandled_exception",
+        errorName: exception instanceof Error ? exception.name : "UnknownError",
+      }),
     );
 
     return {

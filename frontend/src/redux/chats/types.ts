@@ -39,4 +39,5 @@ export interface ChatsState {
   isOpenUserDetails: boolean;
   channelDetails: object;
   archiveContacts: Array<any>;
+  error?: string;
 }

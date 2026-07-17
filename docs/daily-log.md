@@ -47,6 +47,15 @@
 - Frontend typecheck, 3 unit testi, 11 Playwright senaryosu ve production build basarili.
 - Backend uygulama/test typecheck, 8 e2e testi ve production build basarili.
 
+### Bagimsiz Release Hazirligi
+
+- Java ve Database teslimleri beklenirken v0.1 release notu ve bilinen kisitlar hazirlandi.
+- Hassas query parametreleri HTTP request loglarinda `REDACTED` olarak maskelendi.
+- Guvenli olmayan veya asiri uzun `x-request-id` degerleri rastgele UUID ile degistirildi.
+- Beklenmeyen Socket.IO hatalarinda ham stack ve hata mesaji loglanmasi kaldirildi.
+- Request log sanitization testleri 3/3, tum backend unit testleri 30/30 gecti.
+- Backend typecheck, test typecheck, production build ve `npm audit` kontrolleri basarili.
+
 ## 16.07.2026 Persembe
 
 ### Main Backend v0.1 Hazirligi

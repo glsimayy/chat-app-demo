@@ -23,6 +23,14 @@
     background-position: center;
 }
 
+.auth-bg .text-white-50 {
+    color: rgba($white, 0.9) !important;
+}
+
+.authentication-page-content .text-muted {
+    color: #626a73 !important;
+}
+
 .auth-logo-section{
     display: flex;
     flex-direction: column;
