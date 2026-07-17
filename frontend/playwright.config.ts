@@ -26,7 +26,7 @@ export default defineConfig({
       command: "npm --prefix ../backend run start:dev",
       url: `${backendUrl}/api/health`,
       reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
+      timeout: 180_000,
       env: {
         ...process.env,
         NODE_ENV: "development",
