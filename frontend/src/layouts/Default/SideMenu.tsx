@@ -103,6 +103,7 @@ const MenuNavItem = ({ item, selectedTab, onChangeTab }: MenuNavItemProps) => {
           active={selectedTab === item.tabId}
           id={item.key}
           role="tab"
+          aria-label={item.tooltipTitle}
           onClick={onClick}
         >
           <i className={item.icon}></i>

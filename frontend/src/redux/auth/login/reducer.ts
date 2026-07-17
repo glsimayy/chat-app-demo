@@ -16,6 +16,8 @@ const Login = (state = INIT_STATE, action: any) => {
             loading: false,
             isUserLogin: true,
             isUserLogout: false,
+            error: "",
+            retryAfterUntil: undefined,
           };
         case AuthLoginActionTypes.LOGOUT_USER:
           return {
@@ -35,6 +37,7 @@ const Login = (state = INIT_STATE, action: any) => {
             error: action.payload.error,
             isUserLogin: false,
             loading: false,
+            retryAfterUntil: action.payload.retryAfterUntil,
           };
         case AuthLoginActionTypes.LOGOUT_USER:
           return {
@@ -52,6 +55,8 @@ const Login = (state = INIT_STATE, action: any) => {
         ...state,
         loading: true,
         isUserLogin: false,
+        error: "",
+        retryAfterUntil: undefined,
       };
     }
 
@@ -60,6 +65,12 @@ const Login = (state = INIT_STATE, action: any) => {
         ...state,
         loading: false,
         isUserLogout: false,
+      };
+    case AuthLoginActionTypes.CLEAR_LOGIN_ERROR:
+      return {
+        ...state,
+        error: "",
+        retryAfterUntil: undefined,
       };
     default:
       return { ...state };

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Alert } from "reactstrap";
 
 // hooks
 import { useRedux } from "../../../hooks/index";
@@ -16,11 +17,12 @@ import {
   getContacts,
   inviteContact,
   resetContacts,
-  getChannelDetails,
   getChatUserDetails,
   getChatUserConversations,
   changeSelectedChat,
+  getDirectMessages,
 } from "../../../redux/actions";
+import { createDirectConversation } from "../../../api/chats";
 
 //utils
 import { divideByKey, DivideByKeyResultTypes } from "../../../utils";
@@ -32,17 +34,17 @@ const Index = (props: IndexProps) => {
   const { dispatch, useAppSelector } = useRedux();
 
   const errorData = createSelector(
-    (state : any) => state.Contacts,
-    (state) => ({
+    (state: any) => state.Contacts,
+    state => ({
       contactsList: state.contacts,
       getContactsLoading: state.getContactsLoading,
       isContactInvited: state.isContactInvited,
-    })
+    }),
   );
   // Inside your component
-  const { contactsList,getContactsLoading,isContactInvited} = useAppSelector(errorData);
+  const { contactsList, getContactsLoading, isContactInvited } =
+    useAppSelector(errorData);
 
- 
   // get contacts
 
   useEffect(() => {
@@ -98,31 +100,54 @@ const Index = (props: IndexProps) => {
     setSearch(value);
     let modifiedContacts = [...contactsList];
     let filteredContacts = (modifiedContacts || []).filter((c: any) =>
-      c["firstName"].toLowerCase().includes(value.toLowerCase())
+      c["firstName"].toLowerCase().includes(value.toLowerCase()),
     );
     setContacts(filteredContacts);
   };
 
   const totalC = (contacts || []).length;
-  const onSelectChat = (id: string | number, isChannel?: boolean) => {
-    if (isChannel) {
-      dispatch(getChannelDetails(id));
-    } else {
-      dispatch(getChatUserDetails(id));
+  const [openingContactId, setOpeningContactId] = useState<
+    string | number | null
+  >(null);
+  const [openConversationError, setOpenConversationError] = useState("");
+  const onSelectChat = async (contactId: string | number) => {
+    try {
+      setOpeningContactId(contactId);
+      setOpenConversationError("");
+      const conversation: any = await createDirectConversation(contactId);
+
+      dispatch(getChatUserDetails(conversation.id));
+      dispatch(getChatUserConversations(conversation.id));
+      dispatch(changeSelectedChat(conversation.id));
+      dispatch(getDirectMessages());
+    } catch (error: any) {
+      setOpenConversationError(
+        String(error || "Conversation could not be opened"),
+      );
+    } finally {
+      setOpeningContactId(null);
     }
-    dispatch(getChatUserConversations(id));
-    dispatch(changeSelectedChat(id));
   };
 
   return (
     <>
       <div className="position-relative">
-        {getContactsLoading && <Loader />}
+        {(getContactsLoading || openingContactId !== null) && <Loader />}
         <ListHeader
           search={search}
           onChangeSearch={onChangeSearch}
           openModal={openModal}
         />
+
+        {openConversationError && (
+          <Alert
+            color="danger"
+            className="mx-4 py-2"
+            toggle={() => setOpenConversationError("")}
+          >
+            {openConversationError}
+          </Alert>
+        )}
 
         <AppSimpleBar className="chat-message-list chat-group-list">
           <div>
@@ -137,7 +162,7 @@ const Index = (props: IndexProps) => {
                     index={key}
                     onSelectChat={onSelectChat}
                   />
-                )
+                ),
               )
             )}
           </div>

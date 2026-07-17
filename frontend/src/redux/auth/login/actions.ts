@@ -10,9 +10,10 @@ export const authLoginApiResponseSuccess = (actionType: string, data: any) => ({
 export const authLoginApiResponseError = (
   actionType: string,
   error: string,
+  retryAfterUntil?: number,
 ) => ({
   type: AuthLoginActionTypes.API_RESPONSE_ERROR,
-  payload: { actionType, error },
+  payload: { actionType, error, retryAfterUntil },
 });
 
 export const loginUser = (user: any) => {
@@ -27,3 +28,7 @@ export const logoutUser = () => {
     type: AuthLoginActionTypes.LOGOUT_USER,
   };
 };
+
+export const clearLoginError = () => ({
+  type: AuthLoginActionTypes.CLEAR_LOGIN_ERROR,
+});

@@ -19,9 +19,6 @@ interface GroupProps {
   member: any;
 }
 const Member = ({ member }: GroupProps) => {
-
-
-  
   // global store
   const { dispatch } = useRedux();
   const { categorizedContacts } = useContacts();
@@ -32,18 +29,15 @@ const Member = ({ member }: GroupProps) => {
     fullName = `${member.firstName} ${member.lastName}`;
     shortName = `${member.firstName.charAt(0)}${member.lastName.charAt(0)}`;
   } else {
-
     const result = categorizedContacts.filter(
-      categorizedContact => categorizedContact.data[0].id === member
+      categorizedContact => categorizedContact.data[0].id === member,
     );
 
     if (result[0]) {
-     
       fullName = result[0].data[0].firstName + " " + result[0].data[0].lastName;
       shortName =
         result[0].data[0].firstName.charAt(0) +
         result[0].data[0].lastName.charAt(0);
-
     }
   }
 
@@ -78,7 +72,7 @@ const Member = ({ member }: GroupProps) => {
                   "chat-user-img",
                   "align-self-center",
                   "me-2",
-                  "ms-0"
+                  "ms-0",
                 )}
               >
                 <img
@@ -94,7 +88,7 @@ const Member = ({ member }: GroupProps) => {
                   "rounded-circle",
                   "text-uppercase",
                   "text-white",
-                  colors[color]
+                  colors[color],
                 )}
               >
                 {shortName}
@@ -123,7 +117,7 @@ const Members = ({ chatUserDetails }: GroupsProps) => {
   const groups =
     chatUserDetails.members &&
     chatUserDetails.members.length &&
-    chatUserDetails.members;
+    chatUserDetails.members.filter((member: any) => !member.leftAt);
   return (
     <div>
       <div className="d-flex">
@@ -135,7 +129,7 @@ const Members = ({ chatUserDetails }: GroupsProps) => {
       {groups ? (
         <ul className="list-unstyled chat-list mx-n4">
           {(groups || []).map((member: any, key: number) => (
-              <Member key={key} member={member} />
+            <Member key={key} member={member} />
           ))}
         </ul>
       ) : (

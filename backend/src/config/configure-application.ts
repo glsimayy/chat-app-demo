@@ -28,7 +28,11 @@ export function configureApplication(app: NestExpressApplication) {
       prefix: "/demo",
     });
   }
-  app.enableCors({ origin: corsOrigin, credentials: true });
+  app.enableCors({
+    origin: corsOrigin,
+    credentials: true,
+    exposedHeaders: ["Retry-After"],
+  });
   app.useWebSocketAdapter(new ConfiguredIoAdapter(app, corsOrigin));
   app.useBodyParser("json", { limit: bodyLimit });
   app.useBodyParser("urlencoded", { extended: true, limit: bodyLimit });

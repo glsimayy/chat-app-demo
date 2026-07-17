@@ -1,6 +1,11 @@
 import axios from "axios";
 import config from "../config";
 
+export interface ApiErrorDetails {
+  message: string;
+  retryAfterSeconds?: number;
+}
+
 // default
 axios.defaults.baseURL = config.API_URL;
 
@@ -49,6 +54,7 @@ axios.interceptors.response.use(
     const status = error.response?.status || error.status;
     const responseMessage = error.response?.data?.message;
     const requestUrl = error.config?.url || "";
+    const isLoginRequest = requestUrl.endsWith("/auth/login");
     const isPublicAuthRequest = ["/auth/login", "/auth/register"].some(path =>
       requestUrl.endsWith(path),
     );
@@ -59,6 +65,19 @@ axios.interceptors.response.use(
       if (window.location.pathname !== "/auth-login") {
         window.location.replace("/auth-login");
       }
+    }
+
+    if (status === 429 && isLoginRequest) {
+      const parsedRetryAfter = Number(error.response?.headers?.["retry-after"]);
+      const rateLimitError: ApiErrorDetails = {
+        message: "Too many login attempts.",
+        retryAfterSeconds:
+          Number.isFinite(parsedRetryAfter) && parsedRetryAfter > 0
+            ? Math.ceil(parsedRetryAfter)
+            : 60,
+      };
+
+      return Promise.reject(rateLimitError);
     }
 
     if (responseMessage) {

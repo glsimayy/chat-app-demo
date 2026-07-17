@@ -86,7 +86,7 @@ async function openConversation(page: Page, label: string) {
     .filter({ hasText: label })
     .first();
 
-  await expect(conversation).toBeVisible();
+  await expect(conversation).toBeVisible({ timeout: 10_000 });
   await conversation.click();
   await expect(page.locator("#chat-input")).toBeVisible();
   await expect(
@@ -221,6 +221,44 @@ test("server roles control group creation access", async ({
     expect(forbiddenResponse.status()).toBe(403);
   } finally {
     await closeContexts(user.context, admin.context);
+  }
+});
+
+test("contacts open or create a direct conversation", async ({
+  browser,
+  request,
+}) => {
+  const suffix = Date.now();
+  const username = `contact${suffix}`;
+  const response = await request.post(`${apiUrl}/auth/register`, {
+    data: {
+      email: `${username}@ello.local`,
+      username,
+      password: "Contact123!",
+    },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+
+  const admin = await createAuthenticatedPage(browser, sessions.admin);
+
+  try {
+    await admin.page.getByRole("tab", { name: "Contacts" }).click();
+    const contact = admin.page
+      .locator(".contact-list li")
+      .filter({ hasText: username });
+
+    await expect(contact).toHaveCount(1);
+    await contact.click();
+
+    await expect(admin.page.locator("#chat-input")).toBeVisible();
+    await expect(
+      admin.page.getByText("Conversation not found", { exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      admin.page.getByText("Realtime connected", { exact: true }),
+    ).toBeVisible();
+  } finally {
+    await admin.context.close();
   }
 });
 
@@ -399,5 +437,114 @@ test("group messages arrive in the other participant's open conversation", async
     await expect(user2Page.getByText(message, { exact: true })).toBeVisible();
   } finally {
     await closeContexts(user1Context, user2Context);
+  }
+});
+
+test("group management actions are visible, authorized, and realtime", async ({
+  browser,
+  request,
+}) => {
+  const groupName = `manage-group-${Date.now()}`;
+  const renamedGroup = `${groupName}-renamed`;
+  const response = await request.post(`${apiUrl}/conversations/groups`, {
+    headers: { Authorization: `Bearer ${sessions.admin.accessToken}` },
+    data: {
+      name: groupName,
+      participantIds: [sessions.user1.user.id, sessions.user2.user.id],
+    },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+
+  const admin = await createAuthenticatedPage(browser, sessions.admin);
+  const { user1Context, user2Context, user1Page, user2Page } =
+    await createUserPages(browser);
+
+  try {
+    await openConversation(admin.page, groupName);
+    await openConversation(user1Page, groupName);
+    await openConversation(user2Page, groupName);
+
+    await expect(
+      admin.page.getByText("3 online", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      user1Page.getByRole("button", {
+        name: "Save group name",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await expect(
+      user1Page.getByRole("button", { name: "Leave group" }),
+    ).toBeEnabled();
+    await expect(
+      admin.page.getByRole("button", { name: "Leave group" }),
+    ).toBeDisabled();
+
+    await admin.page.locator("#group-name-input").fill(renamedGroup);
+    await admin.page
+      .getByRole("button", { name: "Save group name", exact: true })
+      .click();
+    await expect(
+      admin.page.getByRole("heading", { name: renamedGroup }),
+    ).toBeVisible();
+
+    await admin.page
+      .locator("#group-owner-input")
+      .selectOption({ label: sessions.user1.user.username });
+    admin.page.once("dialog", dialog => dialog.accept());
+    await admin.page
+      .getByRole("button", { name: "Transfer ownership", exact: true })
+      .click();
+    await expect(
+      admin.page.getByText("Group ownership transferred", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      admin.page.getByRole("button", { name: "Leave group" }),
+    ).toBeEnabled();
+
+    await admin.page
+      .getByLabel(`Remove ${sessions.user2.user.username}`)
+      .click();
+    await expect(
+      admin.page.getByText("2 online", { exact: true }),
+    ).toBeVisible();
+    await expect(user2Page.locator("#chat-input")).toHaveCount(0);
+    await expect(
+      user1Page.getByRole("button", { name: "Leave group" }),
+    ).toBeDisabled();
+  } finally {
+    await closeContexts(admin.context, user1Context, user2Context);
+  }
+});
+
+test("a group member can leave from the conversation controls", async ({
+  browser,
+  request,
+}) => {
+  const groupName = `leave-group-${Date.now()}`;
+  const response = await request.post(`${apiUrl}/conversations/groups`, {
+    headers: { Authorization: `Bearer ${sessions.admin.accessToken}` },
+    data: {
+      name: groupName,
+      participantIds: [sessions.user2.user.id],
+    },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+
+  const member = await createAuthenticatedPage(browser, sessions.user2);
+
+  try {
+    await openConversation(member.page, groupName);
+    member.page.once("dialog", dialog => dialog.accept());
+    await member.page
+      .getByRole("button", { name: "Leave group", exact: true })
+      .click();
+
+    await expect(member.page.locator("#chat-input")).toHaveCount(0);
+    await expect(
+      member.page.locator(".chat-user-list li").filter({ hasText: groupName }),
+    ).toHaveCount(0);
+  } finally {
+    await member.context.close();
   }
 });

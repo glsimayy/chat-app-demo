@@ -1,5 +1,43 @@
 # Daily Log
 
+## 17.07.2026 Cuma
+
+### Manuel v0.1 Testleri
+
+- Health, Swagger ve frontend erisimi dogrulandi.
+- Hatali sifre, admin/user rolleri, yetki kontrolu, logout ve kalici oturum testleri gecti.
+- Direct chat, realtime mesaj, siralama, zaman ve tekrarli mesaj kontrolleri gecti.
+- Mesaj duzenleme/silme islemleri ve realtime yansimalari dogrulandi.
+- Baska kullanicinin mesajini duzenleme/silme yetkisi olmadigi dogrulandi.
+
+### Login Rate Limit Duzeltmesi
+
+- Login 429 cevabindaki `Retry-After` basligi frontend'e acildi.
+- Ham `ThrottlerException` mesaji kullanici dostu mesaja cevrildi.
+- Kalan bekleme suresi login ekraninda geri sayim olarak gosteriliyor.
+- Bekleme boyunca login butonu kapaniyor ve sure bitince otomatik aciliyor.
+- Yeni login denemesinde onceki hata state'i temizleniyor.
+- Login reducer testi ve rate-limit e2e baslik kontrolu eklendi.
+
+### Contacts ve Grup Yonetimi
+
+- Contacts listesinden secilen kullanici icin direct conversation bulma/olusturma akisi eklendi.
+- Contact ID'nin conversation ID gibi kullanilmasina neden olan `Conversation not found` hatasi giderildi.
+- Gruptan cikarilan veya ayrilan kullanicilar presence ve typing state'inden aninda dusuruluyor.
+- Sag detay panelinde gruptan ayrilmis katilimcilar filtreleniyor.
+- Grup adini degistirme kontrolu eklendi.
+- Grup sahipligini aktif bir uyeye devretme kontrolu eklendi.
+- Normal grup uyeleri icin gorunur `Leave group` aksiyonu eklendi.
+- Grup sahibi icin ayrilma aksiyonu, sahiplik devredilene kadar aciklamali olarak kapali tutuluyor.
+- Grup rolleri ve uyelik degisiklikleri acik istemcilere realtime yansitiliyor.
+- Tekrarlanan kullanici ve conversation liste istekleri birlestirilerek gereksiz 429 cevaplari azaltildi.
+- Contacts, grup yonetimi ve gruptan ayrilma Playwright senaryolari eklendi.
+
+### Verification
+
+- Frontend typecheck, 3 unit testi, 11 Playwright senaryosu ve production build basarili.
+- Backend uygulama/test typecheck, 8 e2e testi ve production build basarili.
+
 ## 16.07.2026 Persembe
 
 ### Main Backend v0.1 Hazirligi

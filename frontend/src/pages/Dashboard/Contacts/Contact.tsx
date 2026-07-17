@@ -16,7 +16,7 @@ import { ContactTypes } from "../../../data/contacts";
 
 interface ContactItemProps {
   contact: ContactTypes;
-  onSelectChat: (id: string | number, isChannel?: boolean) => void;
+  onSelectChat: (id: string | number) => void;
 }
 const ContactItem = ({ contact, onSelectChat }: ContactItemProps) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -25,7 +25,7 @@ const ContactItem = ({ contact, onSelectChat }: ContactItemProps) => {
 
   const fullName = `${contact.firstName} ${contact.lastName}`;
   const shortName = `${contact.firstName.charAt(0)}${contact.lastName.charAt(
-    0
+    0,
   )}`;
   const colors = [
     "bg-primary",
@@ -56,7 +56,7 @@ const ContactItem = ({ contact, onSelectChat }: ContactItemProps) => {
                   "rounded-circle",
                   "font-size-10",
                   "text-uppercase",
-                  colors[color]
+                  colors[color],
                 )}
               >
                 {shortName}
@@ -101,7 +101,7 @@ const ContactItem = ({ contact, onSelectChat }: ContactItemProps) => {
 interface CharacterItemProps {
   letterContacts: DivideByKeyResultTypes;
   index: number;
-  onSelectChat: (id: string | number, isChannel?: boolean) => void;
+  onSelectChat: (id: string | number) => void;
 }
 const CharacterItem = ({
   letterContacts,
@@ -110,19 +110,19 @@ const CharacterItem = ({
 }: CharacterItemProps) => {
   return (
     <div className="mt-3">
-      <div className= {classnames({ "mt-3": index !== 0 })}>
-      <div className="contact-list-title">{letterContacts.letter}</div>
+      <div className={classnames({ "mt-3": index !== 0 })}>
+        <div className="contact-list-title">{letterContacts.letter}</div>
 
-      <ul className="list-unstyled contact-list">
-        {(letterContacts.data || []).map((contact: any, key: number) => (
-          <ContactItem
-            contact={contact}
-            key={key}
-            onSelectChat={onSelectChat}
-          />
-        ))}
-      </ul>
-    </div>
+        <ul className="list-unstyled contact-list">
+          {(letterContacts.data || []).map((contact: any, key: number) => (
+            <ContactItem
+              contact={contact}
+              key={key}
+              onSelectChat={onSelectChat}
+            />
+          ))}
+        </ul>
+      </div>
     </div>
   );
 };

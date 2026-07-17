@@ -4,8 +4,10 @@ export enum AuthLoginActionTypes {
 
   LOGIN_USER = "@@auth/login/LOGIN_USER",
   LOGOUT_USER = "@@auth/login/LOGOUT_USER",
+  CLEAR_LOGIN_ERROR = "@@auth/login/CLEAR_LOGIN_ERROR",
 }
 export interface AuthLoginState {
   error: string;
   loading: boolean;
+  retryAfterUntil?: number;
 }

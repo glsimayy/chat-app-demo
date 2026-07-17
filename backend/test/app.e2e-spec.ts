@@ -237,6 +237,7 @@ describe("App e2e", () => {
       success: false,
       statusCode: 429,
     });
+    expect(limited.headers["retry-after"]).toMatch(/^\d+$/);
   });
 
   it("rate limits repeated invalid bot webhook attempts", async () => {

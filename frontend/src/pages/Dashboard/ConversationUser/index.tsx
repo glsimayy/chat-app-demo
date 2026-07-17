@@ -11,6 +11,7 @@ import {
   getChatUserDetails,
   getChatUserConversations,
   onSendMessage,
+  changeSelectedChat,
 } from "../../../redux/actions";
 
 // hooks
@@ -74,6 +75,20 @@ const Index = ({ isChannel }: IndexProps) => {
   const [realtimeError, setRealtimeError] = useState("");
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const [typingUserIds, setTypingUserIds] = useState<Set<string>>(new Set());
+  const activeParticipantIds = new Set(
+    (chatUserDetails.members || [])
+      .filter((member: any) => !member.leftAt)
+      .map((member: any) => member.userId),
+  );
+  const onlineParticipantCount = Array.from(onlineUserIds).filter(userId =>
+    activeParticipantIds.has(userId),
+  ).length;
+  const participantStateKey = (chatUserDetails.members || [])
+    .map(
+      (member: any) =>
+        `${member.userId}:${member.role}:${member.leftAt || "active"}`,
+    )
+    .join("|");
 
   /*
   reply handeling
@@ -256,6 +271,23 @@ const Index = ({ isChannel }: IndexProps) => {
         refreshCurrentConversation();
       }
     };
+    const handleParticipantRemoved = (event: any) => {
+      if (event?.conversationId !== conversationId) {
+        return;
+      }
+
+      setOnlineUserIds(current => {
+        const next = new Set(current);
+        next.delete(event.userId);
+        return next;
+      });
+      setTypingUserIds(current => {
+        const next = new Set(current);
+        next.delete(event.userId);
+        return next;
+      });
+      refreshCurrentConversation();
+    };
 
     const handlePresenceSnapshot = (event: any) => {
       if (event?.conversationId !== conversationId) {
@@ -311,9 +343,9 @@ const Index = ({ isChannel }: IndexProps) => {
     socket.on("message:updated", refreshConversation);
     socket.on("message:deleted", refreshConversation);
     socket.on("conversation:updated", refreshConversation);
-    socket.on("participant:left", refreshConversation);
+    socket.on("participant:left", handleParticipantRemoved);
     socket.on("participant:added", refreshConversation);
-    socket.on("participant:removed", refreshConversation);
+    socket.on("participant:removed", handleParticipantRemoved);
     socket.on("presence:snapshot", handlePresenceSnapshot);
     socket.on("presence:online", handlePresenceOnline);
     socket.on("presence:offline", handlePresenceOffline);
@@ -340,9 +372,9 @@ const Index = ({ isChannel }: IndexProps) => {
       socket.off("message:updated", refreshConversation);
       socket.off("message:deleted", refreshConversation);
       socket.off("conversation:updated", refreshConversation);
-      socket.off("participant:left", refreshConversation);
+      socket.off("participant:left", handleParticipantRemoved);
       socket.off("participant:added", refreshConversation);
-      socket.off("participant:removed", refreshConversation);
+      socket.off("participant:removed", handleParticipantRemoved);
       socket.off("presence:snapshot", handlePresenceSnapshot);
       socket.off("presence:online", handlePresenceOnline);
       socket.off("presence:offline", handlePresenceOffline);
@@ -357,10 +389,7 @@ const Index = ({ isChannel }: IndexProps) => {
     userProfile?.uid,
   ]);
 
-  const onEditMessage = async (
-    messageId: string | number,
-    content: string,
-  ) => {
+  const onEditMessage = async (messageId: string | number, content: string) => {
     try {
       setRealtimeError("");
       await updateMessageApi(chatUserDetails.id, messageId, content);
@@ -400,7 +429,7 @@ const Index = ({ isChannel }: IndexProps) => {
           {socketConnected ? "Realtime connected" : "REST fallback active"}
         </span>
         {isChannel && (
-          <span className="text-muted">{onlineUserIds.size} online</span>
+          <span className="text-muted">{onlineParticipantCount} online</span>
         )}
         {typingUserIds.size > 0 && (
           <span className="text-primary">Someone is typing...</span>
@@ -418,7 +447,14 @@ const Index = ({ isChannel }: IndexProps) => {
       {isChannel && chatUserDetails.id && (
         <GroupManagement
           conversationId={chatUserDetails.id}
+          conversationName={chatUserDetails.name || ""}
+          participantStateKey={participantStateKey}
           onChanged={refreshCurrentConversation}
+          onLeft={() => {
+            dispatch(toggleUserDetailsTab(false));
+            dispatch(changeSelectedChat(null));
+            dispatch(getChannels());
+          }}
         />
       )}
       <Conversation

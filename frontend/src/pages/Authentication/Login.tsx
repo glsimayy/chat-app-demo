@@ -13,7 +13,7 @@ import { useForm } from "react-hook-form";
 import { useProfile, useRedux } from "../../hooks/index";
 import { createSelector } from "reselect";
 //actions
-import { loginUser } from "../../redux/actions";
+import { clearLoginError, loginUser } from "../../redux/actions";
 
 // components
 import NonAuthLayoutWrapper from "../../components/NonAutnLayoutWrapper";
@@ -42,11 +42,16 @@ const Login = (props: LoginProps) => {
       error: state.error,
       loginLoading: state.loading,
       isUserLogout: state.isUserLogout,
+      retryAfterUntil: state.retryAfterUntil,
     }),
   );
   // Inside your component
-  const { isUserLogin, error, loginLoading, isUserLogout } =
+  const { isUserLogin, error, loginLoading, isUserLogout, retryAfterUntil } =
     useAppSelector(errorData);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+  const retryAfterSeconds = retryAfterUntil
+    ? Math.max(0, Math.ceil((retryAfterUntil - currentTime) / 1000))
+    : 0;
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -63,6 +68,22 @@ const Login = (props: LoginProps) => {
       navigate(redirectUrl);
     }
   }, [isUserLogin, navigate, loginLoading, isUserLogout, redirectUrl]);
+
+  useEffect(() => {
+    if (!retryAfterUntil) {
+      return;
+    }
+
+    setCurrentTime(Date.now());
+    const timer = window.setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [retryAfterUntil]);
+
+  useEffect(() => {
+    if (retryAfterUntil && retryAfterSeconds === 0) {
+      dispatch(clearLoginError());
+    }
+  }, [dispatch, retryAfterSeconds, retryAfterUntil]);
 
   const resolver = yupResolver(
     yup.object().shape({
@@ -107,7 +128,13 @@ const Login = (props: LoginProps) => {
               subtitle="Sign in to continue to ellO."
             />
 
-            {error && <Alert color="danger">{error}</Alert>}
+            {error && (
+              <Alert color="danger">
+                {retryAfterSeconds > 0
+                  ? `${error} Try again in ${retryAfterSeconds} seconds.`
+                  : error}
+              </Alert>
+            )}
 
             <Form
               onSubmit={handleSubmit(onSubmitForm)}
@@ -157,8 +184,15 @@ const Login = (props: LoginProps) => {
               </div>
 
               <div className="text-center mt-4">
-                <Button color="primary" className="w-100" type="submit">
-                  Log In
+                <Button
+                  color="primary"
+                  className="w-100"
+                  type="submit"
+                  disabled={loginLoading || retryAfterSeconds > 0}
+                >
+                  {retryAfterSeconds > 0
+                    ? `Try again in ${retryAfterSeconds}s`
+                    : "Log In"}
                 </Button>
               </div>
             </Form>

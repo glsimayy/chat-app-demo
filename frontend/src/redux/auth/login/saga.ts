@@ -9,6 +9,24 @@ import {
 
 import { postFakeLogin } from "../../../api/index";
 import { disconnectChatSocket } from "../../../api/realtime";
+import { ApiErrorDetails } from "../../../api/apiCore";
+
+const getLoginError = (error: unknown) => {
+  if (typeof error === "string") {
+    return { message: error };
+  }
+
+  const details = error as Partial<ApiErrorDetails> | null;
+  const retryAfterSeconds = details?.retryAfterSeconds;
+
+  return {
+    message: details?.message || "Login failed. Please try again.",
+    retryAfterUntil:
+      typeof retryAfterSeconds === "number"
+        ? Date.now() + retryAfterSeconds * 1000
+        : undefined,
+  };
+};
 
 function* loginUser({ payload: { user } }: any) {
   try {
@@ -21,8 +39,13 @@ function* loginUser({ payload: { user } }: any) {
       authLoginApiResponseSuccess(AuthLoginActionTypes.LOGIN_USER, response),
     );
   } catch (error: any) {
+    const loginError = getLoginError(error);
     yield put(
-      authLoginApiResponseError(AuthLoginActionTypes.LOGIN_USER, error),
+      authLoginApiResponseError(
+        AuthLoginActionTypes.LOGIN_USER,
+        loginError.message,
+        loginError.retryAfterUntil,
+      ),
     );
   }
 }

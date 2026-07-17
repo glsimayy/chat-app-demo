@@ -62,6 +62,8 @@ const Index = (props: IndexProps) => {
       "conversation:created",
       "conversation:updated",
       "participant:left",
+      "participant:added",
+      "participant:removed",
     ];
 
     refreshEvents.forEach(eventName => {
