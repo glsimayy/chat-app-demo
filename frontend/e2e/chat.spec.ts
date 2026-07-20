@@ -98,6 +98,15 @@ async function openConversation(page: Page, label: string) {
   ).toBeVisible();
 }
 
+async function openGroupInfo(page: Page) {
+  await page
+    .getByRole("button", { name: "Conversation details", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Group overview", exact: true }),
+  ).toBeVisible();
+}
+
 async function createAuthenticatedPage(
   browser: Browser,
   session: AuthSession,
@@ -483,6 +492,48 @@ test("the core chat flow fits a mobile viewport without horizontal overflow", as
   }
 });
 
+test("group info fits a mobile viewport without horizontal overflow", async ({
+  browser,
+  request,
+}) => {
+  const groupName = `mobile-group-info-${Date.now()}`;
+  const response = await request.post(`${apiUrl}/conversations/groups`, {
+    headers: { Authorization: `Bearer ${sessions.admin.accessToken}` },
+    data: {
+      name: groupName,
+      participantIds: [sessions.user1.user.id],
+      memberCanSendMessages: true,
+    },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+
+  const admin = await createAuthenticatedPage(browser, sessions.admin, {
+    viewport: { width: 390, height: 844 },
+  });
+
+  try {
+    await openConversation(admin.page, groupName);
+    await openGroupInfo(admin.page);
+
+    const layout = await admin.page.evaluate(() => ({
+      viewportWidth: window.innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+    }));
+    expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth + 1);
+
+    const panelBox = await admin.page
+      .locator(".user-profile-sidebar")
+      .boundingBox();
+    expect(panelBox).not.toBeNull();
+    expect(panelBox?.x ?? -1).toBeGreaterThanOrEqual(0);
+    expect((panelBox?.x ?? 0) + (panelBox?.width ?? 0)).toBeLessThanOrEqual(
+      390,
+    );
+  } finally {
+    await admin.context.close();
+  }
+});
+
 test("login and dashboard have no serious accessibility violations", async ({
   browser,
 }) => {
@@ -643,7 +694,7 @@ test("locked members cannot see the private manager chat", async ({
     await memberConversation.click();
     await expect(
       user2Page.getByText(
-        "Only group management can send messages in this group.",
+        "Members cannot send messages in this group. Only group management can send.",
         { exact: true },
       ),
     ).toBeVisible();
@@ -745,6 +796,9 @@ test("group management actions are visible, authorized, and realtime", async ({
     await openConversation(admin.page, groupName);
     await openConversation(user1Page, groupName);
     await openConversation(user2Page, groupName);
+    await openGroupInfo(admin.page);
+    await openGroupInfo(user1Page);
+    await openGroupInfo(user2Page);
 
     await expect(
       admin.page.getByText("3 online", { exact: true }),
@@ -762,12 +816,32 @@ test("group management actions are visible, authorized, and realtime", async ({
       admin.page.getByRole("button", { name: "Leave group" }),
     ).toBeDisabled();
 
+    await admin.page.getByLabel("Members can message").uncheck();
+    await admin.page
+      .getByRole("button", { name: "Save policies", exact: true })
+      .click();
+    await expect(
+      user2Page.getByText(
+        "Members cannot send messages in this group. Only group management can send.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(user2Page.locator("#chat-input")).toHaveCount(0);
+
+    await admin.page.getByLabel("Members can message").check();
+    await admin.page
+      .getByRole("button", { name: "Save policies", exact: true })
+      .click();
+    await expect(user2Page.locator("#chat-input")).toBeVisible();
+
     await admin.page.locator("#group-name-input").fill(renamedGroup);
     await admin.page
       .getByRole("button", { name: "Save group details", exact: true })
       .click();
     await expect(
-      admin.page.getByRole("heading", { name: renamedGroup }),
+      admin.page
+        .locator(".user-chat-topbar")
+        .getByRole("heading", { name: renamedGroup }),
     ).toBeVisible();
 
     await admin.page
@@ -784,6 +858,7 @@ test("group management actions are visible, authorized, and realtime", async ({
       admin.page.getByRole("button", { name: "Leave group" }),
     ).toBeEnabled();
 
+    admin.page.once("dialog", dialog => dialog.accept());
     await admin.page
       .getByLabel(`Remove ${sessions.user2.user.username}`)
       .click();
@@ -818,6 +893,7 @@ test("a group member can leave from the conversation controls", async ({
 
   try {
     await openConversation(member.page, groupName);
+    await openGroupInfo(member.page);
     member.page.once("dialog", dialog => dialog.accept());
     await member.page
       .getByRole("button", { name: "Leave group", exact: true })
@@ -829,5 +905,52 @@ test("a group member can leave from the conversation controls", async ({
     ).toHaveCount(0);
   } finally {
     await member.context.close();
+  }
+});
+
+test("group info member action opens a valid direct conversation", async ({
+  browser,
+  request,
+}) => {
+  const groupName = `member-direct-${Date.now()}`;
+  const response = await request.post(`${apiUrl}/conversations/groups`, {
+    headers: { Authorization: `Bearer ${sessions.admin.accessToken}` },
+    data: {
+      name: groupName,
+      participantIds: [sessions.user1.user.id],
+      memberCanSendMessages: true,
+    },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+
+  const admin = await createAuthenticatedPage(browser, sessions.admin);
+
+  try {
+    await openConversation(admin.page, groupName);
+    await openGroupInfo(admin.page);
+    await admin.page
+      .getByRole("button", {
+        name: `Message ${sessions.user1.user.username}`,
+        exact: true,
+      })
+      .click();
+
+    await expect(
+      admin.page.getByRole("heading", {
+        name: sessions.user1.user.username,
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(admin.page.locator("#chat-input")).toBeVisible();
+
+    const message = `group-info-direct-${Date.now()}`;
+    await admin.page.locator("#chat-input").fill(message);
+    await admin.page.locator("#chat-input").press("Enter");
+    await expect(admin.page.getByText(message, { exact: true })).toBeVisible();
+    await expect(
+      admin.page.getByText("Invalid socket payload", { exact: true }),
+    ).toHaveCount(0);
+  } finally {
+    await admin.context.close();
   }
 });

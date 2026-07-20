@@ -17,6 +17,7 @@ interface GroupManagementProps {
   participantStateKey: string;
   onChanged: () => void;
   onLeft: () => void;
+  onOpenDirect: (userId: string) => Promise<void>;
 }
 
 const GroupManagement = ({
@@ -24,6 +25,7 @@ const GroupManagement = ({
   participantStateKey,
   onChanged,
   onLeft,
+  onOpenDirect,
 }: GroupManagementProps) => {
   const conversationId = conversation.id;
   const [participants, setParticipants] = useState<Array<any>>([]);
@@ -38,6 +40,7 @@ const GroupManagement = ({
   const [membersCanLeave, setMembersCanLeave] = useState(true);
   const [status, setStatus] = useState("active");
   const [loading, setLoading] = useState(false);
+  const [openingUserId, setOpeningUserId] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const currentUser = getCurrentAuthUser();
@@ -59,7 +62,7 @@ const GroupManagement = ({
       setError("");
       const [nextParticipants, nextUsers] = await Promise.all([
         getConversationParticipants(conversationId),
-        getUsers(),
+        getUsers(true),
       ]);
       setParticipants(nextParticipants.filter((item: any) => !item.leftAt));
       setUsers(nextUsers);
@@ -82,6 +85,7 @@ const GroupManagement = ({
   const currentParticipant = participants.find(
     participant => participant.userId === currentUser?.id,
   );
+  const owner = participants.find(participant => participant.role === "owner");
   const isGlobalAdmin = currentUser?.role === "admin";
   const isOwner = currentParticipant?.role === "owner";
   const isManager = currentParticipant?.role === "manager";
@@ -98,9 +102,31 @@ const GroupManagement = ({
           participant.role !== "owner" && !isBotUser(participant.userId),
       );
 
+  const getUser = (userId: string) =>
+    users.find(item => item.id === userId) || {
+      id: userId,
+      username: "Unknown user",
+      email: userId,
+    };
+
   const userLabel = (userId: string) => {
-    const user = users.find(item => item.id === userId);
-    return user?.username || user?.email || userId;
+    const user = getUser(userId);
+    return user.username || user.email || userId;
+  };
+
+  const initials = (userId: string) => {
+    const label = userLabel(userId);
+    const parts = label.split(/[\s._-]+/).filter(Boolean);
+    return `${parts[0]?.charAt(0) || "U"}${parts[1]?.charAt(0) || ""}`.toUpperCase();
+  };
+
+  const avatarTone = (userId: string) => {
+    const tones = ["primary", "success", "warning", "info", "danger"];
+    const score = Array.from(userId).reduce(
+      (total, character) => total + character.charCodeAt(0),
+      0,
+    );
+    return tones[score % tones.length];
   };
 
   const runAction = async (
@@ -117,29 +143,39 @@ const GroupManagement = ({
         setNotice(success);
       }
       onChanged();
+      return true;
     } catch (actionError: any) {
       setError(String(actionError || "Group could not be updated"));
+      return false;
     } finally {
       setLoading(false);
     }
   };
 
-  const addParticipant = () => {
+  const addParticipant = async () => {
     if (!selectedUserId) {
       return;
     }
 
-    runAction(
+    const succeeded = await runAction(
       () => addConversationParticipant(conversationId, selectedUserId),
       "Member added",
-    ).then(() => setSelectedUserId(""));
+    );
+    if (succeeded) {
+      setSelectedUserId("");
+    }
   };
 
-  const removeParticipant = (userId: string) =>
-    runAction(
+  const removeParticipant = async (userId: string) => {
+    if (!window.confirm(`Remove ${userLabel(userId)} from this group?`)) {
+      return;
+    }
+
+    await runAction(
       () => removeConversationParticipant(conversationId, userId),
       "Member removed",
     );
+  };
 
   const saveGroupDetails = () =>
     runAction(
@@ -209,94 +245,283 @@ const GroupManagement = ({
     }
   };
 
+  const openDirectChat = async (userId: string) => {
+    try {
+      setOpeningUserId(userId);
+      setError("");
+      await onOpenDirect(userId);
+    } catch (openError: any) {
+      setError(String(openError || "Direct conversation could not be opened"));
+    } finally {
+      setOpeningUserId("");
+    }
+  };
+
   return (
-    <div className="border-bottom bg-light px-3 py-2">
+    <div className="group-info-management">
       {error && (
-        <Alert color="danger" className="py-1 px-2 mb-2">
+        <Alert color="danger" className="py-2 px-3 mb-3 font-size-12">
           {error}
         </Alert>
       )}
       {notice && (
-        <Alert color="success" className="py-1 px-2 mb-2">
+        <Alert color="success" className="py-2 px-3 mb-3 font-size-12">
           {notice}
         </Alert>
       )}
 
-      <div className="d-flex flex-wrap align-items-center gap-2">
-        <span className="text-muted font-size-12">Members</span>
-        {participants.map(participant => {
-          const bot = isBotUser(participant.userId);
-          const canRemove =
-            canManageMembers &&
-            participant.role !== "owner" &&
-            !bot &&
-            (!isManager || participant.role === "member") &&
-            (!isGlobalAdminUser(participant.userId) || isGlobalAdmin);
-
-          return (
-            <Badge
-              color={
-                bot
-                  ? "info"
-                  : participant.role === "owner"
-                    ? "primary"
-                    : participant.role === "manager"
-                      ? "success"
+      <section
+        className="group-info-section"
+        aria-labelledby="group-overview-heading"
+      >
+        <h5 id="group-overview-heading" className="group-info-heading">
+          Group overview
+        </h5>
+        <dl className="group-info-facts mb-0">
+          <div>
+            <dt>Ownership</dt>
+            <dd>
+              {conversation.isBotManaged ? (
+                <Badge color="info">BOT managed</Badge>
+              ) : owner ? (
+                <span>{userLabel(owner.userId)}</span>
+              ) : (
+                <span className="text-warning">No human owner</span>
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt>Status</dt>
+            <dd>
+              <Badge
+                color={
+                  status === "active"
+                    ? "success"
+                    : status === "closed"
+                      ? "warning"
                       : "secondary"
-              }
-              className="d-inline-flex align-items-center gap-1"
-              key={participant.userId}
+                }
+              >
+                {status}
+              </Badge>
+            </dd>
+          </div>
+          <div>
+            <dt>Source</dt>
+            <dd>
+              {conversation.sourceName ||
+                (conversation.isBotManaged ? "Automation" : "Manual")}
+            </dd>
+          </div>
+          <div>
+            <dt>Messaging</dt>
+            <dd>
+              {conversation.memberCanSendMessages
+                ? "All members"
+                : "Management only"}
+            </dd>
+          </div>
+          <div>
+            <dt>Leaving</dt>
+            <dd>
+              {conversation.membersCanLeave
+                ? "Members may leave"
+                : "Restricted"}
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      {canManageMembers && (
+        <section
+          className="group-info-section"
+          aria-labelledby="group-details-heading"
+        >
+          <h5 id="group-details-heading" className="group-info-heading">
+            Details
+          </h5>
+          <div className="mb-3">
+            <Label
+              className="form-label font-size-12"
+              htmlFor="group-name-input"
             >
-              {bot && <i className="bx bx-bot" aria-hidden="true"></i>}
-              {userLabel(participant.userId)}
-              {participant.role !== "member" && ` | ${participant.role}`}
-              {canChangeSettings && participant.role !== "owner" && !bot && (
+              Group name
+            </Label>
+            <Input
+              id="group-name-input"
+              value={groupName}
+              disabled={loading}
+              maxLength={80}
+              onChange={event => setGroupName(event.target.value)}
+            />
+          </div>
+          <div className="mb-3">
+            <Label
+              className="form-label font-size-12"
+              htmlFor="group-description-input"
+            >
+              Description
+            </Label>
+            <Input
+              id="group-description-input"
+              type="textarea"
+              rows={3}
+              value={description}
+              disabled={loading}
+              maxLength={300}
+              onChange={event => setDescription(event.target.value)}
+            />
+          </div>
+          <Button
+            color="primary"
+            className="w-100"
+            aria-label="Save group details"
+            disabled={loading || groupName.trim().length < 3}
+            onClick={saveGroupDetails}
+          >
+            <i className="bx bx-save me-1" aria-hidden="true"></i>
+            Save group details
+          </Button>
+        </section>
+      )}
+
+      <section
+        className="group-info-section"
+        aria-labelledby="group-members-heading"
+      >
+        <div className="d-flex align-items-center justify-content-between gap-2 mb-3">
+          <h5 id="group-members-heading" className="group-info-heading mb-0">
+            Members
+          </h5>
+          <Badge color="light" className="text-body">
+            {participants.length}
+          </Badge>
+        </div>
+
+        <ul className="group-member-list list-unstyled mb-0">
+          {participants.map(participant => {
+            const user = getUser(participant.userId);
+            const bot = Boolean(user.isBot);
+            const isCurrentUser = participant.userId === currentUser?.id;
+            const canOpenDirect = !bot && !isCurrentUser;
+            const canRemove =
+              canManageMembers &&
+              !isCurrentUser &&
+              participant.role !== "owner" &&
+              !bot &&
+              (!isManager || participant.role === "member") &&
+              (!isGlobalAdminUser(participant.userId) || isGlobalAdmin);
+
+            return (
+              <li className="group-member-row" key={participant.userId}>
                 <button
                   type="button"
-                  className="btn btn-link p-0 text-white lh-1"
+                  className="group-member-main"
                   title={
-                    participant.role === "manager"
-                      ? "Remove manager role"
-                      : "Make manager"
+                    canOpenDirect
+                      ? `Message ${userLabel(participant.userId)}`
+                      : undefined
                   }
                   aria-label={
-                    participant.role === "manager"
-                      ? `Remove manager role from ${userLabel(participant.userId)}`
-                      : `Make ${userLabel(participant.userId)} manager`
+                    canOpenDirect
+                      ? `Message ${userLabel(participant.userId)}`
+                      : undefined
                   }
-                  disabled={loading}
-                  onClick={() => toggleManager(participant)}
+                  disabled={
+                    !canOpenDirect || openingUserId === participant.userId
+                  }
+                  onClick={() => openDirectChat(participant.userId)}
                 >
-                  <i
-                    className={
-                      participant.role === "manager"
-                        ? "bx bx-user-minus"
-                        : "bx bx-user-check"
+                  <span
+                    className={`avatar-xs avatar-title rounded-circle bg-${avatarTone(participant.userId)} text-white`}
+                  >
+                    {bot ? (
+                      <i className="bx bx-bot" aria-hidden="true"></i>
+                    ) : (
+                      initials(participant.userId)
+                    )}
+                  </span>
+                  <span className="group-member-copy">
+                    <strong>{userLabel(participant.userId)}</strong>
+                    <small>
+                      {user.email ||
+                        (bot ? "Automation account" : "Group member")}
+                    </small>
+                  </span>
+                  {openingUserId === participant.userId && (
+                    <Spinner size="sm" />
+                  )}
+                </button>
+                <div className="group-member-meta">
+                  <Badge
+                    color={
+                      bot
+                        ? "info"
+                        : participant.role === "owner"
+                          ? "primary"
+                          : participant.role === "manager"
+                            ? "success"
+                            : "secondary"
                     }
-                    aria-hidden="true"
-                  ></i>
-                </button>
-              )}
-              {canRemove && (
-                <button
-                  type="button"
-                  className="btn btn-link p-0 text-white lh-1"
-                  title="Remove member"
-                  aria-label={`Remove ${userLabel(participant.userId)}`}
-                  disabled={loading}
-                  onClick={() => removeParticipant(participant.userId)}
-                >
-                  <i className="bx bx-x" aria-hidden="true"></i>
-                </button>
-              )}
-            </Badge>
-          );
-        })}
+                  >
+                    {bot ? "BOT" : participant.role}
+                  </Badge>
+                  {user.role === "admin" && !bot && (
+                    <Badge color="light" className="text-body">
+                      global admin
+                    </Badge>
+                  )}
+                  {canChangeSettings &&
+                    participant.role !== "owner" &&
+                    !bot && (
+                      <Button
+                        color="light"
+                        size="sm"
+                        title={
+                          participant.role === "manager"
+                            ? "Remove manager role"
+                            : "Make manager"
+                        }
+                        aria-label={
+                          participant.role === "manager"
+                            ? `Remove manager role from ${userLabel(participant.userId)}`
+                            : `Make ${userLabel(participant.userId)} manager`
+                        }
+                        disabled={loading}
+                        onClick={() => toggleManager(participant)}
+                      >
+                        <i
+                          className={
+                            participant.role === "manager"
+                              ? "bx bx-user-minus"
+                              : "bx bx-user-check"
+                          }
+                          aria-hidden="true"
+                        ></i>
+                      </Button>
+                    )}
+                  {canRemove && (
+                    <Button
+                      color="light"
+                      size="sm"
+                      className="text-danger"
+                      title="Remove member"
+                      aria-label={`Remove ${userLabel(participant.userId)}`}
+                      disabled={loading}
+                      onClick={() => removeParticipant(participant.userId)}
+                    >
+                      <i className="bx bx-user-x" aria-hidden="true"></i>
+                    </Button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
 
         {canManageMembers && availableUsers.length > 0 && (
-          <div className="d-flex align-items-center gap-1 ms-lg-auto">
+          <div className="input-group mt-3">
             <Input
-              bsSize="sm"
               type="select"
               aria-label="Select member to add"
               value={selectedUserId}
@@ -311,185 +536,151 @@ const GroupManagement = ({
               ))}
             </Input>
             <Button
-              size="sm"
               color="primary"
-                  title="Add member"
-                  aria-label="Add selected member"
+              title="Add member"
+              aria-label="Add selected member"
               disabled={!selectedUserId || loading}
               onClick={addParticipant}
             >
               {loading ? (
                 <Spinner size="sm" />
               ) : (
-                <i className="bx bx-user-plus"></i>
+                <i className="bx bx-user-plus" aria-hidden="true"></i>
               )}
             </Button>
           </div>
         )}
-      </div>
+      </section>
 
-      {(canManageMembers || currentParticipant) && (
-        <div className="row g-2 align-items-end mt-1">
-          {canManageMembers && (
-            <>
-              <div className="col-12 col-xl-3">
-                <Label
-                  className="form-label font-size-11 text-muted mb-1"
-                  htmlFor="group-name-input"
-                >
-                  Group name
-                </Label>
-                <Input
-                  bsSize="sm"
-                  id="group-name-input"
-                  value={groupName}
-                  disabled={loading}
-                  maxLength={80}
-                  onChange={event => setGroupName(event.target.value)}
-                />
-              </div>
-              <div className="col-12 col-xl-4">
-                <Label
-                  className="form-label font-size-11 text-muted mb-1"
-                  htmlFor="group-description-input"
-                >
-                  Description
-                </Label>
-                <Input
-                  bsSize="sm"
-                  id="group-description-input"
-                  value={description}
-                  disabled={loading}
-                  maxLength={300}
-                  onChange={event => setDescription(event.target.value)}
-                />
-              </div>
-              <div className="col-auto">
-                <Button
-                  size="sm"
-                  color="primary"
-                  title="Save group details"
-                  aria-label="Save group details"
-                  disabled={loading || groupName.trim().length < 3}
-                  onClick={saveGroupDetails}
-                >
-                  <i className="bx bx-check" aria-hidden="true"></i>
-                </Button>
-              </div>
-            </>
-          )}
+      {canChangeSettings && (
+        <section
+          className="group-info-section"
+          aria-labelledby="group-policies-heading"
+        >
+          <h5 id="group-policies-heading" className="group-info-heading">
+            Policies
+          </h5>
+          <div className="form-check form-switch mb-3">
+            <Input
+              type="switch"
+              id="group-message-policy"
+              checked={memberCanSendMessages}
+              disabled={loading}
+              onChange={event => setMemberCanSendMessages(event.target.checked)}
+            />
+            <Label className="form-check-label" htmlFor="group-message-policy">
+              Members can message
+            </Label>
+          </div>
+          <div className="form-check form-switch mb-3">
+            <Input
+              type="switch"
+              id="group-leave-policy"
+              checked={membersCanLeave}
+              disabled={loading}
+              onChange={event => setMembersCanLeave(event.target.checked)}
+            />
+            <Label className="form-check-label" htmlFor="group-leave-policy">
+              Members can leave
+            </Label>
+          </div>
+          <Label
+            className="form-label font-size-12"
+            htmlFor="group-status-input"
+          >
+            Group status
+          </Label>
+          <Input
+            id="group-status-input"
+            type="select"
+            aria-label="Group status"
+            value={status}
+            disabled={loading}
+            onChange={event => setStatus(event.target.value)}
+          >
+            <option value="active">Active</option>
+            <option value="closed">Closed</option>
+            <option value="archived">Archived</option>
+          </Input>
+          <Button
+            color="primary"
+            outline
+            className="w-100 mt-3"
+            disabled={loading}
+            onClick={saveGroupPolicies}
+          >
+            <i className="bx bx-shield-quarter me-1" aria-hidden="true"></i>
+            Save policies
+          </Button>
+        </section>
+      )}
 
-          {canChangeSettings && (
-            <>
-              <div className="col-auto form-check form-switch ms-2 mb-1">
-                <Input
-                  type="switch"
-                  id="group-message-policy"
-                  checked={memberCanSendMessages}
-                  onChange={event =>
-                    setMemberCanSendMessages(event.target.checked)
-                  }
-                />
-                <Label
-                  className="form-check-label font-size-12"
-                  htmlFor="group-message-policy"
-                >
-                  Members can message
-                </Label>
-              </div>
-              <div className="col-auto form-check form-switch ms-2 mb-1">
-                <Input
-                  type="switch"
-                  id="group-leave-policy"
-                  checked={membersCanLeave}
-                  onChange={event => setMembersCanLeave(event.target.checked)}
-                />
-                <Label
-                  className="form-check-label font-size-12"
-                  htmlFor="group-leave-policy"
-                >
-                  Members can leave
-                </Label>
-              </div>
-              <div className="col-auto">
-                <Input
-                  bsSize="sm"
-                  type="select"
-                  aria-label="Group status"
-                  value={status}
-                  onChange={event => setStatus(event.target.value)}
-                >
-                  <option value="active">Active</option>
-                  <option value="closed">Closed</option>
-                  <option value="archived">Archived</option>
-                </Input>
-              </div>
-              <div className="col-auto">
-                <Button
-                  size="sm"
-                  outline
-                  color="primary"
-                  disabled={loading}
-                  onClick={saveGroupPolicies}
-                >
-                  Save policies
-                </Button>
-              </div>
-            </>
-          )}
+      {canChangeSettings && ownerCandidates.length > 0 && (
+        <section
+          className="group-info-section"
+          aria-labelledby="group-ownership-heading"
+        >
+          <h5 id="group-ownership-heading" className="group-info-heading">
+            Ownership
+          </h5>
+          <div className="input-group">
+            <Input
+              type="select"
+              id="group-owner-input"
+              aria-label="Transfer ownership"
+              value={ownerUserId}
+              disabled={loading}
+              onChange={event => setOwnerUserId(event.target.value)}
+            >
+              <option value="">Select new owner...</option>
+              {ownerCandidates.map(participant => (
+                <option value={participant.userId} key={participant.userId}>
+                  {userLabel(participant.userId)}
+                </option>
+              ))}
+            </Input>
+            <Button
+              color="primary"
+              title="Transfer ownership"
+              aria-label="Transfer ownership"
+              disabled={!ownerUserId || loading}
+              onClick={transferOwner}
+            >
+              <i className="bx bx-transfer" aria-hidden="true"></i>
+            </Button>
+          </div>
+        </section>
+      )}
 
-          {canChangeSettings && ownerCandidates.length > 0 && (
-            <div className="col-12 col-xl-3">
-              <div className="input-group input-group-sm">
-                <Input
-                  type="select"
-                  id="group-owner-input"
-                  aria-label="Transfer ownership"
-                  value={ownerUserId}
-                  disabled={loading}
-                  onChange={event => setOwnerUserId(event.target.value)}
-                >
-                  <option value="">Transfer ownership...</option>
-                  {ownerCandidates.map(participant => (
-                    <option value={participant.userId} key={participant.userId}>
-                      {userLabel(participant.userId)}
-                    </option>
-                  ))}
-                </Input>
-                <Button
-                  color="primary"
-                  aria-label="Transfer ownership"
-                  disabled={!ownerUserId || loading}
-                  onClick={transferOwner}
-                >
-                  <i className="bx bx-transfer" aria-hidden="true"></i>
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {currentParticipant && (
-            <div className="col-auto">
-              <Button
-                size="sm"
-                outline
-                color="danger"
-                title={
-                  isOwner
-                    ? "Transfer ownership before leaving"
-                    : !conversation.membersCanLeave
-                      ? "Members cannot leave this group"
-                      : "Leave group"
-                }
-                disabled={loading || isOwner || !conversation.membersCanLeave}
-                onClick={leaveGroup}
-              >
-                <i className="bx bx-log-out me-1" aria-hidden="true"></i>
-                Leave group
-              </Button>
-            </div>
-          )}
-        </div>
+      {currentParticipant && (
+        <section
+          className="group-info-section group-info-membership"
+          aria-labelledby="group-membership-heading"
+        >
+          <h5 id="group-membership-heading" className="group-info-heading">
+            Your membership
+          </h5>
+          <p className="text-muted font-size-12">
+            You are a <strong>{currentParticipant.role}</strong> in this group.
+          </p>
+          <Button
+            outline
+            color="danger"
+            className="w-100"
+            title={
+              isOwner
+                ? "Transfer ownership before leaving"
+                : !conversation.membersCanLeave
+                  ? "Members cannot leave this group"
+                  : "Leave group"
+            }
+            disabled={loading || isOwner || !conversation.membersCanLeave}
+            onClick={leaveGroup}
+          >
+            <i className="bx bx-log-out me-1" aria-hidden="true"></i>
+            Leave group
+          </Button>
+        </section>
       )}
     </div>
   );

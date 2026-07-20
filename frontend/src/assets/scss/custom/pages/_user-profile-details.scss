@@ -1,165 +1,195 @@
-// 
+//
 //  User profile details.scss
 //
 
 // User profile details
 
 .user-profile-sidebar {
-    height: 100vh;
-    background-color: var(--#{$prefix}modal-content-bg);
-    display: none;
-    min-width: 380px;
-    max-width: 380px;
+  height: 100vh;
+  background-color: var(--#{$prefix}modal-content-bg);
+  display: none;
+  min-width: 420px;
+  max-width: 420px;
 
-    @media (min-width: 992px) {
-        border-left: 4px solid var(--#{$prefix}border-color);
-    }
+  @media (min-width: 992px) {
+    border-left: 4px solid var(--#{$prefix}border-color);
+  }
 
-    @media (max-width: 1199.98px) {
-        position: fixed;
-        right: 0;
-        top: 0;
-        z-index: 99;
-    }
+  @media (max-width: 1199.98px) {
+    position: fixed;
+    right: 0;
+    top: 0;
+    z-index: 99;
+  }
 
-    @media (max-width: 575.98px) {
-        min-width: 100%;
-    }
+  @media (max-width: 575.98px) {
+    min-width: 100%;
+    max-width: 100%;
+  }
 }
 
-.user-profile-img{
-    position: relative;
-    
-    .overlay-content{
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        right: 0;
-        background: linear-gradient(180deg,rgba(0,0,0,0.5) 10%, rgba(0,0,0,0) 60%,rgba(0,0,0,.5) 100%);
-        display: flex;
-        height: 100%;
-        color: rgba($white, 0.6);
-        flex-direction: column;
-    }
+.user-profile-img {
+  position: relative;
 
-    .user-name{
-        font-size: 16px;
-        color: $white;
-    }
+  .overlay-content {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.5) 10%,
+      rgba(0, 0, 0, 0) 60%,
+      rgba(0, 0, 0, 0.5) 100%
+    );
+    display: flex;
+    height: 100%;
+    color: rgba($white, 0.6);
+    flex-direction: column;
+  }
 
-    .profile-img{
-        width: 100%;
-        height: 250px;
-        object-fit: cover;
+  .user-name {
+    font-size: 16px;
+    color: $white;
+  }
 
-        @media (max-width:991px) {
-            height: 160px;
-        }
-    }
-
-    .profile-foreground-img-file-input{
-        display: none;
-    }
-
-    .profile-photo-edit{
-        cursor: pointer;
-    }
-}
-
-.user-profile-image{
+  .profile-img {
+    width: 100%;
+    height: 250px;
     object-fit: cover;
+
+    @media (max-width: 991px) {
+      height: 160px;
+    }
+  }
+
+  .group-profile-cover {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #326b86;
+  }
+
+  .group-profile-cover-bot {
+    background-color: #237a57;
+  }
+
+  .group-profile-symbol {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 92px;
+    height: 92px;
+    border: 2px solid rgba($white, 0.72);
+    border-radius: 50%;
+    background-color: rgba($white, 0.14);
+    color: $white;
+    font-size: 42px;
+    font-weight: 600;
+  }
+
+  .profile-foreground-img-file-input {
+    display: none;
+  }
+
+  .profile-photo-edit {
+    cursor: pointer;
+  }
+}
+
+.user-profile-image {
+  object-fit: cover;
 }
 
 .user-profile-desc {
-    height: calc(100vh - 285px);
+  height: calc(100vh - 285px);
 
-    @media (max-width: 991.98px) {
-        height: calc(100vh - 194px);
-    }
+  @media (max-width: 991.98px) {
+    height: calc(100vh - 194px);
+  }
 }
 
-.profile-desc{
-    height: calc(100vh - 285px);
+.profile-desc {
+  height: calc(100vh - 285px);
 
-    @media (max-width: 991.98px) {
-        height: calc(100vh - 330px);
-    }
+  @media (max-width: 991.98px) {
+    height: calc(100vh - 330px);
+  }
 }
 
-.profile-media-img{
-    display: flex;
-    gap: 8px;
+.profile-media-img {
+  display: flex;
+  gap: 8px;
 
-    .media-img-list{
-        position: relative;
-        a{
-            display: block;
-            position: relative;
-            border-radius: 4px;
-            overflow: hidden;
-            img{
-                width: 76px;
-                height: 76px;
-                object-fit: cover;
-            }
+  .media-img-list {
+    position: relative;
+    a {
+      display: block;
+      position: relative;
+      border-radius: 4px;
+      overflow: hidden;
+      img {
+        width: 76px;
+        height: 76px;
+        object-fit: cover;
+      }
 
-            .bg-overlay{
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                color: $white;
-            }
-        }
-
-        .image-remove{
-            position: absolute;
-            top: 0;
-            right: 0;
-            color: $white;
-            background: rgba($dark, 0.7);
-            width: 18px;
-            height: 18px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border-radius: 2px;
-            margin: 4px;
-        }
+      .bg-overlay {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: $white;
+      }
     }
+
+    .image-remove {
+      position: absolute;
+      top: 0;
+      right: 0;
+      color: $white;
+      background: rgba($dark, 0.7);
+      width: 18px;
+      height: 18px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 2px;
+      margin: 4px;
+    }
+  }
 }
 
-.favourite-btn{
-    &.active{
-        .bx-heart{
-            color: $danger;
-            &:before{
-                content: "\ed36";
-            }
-        }
+.favourite-btn {
+  &.active {
+    .bx-heart {
+      color: $danger;
+      &:before {
+        content: "\ed36";
+      }
     }
+  }
 }
 
 // edit input
-.edit-input{
-    &.form-control[readonly]{
-        padding: 0;
-        font-weight: $headings-font-weight;
-        color: var(--#{$prefix}heading-color);
-        &:focus{
-            border-color: transparent;
-        }
+.edit-input {
+  &.form-control[readonly] {
+    padding: 0;
+    font-weight: $headings-font-weight;
+    color: var(--#{$prefix}heading-color);
+    &:focus {
+      border-color: transparent;
     }
+  }
 }
 
 // setting
 
-.user-setting{
-    height: calc(100vh - 288px);
+.user-setting {
+  height: calc(100vh - 288px);
 
-    @media (max-width: 991.98px) {
-        height: calc(100vh - 320px);
-    }
+  @media (max-width: 991.98px) {
+    height: calc(100vh - 320px);
+  }
 }
-

@@ -18,12 +18,14 @@ interface ProfileUserProps {
   chatUserDetails: any;
   onOpenVideo: () => void;
   onOpenAudio: () => void;
+  isChannel: boolean;
 }
 const ProfileUser = ({
   onCloseUserDetails,
   chatUserDetails,
   onOpenAudio,
   onOpenVideo,
+  isChannel,
 }: ProfileUserProps) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const toggle = () => setDropdownOpen(!dropdownOpen);
@@ -41,7 +43,23 @@ const ProfileUser = ({
   return (
     <div className="p-3 border-bottom">
       <div className="user-profile-img">
-        <img src={profile} className="profile-img rounded" alt="" />
+        {isChannel ? (
+          <div
+            className={`profile-img rounded group-profile-cover ${
+              chatUserDetails.isBotManaged ? "group-profile-cover-bot" : ""
+            }`}
+          >
+            <span className="group-profile-symbol" aria-hidden="true">
+              {chatUserDetails.isBotManaged ? (
+                <i className="bx bx-bot"></i>
+              ) : (
+                "#"
+              )}
+            </span>
+          </div>
+        ) : (
+          <img src={profile} className="profile-img rounded" alt="" />
+        )}
         <div className="overlay-content rounded">
           <div className="user-chat-nav p-2">
             <div className="d-flex w-100">
@@ -63,62 +81,71 @@ const ProfileUser = ({
                   <i className="bx bx-left-arrow-alt"></i>
                 </Button>
               </div>
-              <div className="flex-shrink-0">
-                <Dropdown isOpen={dropdownOpen} toggle={toggle}>
-                  <DropdownToggle
-                    color="none"
-                    className="btn nav-btn text-white"
-                    type="button"
-                  >
-                    <i className="bx bx-dots-vertical-rounded"></i>
-                  </DropdownToggle>
-                  <DropdownMenu className="dropdown-menu-end">
-                    <DropdownItem
-                      className="d-flex justify-content-between align-items-center d-lg-none user-profile-show"
-                      to="#"
+              {!isChannel && (
+                <div className="flex-shrink-0">
+                  <Dropdown isOpen={dropdownOpen} toggle={toggle}>
+                    <DropdownToggle
+                      color="none"
+                      className="btn nav-btn text-white"
+                      type="button"
                     >
-                      View Profile <i className="bx bx-user text-muted"></i>
-                    </DropdownItem>
-                    <DropdownItem
-                      className="d-flex justify-content-between align-items-center d-lg-none"
-                      to="#"
-                      onClick={onOpenAudio}
-                    >
-                      Audio <i className="bx bxs-phone-call text-muted"></i>
-                    </DropdownItem>
-                    <DropdownItem
-                      className="d-flex justify-content-between align-items-center d-lg-none"
-                      to="#"
-                      onClick={onOpenVideo}
-                    >
-                      Video <i className="bx bx-video text-muted"></i>
-                    </DropdownItem>
-                    <DropdownItem
-                      className="d-flex justify-content-between align-items-center"
-                      to="#"
-                    >
-                      Archive <i className="bx bx-archive text-muted"></i>
-                    </DropdownItem>
-                    <DropdownItem
-                      className="d-flex justify-content-between align-items-center"
-                      to="#"
-                    >
-                      Muted <i className="bx bx-microphone-off text-muted"></i>
-                    </DropdownItem>
-                    <DropdownItem
-                      className="d-flex justify-content-between align-items-center"
-                      to="#"
-                    >
-                      Delete <i className="bx bx-trash text-muted"></i>
-                    </DropdownItem>
-                  </DropdownMenu>
-                </Dropdown>
-              </div>
+                      <i className="bx bx-dots-vertical-rounded"></i>
+                    </DropdownToggle>
+                    <DropdownMenu className="dropdown-menu-end">
+                      <DropdownItem
+                        className="d-flex justify-content-between align-items-center d-lg-none user-profile-show"
+                        to="#"
+                      >
+                        View Profile <i className="bx bx-user text-muted"></i>
+                      </DropdownItem>
+                      <DropdownItem
+                        className="d-flex justify-content-between align-items-center d-lg-none"
+                        to="#"
+                        onClick={onOpenAudio}
+                      >
+                        Audio <i className="bx bxs-phone-call text-muted"></i>
+                      </DropdownItem>
+                      <DropdownItem
+                        className="d-flex justify-content-between align-items-center d-lg-none"
+                        to="#"
+                        onClick={onOpenVideo}
+                      >
+                        Video <i className="bx bx-video text-muted"></i>
+                      </DropdownItem>
+                      <DropdownItem
+                        className="d-flex justify-content-between align-items-center"
+                        to="#"
+                      >
+                        Archive <i className="bx bx-archive text-muted"></i>
+                      </DropdownItem>
+                      <DropdownItem
+                        className="d-flex justify-content-between align-items-center"
+                        to="#"
+                      >
+                        Muted{" "}
+                        <i className="bx bx-microphone-off text-muted"></i>
+                      </DropdownItem>
+                      <DropdownItem
+                        className="d-flex justify-content-between align-items-center"
+                        to="#"
+                      >
+                        Delete <i className="bx bx-trash text-muted"></i>
+                      </DropdownItem>
+                    </DropdownMenu>
+                  </Dropdown>
+                </div>
+              )}
             </div>
           </div>
           <div className="mt-auto p-3">
             <h5 className="user-name mb-1 text-truncate">{fullName}</h5>
-            {chatUserDetails.status && (
+            {isChannel ? (
+              <p className="font-size-13 text-truncate mb-0">
+                {chatUserDetails.isBotManaged
+                  ? "BOT managed | No human owner"
+                  : "Human-owned group"}
+              </p>
+            ) : chatUserDetails.status ? (
               <p className="font-size-14 text-truncate mb-0">
                 <i
                   className={classnames(
@@ -138,12 +165,12 @@ const ProfileUser = ({
                     {
                       "text-danger":
                         chatUserDetails.status === STATUS_TYPES.DO_NOT_DISTURB,
-                    }
+                    },
                   )}
                 ></i>{" "}
                 {chatUserDetails.status}
               </p>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

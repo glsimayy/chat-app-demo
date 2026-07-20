@@ -6,11 +6,16 @@ import { useRedux } from "../../../hooks/index";
 
 // actions
 import {
+  changeSelectedChat,
+  getChannels,
+  getDirectMessages,
   toggleUserDetailsTab,
   toggleFavouriteContact,
   getChatUserDetails,
+  getChatUserConversations,
   toggleArchiveContact,
 } from "../../../redux/actions";
+import { createDirectConversation } from "../../../api/chats";
 
 // components
 import AudioCallModal from "../../../components/AudioCallModal";
@@ -24,7 +29,7 @@ import Groups from "./Groups";
 import Media from "../../../components/Media";
 import AttachedFiles from "../../../components/AttachedFiles";
 import Status from "./Status";
-import Members from "./Members";
+import GroupManagement from "../ConversationUser/GroupManagement";
 
 interface IndexProps {
   isChannel: boolean;
@@ -34,17 +39,22 @@ const Index = ({ isChannel }: IndexProps) => {
   const { dispatch, useAppSelector } = useRedux();
 
   const errorData = createSelector(
-    (state : any) => state.Chats,
-   
-    (state) => ({
+    (state: any) => state.Chats,
+
+    state => ({
       chatUserDetails: state.chatUserDetails,
       getUserDetailsLoading: state.getUserDetailsLoading,
       isOpenUserDetails: state.isOpenUserDetails,
       isFavouriteContactToggled: state.isFavouriteContactToggled,
-    })
+    }),
   );
   // Inside your component
-  const { chatUserDetails,getUserDetailsLoading,isOpenUserDetails,isFavouriteContactToggled } = useAppSelector(errorData);
+  const {
+    chatUserDetails,
+    getUserDetailsLoading,
+    isOpenUserDetails,
+    isFavouriteContactToggled,
+  } = useAppSelector(errorData);
 
   useEffect(() => {
     if (isFavouriteContactToggled) {
@@ -59,7 +69,7 @@ const Index = ({ isChannel }: IndexProps) => {
     dispatch(toggleUserDetailsTab(false));
   };
 
-    /*
+  /*
     video call modal
     */
   const [isOpenVideoModal, setIsOpenVideoModal] = useState<boolean>(false);
@@ -95,6 +105,38 @@ const Index = ({ isChannel }: IndexProps) => {
     dispatch(toggleArchiveContact(chatUserDetails.id));
   };
 
+  const participantStateKey = (chatUserDetails.members || [])
+    .map(
+      (member: any) =>
+        `${member.userId}:${member.role}:${member.leftAt || "active"}`,
+    )
+    .join("|");
+
+  const refreshGroup = () => {
+    dispatch(getChatUserDetails(chatUserDetails.id));
+    dispatch(getChannels());
+  };
+
+  const leaveGroup = () => {
+    dispatch(toggleUserDetailsTab(false));
+    dispatch(changeSelectedChat(null));
+    dispatch(getChannels());
+  };
+
+  const openDirectChat = async (userId: string) => {
+    const conversation: any = await createDirectConversation(userId);
+
+    if (!conversation?.id) {
+      throw new Error("Direct conversation could not be created");
+    }
+
+    dispatch(toggleUserDetailsTab(false));
+    dispatch(changeSelectedChat(conversation.id));
+    dispatch(getChatUserDetails(conversation.id));
+    dispatch(getChatUserConversations(conversation.id));
+    dispatch(getDirectMessages());
+  };
+
   return (
     <>
       <div
@@ -110,37 +152,45 @@ const Index = ({ isChannel }: IndexProps) => {
             chatUserDetails={chatUserDetails}
             onOpenVideo={onOpenVideo}
             onOpenAudio={onOpenAudio}
+            isChannel={isChannel}
           />
           {/* <!-- End profile user --> */}
 
           {/* <!-- Start user-profile-desc --> */}
           <AppSimpleBar className="p-4 user-profile-desc">
-            {" "}
-            {/* simplebar */}
-            <Actions
-              chatUserDetails={chatUserDetails}
-              onOpenVideo={onOpenVideo}
-              onOpenAudio={onOpenAudio}
-              onToggleFavourite={onToggleFavourite}
-              onToggleArchive={onToggleArchive}
-            />
-            <Status about={chatUserDetails.about} />
             {!isChannel ? (
               <>
+                <Actions
+                  chatUserDetails={chatUserDetails}
+                  onOpenVideo={onOpenVideo}
+                  onOpenAudio={onOpenAudio}
+                  onToggleFavourite={onToggleFavourite}
+                  onToggleArchive={onToggleArchive}
+                />
+                <Status about={chatUserDetails.about} />
                 <BasicDetails chatUserDetails={chatUserDetails} />
                 <hr className="my-4" />
                 <Groups chatUserDetails={chatUserDetails} />
                 <hr className="my-4" />
+                <Media media={chatUserDetails.media} limit={3} />
+                <hr className="my-4" />
+                <AttachedFiles attachedFiles={chatUserDetails.attachedFiles} />
               </>
             ) : (
               <>
-                <Members chatUserDetails={chatUserDetails} />
+                <GroupManagement
+                  conversation={chatUserDetails}
+                  participantStateKey={participantStateKey}
+                  onChanged={refreshGroup}
+                  onLeft={leaveGroup}
+                  onOpenDirect={openDirectChat}
+                />
                 <hr className="my-4" />
+                <Media media={chatUserDetails.media} limit={3} />
+                <hr className="my-4" />
+                <AttachedFiles attachedFiles={chatUserDetails.attachedFiles} />
               </>
             )}
-            <Media media={chatUserDetails.media} limit={3} />
-            <hr className="my-4" />
-            <AttachedFiles attachedFiles={chatUserDetails.attachedFiles} />
           </AppSimpleBar>
           {/* <!-- end user-profile-desc --> */}
           {isOpenAudioModal && (

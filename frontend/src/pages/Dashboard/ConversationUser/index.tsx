@@ -11,7 +11,6 @@ import {
   getChatUserDetails,
   getChatUserConversations,
   onSendMessage,
-  changeSelectedChat,
 } from "../../../redux/actions";
 
 // hooks
@@ -21,7 +20,6 @@ import { useProfile } from "../../../hooks";
 import UserHead from "./UserHead";
 import Conversation from "./Conversation";
 import ChatInputSection from "./ChatInputSection/index";
-import GroupManagement from "./GroupManagement";
 
 // interface
 import { MessagesTypes } from "../../../data/messages";
@@ -90,12 +88,6 @@ const Index = ({ isChannel }: IndexProps) => {
   const onlineParticipantCount = Array.from(onlineUserIds).filter(userId =>
     activeParticipantIds.has(userId),
   ).length;
-  const participantStateKey = (chatUserDetails.members || [])
-    .map(
-      (member: any) =>
-        `${member.userId}:${member.role}:${member.leftAt || "active"}`,
-    )
-    .join("|");
   const currentAuthUser = getCurrentAuthUser();
   const currentParticipant = (chatUserDetails.members || []).find(
     (member: any) => member.userId === currentAuthUser?.id && !member.leftAt,
@@ -313,8 +305,13 @@ const Index = ({ isChannel }: IndexProps) => {
       setTypingUserIds(new Set());
     };
 
-    const refreshConversation = (message: any) => {
-      if (message?.conversationId === conversationId) {
+    const refreshConversation = (event: any) => {
+      const eventConversationId = event?.conversationId || event?.id;
+
+      if (
+        eventConversationId === conversationId ||
+        eventConversationId === chatUserDetails.id
+      ) {
         refreshCurrentConversation();
       }
     };
@@ -431,6 +428,7 @@ const Index = ({ isChannel }: IndexProps) => {
     };
   }, [
     activeConversationId,
+    chatUserDetails.id,
     refreshCurrentConversation,
     userProfile?.accessToken,
     userProfile?.uid,
@@ -483,7 +481,15 @@ const Index = ({ isChannel }: IndexProps) => {
   };
 
   return (
-    <div className="conversation-shell">
+    <div
+      className={`conversation-shell ${
+        isChannel
+          ? conversationMode === "management"
+            ? "conversation-shell-management"
+            : "conversation-shell-group"
+          : ""
+      }`}
+    >
       <UserHead
         chatUserDetails={chatUserDetails}
         onOpenUserDetails={onOpenUserDetails}
@@ -506,36 +512,46 @@ const Index = ({ isChannel }: IndexProps) => {
           <span className="text-primary">Someone is typing...</span>
         )}
       </div>
-      {isChannel && canAccessManagementChat && (
-        <div className="border-bottom px-3 py-2 d-flex gap-2 align-items-center">
-          <div
-            className="btn-group btn-group-sm"
-            role="group"
-            aria-label="Conversation view"
-          >
-            <Button
-              color={conversationMode === "group" ? "primary" : "light"}
-              onClick={showGroupChat}
+      {isChannel && (
+        <div className="conversation-context-strip border-bottom px-3 py-2 d-flex flex-wrap gap-2 align-items-center">
+          {canAccessManagementChat ? (
+            <div
+              className="btn-group btn-group-sm"
+              role="group"
+              aria-label="Conversation view"
             >
+              <Button
+                color={conversationMode === "group" ? "primary" : "light"}
+                onClick={showGroupChat}
+              >
+                <i
+                  className="bx bx-message-square-dots me-1"
+                  aria-hidden="true"
+                ></i>
+                Group Chat
+              </Button>
+              <Button
+                color={conversationMode === "management" ? "warning" : "light"}
+                onClick={showManagementChat}
+              >
+                <i className="bx bx-lock-alt me-1" aria-hidden="true"></i>
+                Manager Chat
+              </Button>
+            </div>
+          ) : (
+            <strong className="conversation-context-label">
               <i
                 className="bx bx-message-square-dots me-1"
                 aria-hidden="true"
               ></i>
               Group Chat
-            </Button>
-            <Button
-              color={conversationMode === "management" ? "primary" : "light"}
-              onClick={showManagementChat}
-            >
-              <i className="bx bx-lock-alt me-1" aria-hidden="true"></i>
-              Manager Chat
-            </Button>
-          </div>
-          {conversationMode === "management" && (
-            <small className="text-muted">
-              Visible only to group management
-            </small>
+            </strong>
           )}
+          <small className="conversation-context-copy">
+            {conversationMode === "management"
+              ? "Private channel | Visible only to group management"
+              : "Shared channel | Visible to all group members"}
+          </small>
         </div>
       )}
       {realtimeError && (
@@ -546,18 +562,6 @@ const Index = ({ isChannel }: IndexProps) => {
         >
           {realtimeError}
         </Alert>
-      )}
-      {isChannel && chatUserDetails.id && conversationMode === "group" && (
-        <GroupManagement
-          conversation={chatUserDetails}
-          participantStateKey={participantStateKey}
-          onChanged={refreshCurrentConversation}
-          onLeft={() => {
-            dispatch(toggleUserDetailsTab(false));
-            dispatch(changeSelectedChat(null));
-            dispatch(getChannels());
-          }}
-        />
       )}
       <Conversation
         chatUserConversations={chatUserConversations}
@@ -577,7 +581,7 @@ const Index = ({ isChannel }: IndexProps) => {
         disabledMessage={
           !groupIsActive
             ? `This group is ${chatUserDetails.status}.`
-            : "Only group management can send messages in this group."
+            : "Members cannot send messages in this group. Only group management can send."
         }
       />
     </div>
