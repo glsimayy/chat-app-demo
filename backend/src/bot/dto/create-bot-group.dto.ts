@@ -3,6 +3,7 @@ import {
   ArrayNotEmpty,
   ArrayUnique,
   IsArray,
+  IsBoolean,
   IsOptional,
   IsString,
   IsUUID,
@@ -11,9 +12,13 @@ import {
 } from "class-validator";
 
 export class CreateBotGroupDto {
-  @ApiProperty({ example: "7d6e9940-e1a4-48e9-90d0-7a624b7c7c75" })
+  @ApiPropertyOptional({
+    description: "Deprecated alias: this user is added as a manager",
+    example: "7d6e9940-e1a4-48e9-90d0-7a624b7c7c75",
+  })
+  @IsOptional()
   @IsUUID("4")
-  ownerId!: string;
+  ownerId?: string;
 
   @ApiProperty({ example: "Destek Talebi #4821" })
   @IsString()
@@ -33,6 +38,38 @@ export class CreateBotGroupDto {
   @IsUUID("4", { each: true })
   participantIds!: string[];
 
+  @ApiPropertyOptional({
+    description: "Group managers; they are automatically added as members",
+    example: ["7d6e9940-e1a4-48e9-90d0-7a624b7c7c75"],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID("4", { each: true })
+  managerIds?: string[];
+
+  @ApiPropertyOptional({ example: "Customer support coordination" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  description?: string;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  memberCanSendMessages?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  membersCanLeave?: boolean;
+
+  @ApiPropertyOptional({ example: "Support system" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  sourceName?: string;
+
   @ApiPropertyOptional({ example: "ticket-4821" })
   @IsOptional()
   @IsString()
@@ -40,10 +77,19 @@ export class CreateBotGroupDto {
   externalRef?: string;
 
   @ApiPropertyOptional({
-    example: "Bot tarafindan destek grubu acildi.",
+    example: "Support request received. An agent will join shortly.",
   })
   @IsOptional()
   @IsString()
   @MaxLength(500)
   initialSystemMessage?: string;
+
+  @ApiPropertyOptional({
+    description: "Preferred field for the first message sent by the bot",
+    example: "Support request received. An agent will join shortly.",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  initialBotMessage?: string;
 }

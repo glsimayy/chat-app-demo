@@ -3,6 +3,8 @@ import {
   ArrayNotEmpty,
   ArrayUnique,
   IsArray,
+  IsBoolean,
+  IsOptional,
   IsString,
   IsUUID,
   MaxLength,
@@ -27,4 +29,30 @@ export class CreateGroupConversationDto {
   @ArrayUnique()
   @IsUUID("4", { each: true })
   participantIds!: string[];
+
+  @ApiProperty({
+    required: false,
+    example: ["0b991e0b-814d-4ab4-a918-cfdc1ea19a7a"],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID("4", { each: true })
+  managerIds?: string[];
+
+  @ApiProperty({ required: false, example: "Release coordination group" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  description?: string;
+
+  @ApiProperty({ required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  memberCanSendMessages?: boolean;
+
+  @ApiProperty({ required: false, default: true })
+  @IsOptional()
+  @IsBoolean()
+  membersCanLeave?: boolean;
 }

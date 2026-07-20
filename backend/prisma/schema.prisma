@@ -15,11 +15,19 @@ enum UserRole {
 enum ConversationType {
   direct
   group
+  management
 }
 
 enum ParticipantRole {
   owner
+  manager
   member
+}
+
+enum ConversationStatus {
+  active
+  closed
+  archived
 }
 
 enum MessageType {
@@ -28,48 +36,58 @@ enum MessageType {
 }
 
 model User {
-  id           String                    @id @default(uuid()) @db.Uuid
-  email        String                    @unique
-  username     String                    @unique
-  passwordHash String
-  role         UserRole                  @default(user)
-  createdAt    DateTime                  @default(now())
-  updatedAt    DateTime                  @updatedAt
-  conversationsCreated Conversation[]    @relation("ConversationCreator")
-  messages     Message[]
-  participants ConversationParticipant[]
+  id                   String                    @id @default(uuid()) @db.Uuid
+  email                String                    @unique
+  username             String                    @unique
+  passwordHash         String
+  role                 UserRole                  @default(user)
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  conversationsCreated Conversation[]            @relation("ConversationCreator")
+  messages             Message[]
+  participants         ConversationParticipant[]
 
   @@index([role])
   @@map("users")
 }
 
 model Conversation {
-  id           String                    @id @default(uuid()) @db.Uuid
-  type         ConversationType
-  name         String?
-  createdBy    String                    @db.Uuid
-  externalRef  String?                   @unique
-  createdAt    DateTime                  @default(now())
-  updatedAt    DateTime                  @updatedAt
-  creator      User                      @relation("ConversationCreator", fields: [createdBy], references: [id], onDelete: Restrict)
-  messages     Message[]
-  participants ConversationParticipant[]
+  id                     String                    @id @default(uuid()) @db.Uuid
+  type                   ConversationType
+  name                   String?
+  description            String?
+  createdBy              String                    @db.Uuid
+  externalRef            String?                   @unique
+  isBotManaged           Boolean                   @default(false)
+  sourceName             String?
+  memberCanSendMessages  Boolean                   @default(false)
+  membersCanLeave        Boolean                   @default(true)
+  status                 ConversationStatus        @default(active)
+  parentConversationId   String?                   @unique @db.Uuid
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  creator                User                      @relation("ConversationCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  parentConversation     Conversation?             @relation("ManagementConversation", fields: [parentConversationId], references: [id], onDelete: Cascade)
+  managementConversation Conversation?             @relation("ManagementConversation")
+  messages               Message[]
+  participants           ConversationParticipant[]
 
   @@index([type])
   @@index([createdBy])
+  @@index([status])
   @@index([updatedAt])
   @@map("conversations")
 }
 
 model ConversationParticipant {
-  conversationId String           @db.Uuid
-  userId         String           @db.Uuid
-  role           ParticipantRole  @default(member)
-  joinedAt       DateTime         @default(now())
+  conversationId String          @db.Uuid
+  userId         String          @db.Uuid
+  role           ParticipantRole @default(member)
+  joinedAt       DateTime        @default(now())
   lastReadAt     DateTime?
   leftAt         DateTime?
-  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation   Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([conversationId, userId])
   @@index([userId])
@@ -79,21 +97,21 @@ model ConversationParticipant {
 }
 
 model Message {
-  id             String        @id @default(uuid()) @db.Uuid
+  id              String       @id @default(uuid()) @db.Uuid
   clientMessageId String?      @db.Uuid
-  conversationId String        @db.Uuid
-  senderId       String?       @db.Uuid
-  content        String
-  messageType    MessageType   @default(user)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime?
-  deletedAt      DateTime?
-  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender         User?         @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  conversationId  String       @db.Uuid
+  senderId        String?      @db.Uuid
+  content         String
+  messageType     MessageType  @default(user)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime?
+  deletedAt       DateTime?
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender          User?        @relation(fields: [senderId], references: [id], onDelete: SetNull)
 
+  @@unique([senderId, clientMessageId])
   @@index([conversationId, createdAt])
   @@index([senderId])
-  @@unique([senderId, clientMessageId])
   @@index([messageType])
   @@index([deletedAt])
   @@map("messages")

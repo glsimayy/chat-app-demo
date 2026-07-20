@@ -72,9 +72,12 @@ export const mapConversationToListItem = (
   const currentUserId = getCurrentUserId();
   const isChannel = conversation?.type === "group";
   const otherParticipant = (conversation?.participants || []).find(
-    (participant: any) => participant.userId !== currentUserId && !participant.leftAt,
+    (participant: any) =>
+      participant.userId !== currentUserId && !participant.leftAt,
   );
-  const otherUser = users.find((user: any) => user.id === otherParticipant?.userId);
+  const otherUser = users.find(
+    (user: any) => user.id === otherParticipant?.userId,
+  );
   const displayUser = otherUser || {
     id: conversation?.id,
     username: conversation?.name || "Conversation",
@@ -86,6 +89,14 @@ export const mapConversationToListItem = (
       id: conversation.id,
       name: conversation.name || "Group",
       members: conversation.participants || [],
+      automated: Boolean(conversation.isBotManaged || conversation.externalRef),
+      isBotManaged: Boolean(conversation.isBotManaged),
+      externalRef: conversation.externalRef || null,
+      description: conversation.description || null,
+      sourceName: conversation.sourceName || null,
+      memberCanSendMessages: Boolean(conversation.memberCanSendMessages),
+      membersCanLeave: conversation.membersCanLeave !== false,
+      status: conversation.status || "active",
       meta: {
         unRead: conversation.unreadCount || 0,
       },
@@ -117,12 +128,34 @@ export const mapConversationDetails = (
     isChannel: conversation?.type === "group",
     members: conversation?.participants || [],
     participantCount: conversation?.participantCount,
+    automated: Boolean(conversation?.isBotManaged || conversation?.externalRef),
+    isBotManaged: Boolean(conversation?.isBotManaged),
+    externalRef: conversation?.externalRef || null,
+    description: conversation?.description || null,
+    sourceName: conversation?.sourceName || null,
+    memberCanSendMessages: Boolean(conversation?.memberCanSendMessages),
+    membersCanLeave: conversation?.membersCanLeave !== false,
+    status: conversation?.status || "active",
+    parentConversationId: conversation?.parentConversationId || null,
   };
 };
 
-export const mapMessage = (message: any) => {
+export const mapMessage = (message: any, users: Array<any> = []) => {
   const currentUserId = getCurrentUserId();
   const isDeleted = Boolean(message.deletedAt);
+  const sender = users.find((user: any) => user.id === message.senderId);
+  const senderData = sender
+    ? mapBackendUser(sender)
+    : {
+        id: "system",
+        uid: "system",
+        firstName: "System",
+        lastName: "",
+        username: "System",
+        email: "",
+        location: "",
+        isBot: false,
+      };
 
   return {
     mId: message.id,
@@ -131,9 +164,11 @@ export const mapMessage = (message: any) => {
     updatedAt: message.updatedAt,
     isEdited: Boolean(message.updatedAt) && !isDeleted,
     isDeleted,
+    messageType: message.messageType,
     meta: {
       receiver: message.conversationId,
       sender: message.senderId || "system",
+      userData: senderData,
       sent: message.senderId === currentUserId,
       received: true,
       read: true,

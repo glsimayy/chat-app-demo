@@ -32,7 +32,10 @@ export interface CreateChannelPostData {
   id: any;
   name: string;
   members: Array<string | number>;
+  managerIds?: Array<string | number>;
   description?: string;
+  memberCanSendMessages?: boolean;
+  membersCanLeave?: boolean;
 }
 export const createChannel = (channelData: CreateChannelPostData) => ({
   type: ChatsActionTypes.CREATE_CHANNEL,
@@ -50,7 +53,7 @@ export const getChatUserDetails = (selectedChat: string | number | null) => ({
 });
 
 export const getChatUserConversations = (
-  selectedChat: string | number | null
+  selectedChat: string | number | null,
 ) => ({
   type: ChatsActionTypes.GET_CHAT_USER_CONVERSATIONS,
   payload: selectedChat,
@@ -83,7 +86,7 @@ export const receiveMessageFromUser = (id: number | string) => ({
 
 export const deleteMessage = (
   userId: number | string,
-  messageId: number | string
+  messageId: number | string,
 ) => ({
   type: ChatsActionTypes.DELETE_MESSAGE,
   payload: { userId, messageId },
@@ -126,9 +129,8 @@ export const readConversation = (id: number | string) => ({
 export const deleteImage = (
   userId: number | string,
   messageId: number | string,
-  imageId: number | string
+  imageId: number | string,
 ) => ({
   type: ChatsActionTypes.DELETE_IMAGE,
   payload: { userId, messageId, imageId },
 });
-

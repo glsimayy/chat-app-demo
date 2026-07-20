@@ -56,7 +56,7 @@ Java webhook environment degerleri `java-webhook/README.md` ile ayni tutulur.
 - [x] Backend ve DB restart sonrasinda kullanici ve mesajlar korundu.
 - [ ] Iki farkli cihazda direct ve group realtime mesajlasma calisti.
 - [x] USER ve ADMIN yetki kontrolleri gecti.
-- [ ] Ayni ticket iki kez geldiginde tek bot grubu olustu.
+- [x] Ayni ticket iki kez geldiginde tek bot grubu olustu.
 - [x] Dev reset, demo kullanicilar ve demo UI production'da kapali.
 - [ ] Repo secret taramasi temiz.
 - [x] Bilinen kisitlar release notuna yazildi.

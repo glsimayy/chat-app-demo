@@ -21,6 +21,7 @@ export interface MessagesTypes {
   updatedAt?: string | null;
   isEdited?: boolean;
   isDeleted?: boolean;
+  messageType?: "user" | "system";
   meta: {
     receiver: string | number;
     sender: string | number;

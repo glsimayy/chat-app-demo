@@ -14,9 +14,12 @@ servisi tek urun akisi icinde calisacak sekilde tasarlanmistir.
 - Gercek zamanli mesaj gonderme, duzenleme ve silme
 - Online presence, typing indicator ve read receipt
 - Grup katilimcisi ekleme/cikarma, gruptan ayrilma, ad degistirme ve sahiplik devri
+- Owner/manager/member rolleri ve varsayilan salt okunur grup politikasi
+- Owner, manager ve gruptaki global adminlere ozel yonetici sohbeti
+- Grup aciklamasi, ayrilma politikasi ve active/closed/archived durumlari
 - Contacts listesinden direct conversation bulma veya otomatik olusturma
 - Mesaj sayfalama, arama ve `clientMessageId` ile tekrar gonderim korumasi
-- Java webhook uzerinden ticket kaynakli bot grubu olusturma kontrati
+- Owner gerektirmeyen BOT gruplari, BOT mesaji ve dis API ile manager/politika atama
 - PostgreSQL kaliciligi ve Prisma migration altyapisi
 - Admin runtime metrikleri, health endpointi ve yapilandirilmis loglar
 
@@ -54,6 +57,7 @@ servisi tek urun akisi icinde calisacak sekilde tasarlanmistir.
 
 - Sifre sifirlama ve e-posta dogrulama bulunmuyor.
 - Dosya ve medya yukleme bulunmuyor.
+- Yonetici sohbetinde ayri okunmamis sayaci, dosya paylasimi ve BOT mesaji bulunmuyor.
 - Gelismis monitoring, alarm ve merkezi log toplama bulunmuyor.
 - Masaustu `.exe` paketi bulunmuyor; frontend web uygulamasi olarak calisiyor.
 - Development/test ortaminda `DATABASE_URL` verilmezse in-memory fallback

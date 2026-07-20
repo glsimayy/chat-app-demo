@@ -28,6 +28,8 @@ interface DataTypes {
   id: any;
   channelName: string;
   description: string;
+  memberCanSendMessages: boolean;
+  membersCanLeave: boolean;
 }
 interface ContactItemProps {
   contact: ContactTypes;
@@ -51,8 +53,9 @@ const ContactItem = ({
           type="checkbox"
           className="form-check-input"
           id={`contact-${contact.id}`}
+          checked={selected}
           onChange={(e: any) => {
-            onCheck(e.target.checked)
+            onCheck(e.target.checked);
           }}
           value={fullName}
         />
@@ -131,12 +134,18 @@ const AddGroupModal = ({
   const [selectedContacts, setSelectedContacts] = useState<
     Array<string | number>
   >([]);
+  const [selectedManagers, setSelectedManagers] = useState<
+    Array<string | number>
+  >([]);
   const onSelectContact = (id: string | number, selected: boolean) => {
     let modifiedList: Array<string | number> = [...selectedContacts];
     if (selected) {
       modifiedList = [...modifiedList, id];
     } else {
       modifiedList = modifiedList.filter(m => m + "" !== id + "");
+      setSelectedManagers(current =>
+        current.filter(managerId => managerId + "" !== id + ""),
+      );
     }
     setSelectedContacts(modifiedList);
   };
@@ -145,14 +154,14 @@ const AddGroupModal = ({
     data
     */
   const [data, setData] = useState<DataTypes>({
-    id : "",
+    id: "",
     channelName: "",
     description: "",
+    memberCanSendMessages: false,
+    membersCanLeave: true,
   });
-  const onDataChange = (field: "id" | "channelName" | "description", value: any) => {
-    let modifiedData: DataTypes = { ...data };
-    modifiedData[field] = value;
-    setData(modifiedData);
+  const onDataChange = (field: keyof DataTypes, value: any) => {
+    setData(current => ({ ...current, [field]: value }) as DataTypes);
   };
 
   /*
@@ -176,13 +185,20 @@ const AddGroupModal = ({
     */
   const onSubmit = () => {
     const params = {
-      id : data.id,
+      id: data.id,
       name: data.channelName,
       members: selectedContacts,
+      managerIds: selectedManagers,
       description: data.description,
+      memberCanSendMessages: data.memberCanSendMessages,
+      membersCanLeave: data.membersCanLeave,
     };
     onCreateChannel(params);
   };
+
+  const selectedContactRecords = (categorizedContacts || [])
+    .flatMap((group: DivideByKeyResultTypes) => group.data || [])
+    .filter((contact: any) => selectedContacts.includes(contact.id));
 
   return (
     <Modal
@@ -193,15 +209,16 @@ const AddGroupModal = ({
       scrollable
       color="white"
       id="addgroup-exampleModal"
-      role="dialog">
+      role="dialog"
+    >
       {/* <ModalHeader className="modal-title-custom bg-primary " toggle={onClose} >
       Create New Group
      </ModalHeader> */}
-     <ModalHeader toggle={onClose} className="bg-primary">
-      <div className="modal-title modal-title-custom text-white bg-primary font-size-16">
-      Create New Group
-      </div>
-     </ModalHeader>
+      <ModalHeader toggle={onClose} className="bg-primary">
+        <div className="modal-title modal-title-custom text-white bg-primary font-size-16">
+          Create New Group
+        </div>
+      </ModalHeader>
       {/* <div className="modal-title text-white font-size-16 bg-primary text-white">
         creact new grop
       </div> */}
@@ -253,13 +270,46 @@ const AddGroupModal = ({
                           selectedContacts={selectedContacts}
                           onSelectContact={onSelectContact}
                         />
-                      )
+                      ),
                     )}
                   </AppSimpleBar>
                 </div>
               </div>
             </Collapse>
           </div>
+          {selectedContactRecords.length > 0 && (
+            <div className="mb-4">
+              <Label className="form-label">Group Managers</Label>
+              <div className="border p-2">
+                {selectedContactRecords.map((contact: any) => {
+                  const managerSelected = selectedManagers.includes(contact.id);
+                  return (
+                    <div className="form-check" key={contact.id}>
+                      <Input
+                        type="checkbox"
+                        className="form-check-input"
+                        id={`manager-${contact.id}`}
+                        checked={managerSelected}
+                        onChange={event =>
+                          setSelectedManagers(current =>
+                            event.target.checked
+                              ? [...current, contact.id]
+                              : current.filter(id => id !== contact.id),
+                          )
+                        }
+                      />
+                      <Label
+                        className="form-check-label"
+                        htmlFor={`manager-${contact.id}`}
+                      >
+                        {contact.firstName} {contact.lastName}
+                      </Label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div className="mb-3">
             <Label htmlFor="addgroupdescription-input" className="form-label">
               Description
@@ -275,6 +325,32 @@ const AddGroupModal = ({
               }}
             />
           </div>
+          <div className="form-check form-switch mb-3">
+            <Input
+              type="switch"
+              id="group-member-messages"
+              checked={data.memberCanSendMessages}
+              onChange={event =>
+                onDataChange("memberCanSendMessages", event.target.checked)
+              }
+            />
+            <Label htmlFor="group-member-messages" className="form-check-label">
+              Members can send messages
+            </Label>
+          </div>
+          <div className="form-check form-switch">
+            <Input
+              type="switch"
+              id="group-members-leave"
+              checked={data.membersCanLeave}
+              onChange={event =>
+                onDataChange("membersCanLeave", event.target.checked)
+              }
+            />
+            <Label htmlFor="group-members-leave" className="form-check-label">
+              Members can leave the group
+            </Label>
+          </div>
         </Form>
       </ModalBody>
       <ModalFooter>
@@ -285,7 +361,9 @@ const AddGroupModal = ({
           type="button"
           color="primary"
           onClick={onSubmit}
-          // disabled={!valid}
+          disabled={
+            data.channelName.trim().length < 3 || selectedContacts.length === 0
+          }
         >
           Create Groups
         </Button>

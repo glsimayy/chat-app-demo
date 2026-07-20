@@ -17,6 +17,8 @@ interface IndexProps {
   replyData: null | MessagesTypes | undefined;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   chatUserDetails: any;
+  canSend?: boolean;
+  disabledMessage?: string;
 }
 const Index = ({
   onSend,
@@ -24,6 +26,8 @@ const Index = ({
   replyData,
   onSetReplyData,
   chatUserDetails,
+  canSend = true,
+  disabledMessage = "Messaging is unavailable in this conversation.",
 }: IndexProps) => {
   /*
   more menu collapse
@@ -121,6 +125,17 @@ const Index = ({
     setImages(null);
     setFiles(null);
   };
+
+  if (!canSend) {
+    return (
+      <div className="chat-input-section p-3 p-lg-4">
+        <div className="alert alert-secondary mb-0 d-flex align-items-center gap-2">
+          <i className="bx bx-lock-alt font-size-18" aria-hidden="true"></i>
+          <span>{disabledMessage}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="chat-input-section p-3 p-lg-4">

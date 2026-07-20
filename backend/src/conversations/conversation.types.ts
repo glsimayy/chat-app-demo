@@ -1,4 +1,5 @@
 import { ConversationType } from "./conversation-type.enum";
+import { ConversationStatus } from "./conversation-status.enum";
 import { MessageType } from "./message-type.enum";
 import { ParticipantRole } from "./participant-role.enum";
 
@@ -14,8 +15,15 @@ export interface ConversationRecord {
   id: string;
   type: ConversationType;
   name: string | null;
+  description: string | null;
   createdBy: string;
   externalRef?: string | null;
+  isBotManaged: boolean;
+  sourceName: string | null;
+  memberCanSendMessages: boolean;
+  membersCanLeave: boolean;
+  status: ConversationStatus;
+  parentConversationId: string | null;
   participants: ConversationParticipant[];
   createdAt: Date;
   updatedAt: Date;

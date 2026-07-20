@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert } from "reactstrap";
+import { Alert, Button } from "reactstrap";
 
 // hooks
 import { useRedux } from "../../../hooks/index";
@@ -29,8 +29,10 @@ import { MessagesTypes } from "../../../data/messages";
 import { getChatSocket } from "../../../api/realtime";
 import {
   deleteMessage as deleteMessageApi,
+  getManagementConversation,
   updateMessage as updateMessageApi,
 } from "../../../api/chats";
+import { getCurrentAuthUser } from "../../../api/backendAdapters";
 
 interface IndexProps {
   isChannel: boolean;
@@ -73,6 +75,11 @@ const Index = ({ isChannel }: IndexProps) => {
   const typingActiveRef = useRef(false);
   const [socketConnected, setSocketConnected] = useState(false);
   const [realtimeError, setRealtimeError] = useState("");
+  const [conversationMode, setConversationMode] = useState<
+    "group" | "management"
+  >("group");
+  const [managementConversation, setManagementConversation] =
+    useState<any>(null);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const [typingUserIds, setTypingUserIds] = useState<Set<string>>(new Set());
   const activeParticipantIds = new Set(
@@ -89,6 +96,46 @@ const Index = ({ isChannel }: IndexProps) => {
         `${member.userId}:${member.role}:${member.leftAt || "active"}`,
     )
     .join("|");
+  const currentAuthUser = getCurrentAuthUser();
+  const currentParticipant = (chatUserDetails.members || []).find(
+    (member: any) => member.userId === currentAuthUser?.id && !member.leftAt,
+  );
+  const canAccessManagementChat =
+    isChannel &&
+    !currentAuthUser?.isBot &&
+    (currentAuthUser?.role === "admin" ||
+      currentParticipant?.role === "owner" ||
+      currentParticipant?.role === "manager");
+  const activeConversationId =
+    conversationMode === "management" && managementConversation?.id
+      ? managementConversation.id
+      : chatUserDetails.id;
+  const activeChatDetails =
+    conversationMode === "management" && managementConversation
+      ? {
+          ...chatUserDetails,
+          id: managementConversation.id,
+          name: "Manager Chat",
+          members: managementConversation.participants || [],
+        }
+      : chatUserDetails;
+  const groupIsActive = (chatUserDetails.status || "active") === "active";
+  const canSendToGroup =
+    !isChannel ||
+    Boolean(chatUserDetails.memberCanSendMessages) ||
+    currentAuthUser?.role === "admin" ||
+    currentParticipant?.role === "owner" ||
+    currentParticipant?.role === "manager";
+  const canSendMessage =
+    groupIsActive &&
+    (conversationMode === "management"
+      ? canAccessManagementChat
+      : canSendToGroup);
+
+  useEffect(() => {
+    setConversationMode("group");
+    setManagementConversation(null);
+  }, [chatUserDetails.id]);
 
   /*
   reply handeling
@@ -105,7 +152,7 @@ const Index = ({ isChannel }: IndexProps) => {
   */
   const stopTyping = useCallback(() => {
     const socket = getChatSocket();
-    const conversationId = chatUserDetails.id;
+    const conversationId = activeConversationId;
 
     if (socket?.connected && conversationId && typingActiveRef.current) {
       socket.emit("typing:stop", { conversationId });
@@ -116,12 +163,12 @@ const Index = ({ isChannel }: IndexProps) => {
       clearTimeout(typingTimerRef.current);
       typingTimerRef.current = null;
     }
-  }, [chatUserDetails.id]);
+  }, [activeConversationId]);
 
   const onTyping = useCallback(
     (value: string) => {
       const socket = getChatSocket();
-      const conversationId = chatUserDetails.id;
+      const conversationId = activeConversationId;
 
       if (!socket?.connected || !conversationId) {
         return;
@@ -142,18 +189,18 @@ const Index = ({ isChannel }: IndexProps) => {
       }
       typingTimerRef.current = setTimeout(stopTyping, 1200);
     },
-    [chatUserDetails.id, stopTyping],
+    [activeConversationId, stopTyping],
   );
 
   const refreshCurrentConversation = useCallback(() => {
-    if (!chatUserDetails.id) {
+    if (!activeConversationId || !chatUserDetails.id) {
       return;
     }
 
-    dispatch(getChatUserConversations(chatUserDetails.id));
+    dispatch(getChatUserConversations(activeConversationId));
     dispatch(getChatUserDetails(chatUserDetails.id));
     dispatch(getChannels());
-  }, [chatUserDetails.id, dispatch]);
+  }, [activeConversationId, chatUserDetails.id, dispatch]);
 
   const onSend = (data: any) => {
     const clientMessageId = crypto.randomUUID();
@@ -165,7 +212,7 @@ const Index = ({ isChannel }: IndexProps) => {
       attachments: data.attachments && data.attachments,
       clientMessageId,
       meta: {
-        receiver: chatUserDetails.id,
+        receiver: activeConversationId,
         sender: userProfile.uid,
       },
     };
@@ -188,7 +235,7 @@ const Index = ({ isChannel }: IndexProps) => {
       socket.timeout(5000).emit(
         "message:send",
         {
-          conversationId: chatUserDetails.id,
+          conversationId: activeConversationId,
           content,
           clientMessageId,
         },
@@ -223,19 +270,19 @@ const Index = ({ isChannel }: IndexProps) => {
       isUserMessagesDeleted ||
       isImageDeleted
     ) {
-      dispatch(getChatUserConversations(chatUserDetails.id));
+      dispatch(getChatUserConversations(activeConversationId));
     }
   }, [
     dispatch,
     isUserMessageSent,
-    chatUserDetails,
+    activeConversationId,
     isMessageForwarded,
     isUserMessagesDeleted,
     isImageDeleted,
   ]);
 
   useEffect(() => {
-    const conversationId = chatUserDetails.id;
+    const conversationId = activeConversationId;
     const socket = getChatSocket();
 
     if (!conversationId || !socket) {
@@ -383,7 +430,7 @@ const Index = ({ isChannel }: IndexProps) => {
       socket.off("exception", handleSocketError);
     };
   }, [
-    chatUserDetails.id,
+    activeConversationId,
     refreshCurrentConversation,
     userProfile?.accessToken,
     userProfile?.uid,
@@ -392,7 +439,7 @@ const Index = ({ isChannel }: IndexProps) => {
   const onEditMessage = async (messageId: string | number, content: string) => {
     try {
       setRealtimeError("");
-      await updateMessageApi(chatUserDetails.id, messageId, content);
+      await updateMessageApi(activeConversationId, messageId, content);
       refreshCurrentConversation();
     } catch (error: any) {
       setRealtimeError(String(error || "Message could not be updated"));
@@ -403,11 +450,35 @@ const Index = ({ isChannel }: IndexProps) => {
   const onDeleteMessage = async (messageId: string | number) => {
     try {
       setRealtimeError("");
-      await deleteMessageApi(chatUserDetails.id, messageId);
+      await deleteMessageApi(activeConversationId, messageId);
       refreshCurrentConversation();
     } catch (error: any) {
       setRealtimeError(String(error || "Message could not be deleted"));
       throw error;
+    }
+  };
+
+  const showGroupChat = () => {
+    setConversationMode("group");
+    setRealtimeError("");
+    dispatch(getChatUserConversations(chatUserDetails.id));
+  };
+
+  const showManagementChat = async () => {
+    if (!canAccessManagementChat || !chatUserDetails.id) {
+      return;
+    }
+
+    try {
+      setRealtimeError("");
+      const management: any = await getManagementConversation(
+        chatUserDetails.id,
+      );
+      setManagementConversation(management);
+      setConversationMode("management");
+      dispatch(getChatUserConversations(management.id));
+    } catch (error: any) {
+      setRealtimeError(String(error || "Management chat could not be opened"));
     }
   };
 
@@ -435,6 +506,38 @@ const Index = ({ isChannel }: IndexProps) => {
           <span className="text-primary">Someone is typing...</span>
         )}
       </div>
+      {isChannel && canAccessManagementChat && (
+        <div className="border-bottom px-3 py-2 d-flex gap-2 align-items-center">
+          <div
+            className="btn-group btn-group-sm"
+            role="group"
+            aria-label="Conversation view"
+          >
+            <Button
+              color={conversationMode === "group" ? "primary" : "light"}
+              onClick={showGroupChat}
+            >
+              <i
+                className="bx bx-message-square-dots me-1"
+                aria-hidden="true"
+              ></i>
+              Group Chat
+            </Button>
+            <Button
+              color={conversationMode === "management" ? "primary" : "light"}
+              onClick={showManagementChat}
+            >
+              <i className="bx bx-lock-alt me-1" aria-hidden="true"></i>
+              Manager Chat
+            </Button>
+          </div>
+          {conversationMode === "management" && (
+            <small className="text-muted">
+              Visible only to group management
+            </small>
+          )}
+        </div>
+      )}
       {realtimeError && (
         <Alert
           color="danger"
@@ -444,10 +547,9 @@ const Index = ({ isChannel }: IndexProps) => {
           {realtimeError}
         </Alert>
       )}
-      {isChannel && chatUserDetails.id && (
+      {isChannel && chatUserDetails.id && conversationMode === "group" && (
         <GroupManagement
-          conversationId={chatUserDetails.id}
-          conversationName={chatUserDetails.name || ""}
+          conversation={chatUserDetails}
           participantStateKey={participantStateKey}
           onChanged={refreshCurrentConversation}
           onLeft={() => {
@@ -459,7 +561,7 @@ const Index = ({ isChannel }: IndexProps) => {
       )}
       <Conversation
         chatUserConversations={chatUserConversations}
-        chatUserDetails={chatUserDetails}
+        chatUserDetails={activeChatDetails}
         onEdit={onEditMessage}
         onDelete={onDeleteMessage}
         onSetReplyData={onSetReplyData}
@@ -470,7 +572,13 @@ const Index = ({ isChannel }: IndexProps) => {
         onTyping={onTyping}
         replyData={replyData}
         onSetReplyData={onSetReplyData}
-        chatUserDetails={chatUserDetails}
+        chatUserDetails={activeChatDetails}
+        canSend={canSendMessage}
+        disabledMessage={
+          !groupIsActive
+            ? `This group is ${chatUserDetails.status}.`
+            : "Only group management can send messages in this group."
+        }
       />
     </div>
   );

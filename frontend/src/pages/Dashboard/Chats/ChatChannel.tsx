@@ -24,11 +24,21 @@ const ChatChannel = ({ channel, selectedChat, onSelectChat }: ChannelProps) => {
         <div className="d-flex align-items-center">
           <div className="flex-shrink-0 avatar-xs me-2">
             <span className="avatar-title rounded-circle bg-soft-light text-dark">
-              #
+              <i
+                className={channel.automated ? "bx bx-bot" : "bx bx-hash"}
+                aria-hidden="true"
+              ></i>
             </span>
           </div>
           <div className="flex-grow-1 overflow-hidden">
-            <p className="text-truncate mb-0">{channel.name}</p>
+            <p className="text-truncate mb-0">
+              {channel.name}
+              {channel.automated && (
+                <span className="badge bg-primary-subtle text-primary ms-2">
+                  BOT
+                </span>
+              )}
+            </p>
           </div>
           {unRead && unRead !== 0 ? (
             <div className="flex-shrink-0 ms-2">
