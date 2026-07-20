@@ -171,6 +171,9 @@ message akislarini gercek frontend, backend ve Socket.IO uzerinde kontrol eder.
 - Direct conversation
 - Group conversation
 - Group rename
+- Group owner/manager roles and message policies
+- Private manager chat linked to each group
+- Active, closed and archived group states
 - Message create/update/delete
 - Message pagination
 - Read tracking
@@ -183,8 +186,12 @@ message akislarini gercek frontend, backend ve Socket.IO uzerinde kontrol eder.
 - `clientMessageId` ile tekrar gonderim korumasi
 - Admin runtime metrics
 - Structured HTTP ve Socket.IO loglari
-- Java/bot entegrasyonu icin `POST /api/bot/create-group`
-- Geriye uyumlu bot alias'i: `POST /api/bot/groups`
+- Dis uygulamadan bot grubu olusturma: `POST /api/bot/groups`
+- Otomasyon grubuna uye ekleme: `POST /api/bot/groups/:conversationId/participants`
+- Bot adina mesaj gonderme: `POST /api/bot/groups/:conversationId/messages`
+- Bot grubu ayarlarini degistirme: `PATCH /api/bot/groups/:conversationId`
+- Bot grubunda manager atama: `PATCH /api/bot/groups/:conversationId/participants/:userId/role`
+- Java ticket webhook alias'i: `POST /api/bot/create-group`
 
 ## Notlar
 

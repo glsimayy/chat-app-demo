@@ -157,9 +157,17 @@ Bu endpoint admin kullanici ister.
 ```json
 {
   "name": "Staj Proje Ekibi",
-  "participantIds": ["user-uuid-1", "user-uuid-2"]
+  "description": "Release koordinasyon grubu",
+  "participantIds": ["user-uuid-1", "user-uuid-2"],
+  "managerIds": ["user-uuid-1"],
+  "memberCanSendMessages": false,
+  "membersCanLeave": true
 }
 ```
+
+Yeni gruplarda `memberCanSendMessages` varsayilan olarak `false` olur.
+Olusturan admin manuel grubun owner'idir; `managerIds` icindeki kullanicilar
+gruba otomatik olarak manager rolunde eklenir.
 
 `GET /api/conversations`
 
@@ -201,13 +209,21 @@ Konusma listesini `updatedAt` alanina gore yeniden eskiye sirali dondurur. Her i
 
 `PATCH /api/conversations/{conversationId}`
 
-Sadece grup konusmalari icin calisir. Grup owner'i veya admin kullanici grup adini degistirebilir.
+Manager grup adi ve aciklamasini degistirebilir. Mesaj, ayrilma ve durum
+politikalari sadece owner veya global admin tarafindan degistirilebilir.
 
 ```json
 {
-  "name": "Yeni Grup Adi"
+  "name": "Yeni Grup Adi",
+  "description": "Yeni aciklama",
+  "memberCanSendMessages": false,
+  "membersCanLeave": true,
+  "status": "active"
 }
 ```
+
+Durum degerleri `active | closed | archived` olur. `closed` ve `archived`
+gruplarda yeni kullanici mesaji kabul edilmez.
 
 `PATCH /api/conversations/{conversationId}/owner`
 
@@ -308,13 +324,21 @@ Konusmayi mevcut kullanici icin okundu isaretler.
 
 `POST /api/conversations/{conversationId}/leave`
 
-Mevcut kullaniciyi grup konusmasindan cikarir. Sadece member kullanici ayrilabilir; owner once ownership'i aktif bir uyeye devretmelidir.
+Mevcut kullaniciyi grup konusmasindan cikarir. `membersCanLeave=false` ise
+istek reddedilir. Owner once ownership'i aktif bir uyeye devretmelidir.
+
+`GET /api/conversations/{conversationId}/management`
+
+Ana gruba bagli ozel yonetici sohbetini dondurur. Sadece owner, manager ve
+gruba uye global adminler erisebilir. Normal uye icin `404` doner ve bu sohbet
+`GET /api/conversations` listesine dahil edilmez.
 
 `GET /api/conversations/{conversationId}/participants`
 
 `POST /api/conversations/{conversationId}/participants`
 
-Grup owner'i veya admin yeni uye ekleyebilir. Basarili islem `participant:added` socket eventini ve bir sistem mesajini yayinlar.
+Grup owner'i, manager veya global admin yeni uye ekleyebilir. Basarili islem
+`participant:added` socket eventini ve bir sistem mesajini yayinlar.
 
 ```json
 {
@@ -324,52 +348,74 @@ Grup owner'i veya admin yeni uye ekleyebilir. Basarili islem `participant:added`
 
 `DELETE /api/conversations/{conversationId}/participants/{userId}`
 
-Grup owner'i veya admin uye cikarabilir. Basarili islem `participant:removed` socket eventini, cikarilan kullaniciya `conversation:left` eventini ve bir sistem mesajini yayinlar.
+Manager sadece normal uyeleri; owner ve global admin manager dahil izin verilen
+uyeleri cikarabilir. Basarili islem `participant:removed` socket eventini,
+cikarilan kullaniciya `conversation:left` eventini ve bir sistem mesajini yayinlar.
 
-## Java Tarafi Icin Bot Kontrati
+`PATCH /api/conversations/{conversationId}/participants/{userId}/role`
 
-Java servisi webhook, zamanlanmis is veya dis sistem tetigi aldiginda Main Backend icinde grup olusturmak icin bu endpointi cagirir.
+Owner veya global admin bir uyeyi manager yapabilir ya da member rolune
+dondurebilir.
 
-`POST /api/bot/create-group`
+```json
+{
+  "role": "manager"
+}
+```
 
-Geriye uyumlu alias:
+## Dis Uygulama Bot Otomasyonu
 
-`POST /api/bot/groups`
+Java servisi, Postman, Swagger veya baska bir guvenilir servis bu endpointleri
+webhook, zamanlanmis is ya da dis sistem olayi sonucunda cagirabilir.
 
-Header:
+Tum bot endpointleri su header'i ister:
 
 ```http
 x-bot-secret: <BOT_WEBHOOK_SECRET>
 Content-Type: application/json
 ```
 
-Local default secret:
+### Otomasyon grubu olusturma
 
-```text
-dev-bot-secret
-```
+`POST /api/bot/groups`
+
+Java ticket webhook'u icin geriye uyumlu alias:
+
+`POST /api/bot/create-group`
 
 Body:
 
 ```json
 {
-  "ownerId": "owner-user-uuid",
   "name": "Destek Talebi #4821",
+  "description": "Musteri destek koordinasyonu",
   "participantIds": ["user-uuid-1", "user-uuid-2"],
+  "managerIds": ["manager-user-uuid"],
   "externalRef": "ticket-4821",
-  "initialSystemMessage": "Bot tarafindan destek grubu acildi."
+  "sourceName": "Destek sistemi",
+  "memberCanSendMessages": false,
+  "membersCanLeave": false,
+  "initialBotMessage": "Destek talebi alindi. Bir temsilci yakinda katilacak."
 }
 ```
 
 Alanlar:
 
-- `ownerId`: Grubun sahibi olacak kullanici id'si.
 - `name`: Grup adi.
 - `participantIds`: Gruba eklenecek diger kullanicilar.
+- `managerIds`: Gruba manager olarak eklenecek kullanicilar.
+- BOT gruplarinda insan owner bulunmaz. Eski istemcilerden gelen `ownerId`
+  alani geriye uyumluluk icin manager olarak yorumlanir.
+- `memberCanSendMessages`: Gonderilmezse `false`.
+- `membersCanLeave`: Gonderilmezse `false`.
+- `sourceName`: Grubu olusturan dis sistem icin kullaniciya gosterilebilir ad.
 - `externalRef`: Dis sistem id'si. Ornek: ticket id, meeting id, webhook id.
 - Ayni `externalRef` ile tekrarlanan istek mevcut grubu dondurur; yeni grup veya
-  ikinci bir baslangic sistem mesaji olusturmaz.
-- `initialSystemMessage`: Grup acildiktan sonra sistem mesaji olarak eklenir.
+  ikinci bir baslangic mesaji olusturmaz.
+- `initialBotMessage`: Grup acildiktan sonra `ellO Automation Bot` adina gonderilir.
+- Eski Java payloadlari icin `initialSystemMessage` alani da desteklenir.
+- Bot servis hesabi gruba otomatik eklenir. Parolasi disariya acilmaz ve normal
+  kullanici oturumu icin kullanilmaz.
 
 Beklenen basarili response:
 
@@ -380,14 +426,57 @@ Beklenen basarili response:
     "id": "conversation-uuid",
     "type": "group",
     "name": "Destek Talebi #4821",
-    "createdBy": "owner-user-uuid",
+    "createdBy": "automation-bot-user-uuid",
     "externalRef": "ticket-4821",
+    "isBotManaged": true,
+    "memberCanSendMessages": false,
+    "membersCanLeave": false,
     "participants": [],
     "createdAt": "2026-07-13T17:00:00.000Z",
     "updatedAt": "2026-07-13T17:00:00.000Z"
   }
 }
 ```
+
+### Var olan otomasyon grubuna kullanici ekleme
+
+`POST /api/bot/groups/{conversationId}/participants`
+
+```json
+{
+  "participantIds": ["user-uuid-3", "user-uuid-4"],
+  "managerIds": ["user-uuid-3"]
+}
+```
+
+Tekrar gonderilen kullanici id'leri grupta ikinci bir uyelik olusturmaz. Daha
+once gruptan ayrilmis bir kullanici yeniden aktif edilir. Islem katilimcilara
+realtime olarak yansir.
+
+### Bot adina mesaj gonderme
+
+`POST /api/bot/groups/{conversationId}/messages`
+
+```json
+{
+  "content": "Talep onceligi yuksek olarak degistirildi.",
+  "clientMessageId": "3f0fe459-3816-4b83-b60a-5d195797f030"
+}
+```
+
+`clientMessageId` dis uygulamanin retry anahtaridir. Ayni UUID ve ayni icerikle
+tekrarlanan istek mevcut mesaji dondurur. Mesaj PostgreSQL'e yazilir ve acik
+istemcilere `message:new` Socket.IO eventiyle iletilir.
+
+`PATCH /api/bot/groups/{conversationId}` grup politikasini, aciklamasini veya
+durumunu degistirir. `PATCH /api/bot/groups/{conversationId}/participants/{userId}/role`
+ise bir kullaniciyi manager/member yapar.
+
+Postman koleksiyonu calistirildiginda uygulamada su ornekler olusur:
+
+- `Support TICKET-4821`: destek talebi, sonradan escalation kullanicisi ekleme.
+- `Critical Alert MON-9001`: izleme sistemi alarmi.
+- `Onboarding HR-77`: insan kaynaklari onboarding akisi.
 
 ## Socket.IO Kontrati
 
@@ -753,10 +842,17 @@ Prisma taslagi `backend/prisma/schema.prisma` icinde tutulur. Ilk DB gecisinde b
 ### conversations
 
 - `id`: uuid primary key
-- `type`: enum `direct | group`
+- `type`: enum `direct | group | management`
 - `name`: nullable string
+- `description`: nullable string
 - `createdBy`: user id
 - `externalRef`: nullable string
+- `isBotManaged`: boolean
+- `sourceName`: nullable string
+- `memberCanSendMessages`: boolean
+- `membersCanLeave`: boolean
+- `status`: enum `active | closed | archived`
+- `parentConversationId`: yonetici sohbetlerinde ana grup id'si
 - `createdAt`: datetime
 - `updatedAt`: datetime
 
@@ -764,7 +860,7 @@ Prisma taslagi `backend/prisma/schema.prisma` icinde tutulur. Ilk DB gecisinde b
 
 - `conversationId`: conversation id
 - `userId`: user id
-- `role`: enum `owner | member`
+- `role`: enum `owner | manager | member`
 - `joinedAt`: datetime
 - `lastReadAt`: nullable datetime
 - `leftAt`: nullable datetime

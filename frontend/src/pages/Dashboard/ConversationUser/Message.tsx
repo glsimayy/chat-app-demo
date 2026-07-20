@@ -114,11 +114,15 @@ const Menu = ({
   );
 };
 interface ImageMoreMenuProps {
-  imagelink: any,
+  imagelink: any;
   onReply: () => any;
   onDelete: () => void;
 }
-const ImageMoreMenu = ({ imagelink,onReply, onDelete }: ImageMoreMenuProps) => {
+const ImageMoreMenu = ({
+  imagelink,
+  onReply,
+  onDelete,
+}: ImageMoreMenuProps) => {
   return (
     <div className="message-img-link">
       <ul className="list-inline mb-0">
@@ -178,27 +182,34 @@ const ImageMoreMenu = ({ imagelink,onReply, onDelete }: ImageMoreMenuProps) => {
 };
 
 interface ImageProps {
-  message : MessagesTypes,
+  message: MessagesTypes;
   image: ImageTypes;
   onImageClick: (id: number) => void;
   index: number;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   onDeleteImg: (imageId: string | number) => void;
 }
-const Image = ({ message ,image, onImageClick, index,onSetReplyData, onDeleteImg }: ImageProps) => {
+const Image = ({
+  message,
+  image,
+  onImageClick,
+  index,
+  onSetReplyData,
+  onDeleteImg,
+}: ImageProps) => {
   const onDelete = () => {
     onDeleteImg(image.id);
   };
   const onClickReply = () => {
+    let multiimages: any = message["image"];
 
-    let multiimages: any = message['image'];
+    let results = multiimages.filter(
+      (multiimage: any) => multiimage.id === image.id,
+    );
 
-    let results = multiimages.filter((multiimage : any) => multiimage.id === image.id);
-
-    message['newimage'] = results;
+    message["newimage"] = results;
 
     onSetReplyData(message);
-
   };
   return (
     <React.Fragment>
@@ -212,18 +223,27 @@ const Image = ({ message ,image, onImageClick, index,onSetReplyData, onDeleteImg
             <img src={image.downloadLink} alt="" className="rounded border" />
           </Link>
         </div>
-        <ImageMoreMenu imagelink={image.downloadLink} onReply={onClickReply} onDelete={onDelete} />
+        <ImageMoreMenu
+          imagelink={image.downloadLink}
+          onReply={onClickReply}
+          onDelete={onDelete}
+        />
       </div>
     </React.Fragment>
   );
 };
 interface ImagesProps {
-  message : MessagesTypes,
+  message: MessagesTypes;
   images: ImageTypes[];
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   onDeleteImg: (imageId: string | number) => void;
 }
-const Images = ({ message,images,onSetReplyData, onDeleteImg }: ImagesProps) => {
+const Images = ({
+  message,
+  images,
+  onSetReplyData,
+  onDeleteImg,
+}: ImagesProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selected, setSelected] = useState(0);
   const onImageClick = (id: number) => {
@@ -238,15 +258,15 @@ const Images = ({ message,images,onSetReplyData, onDeleteImg }: ImagesProps) => 
     <>
       <div className="message-img mb-0">
         {(images || []).map((image: ImageTypes, key: number) => (
-            <Image
-              message={message}
-              image={image}
-              key={key}
-              index={key}
-              onImageClick={onImageClick}
-              onSetReplyData={onSetReplyData}
-              onDeleteImg={onDeleteImg}
-            />
+          <Image
+            message={message}
+            image={image}
+            key={key}
+            index={key}
+            onImageClick={onImageClick}
+            onSetReplyData={onSetReplyData}
+            onDeleteImg={onDeleteImg}
+          />
         ))}
       </div>
       {isOpen && (
@@ -292,7 +312,9 @@ const Attachments = ({ attachments }: AttachmentsProps) => {
               <div className="d-flex gap-2 font-size-20 d-flex align-items-start">
                 <div>
                   <a
-                    href={attachment.downloadLink ? attachment.downloadLink : "#"}
+                    href={
+                      attachment.downloadLink ? attachment.downloadLink : "#"
+                    }
                     className="text-muted"
                     download
                   >
@@ -369,6 +391,7 @@ const Message = ({
     ? chatUserDetails.profileImage
     : imagePlaceholder;
   const profile = isChannel ? channeluserProfile : chatUserprofile;
+  const isBotMessage = Boolean(message.meta.userData?.isBot);
   const date = formateDate(message.time, "hh:mmaaa");
   const isSent = message.meta.sent;
   const isReceived = message.meta.received;
@@ -436,12 +459,22 @@ const Message = ({
       className={classnames(
         "chat-list",
         { right: isFromMe },
-        { reply: isRepliedMessage }
+        { reply: isRepliedMessage },
       )}
     >
       <div className="conversation-list">
         <div className="chat-avatar">
-          <img src={isFromMe ? myProfile : profile} alt="" />
+          {isBotMessage ? (
+            <span
+              className="avatar-title rounded-circle bg-primary text-white"
+              title="Automation bot"
+              aria-label="Automation bot"
+            >
+              <i className="bx bx-bot" aria-hidden="true"></i>
+            </span>
+          ) : (
+            <img src={isFromMe ? myProfile : profile} alt="" />
+          )}
         </div>
 
         <div className="user-chat-content">
@@ -459,7 +492,7 @@ const Message = ({
                 "text-muted",
                 "font-size-13",
                 "mb-1",
-                "d-block"
+                "d-block",
               )}
             >
               <i
@@ -467,7 +500,7 @@ const Message = ({
                   "ri",
                   "ri-share-forward-line",
                   "align-middle",
-                  "me-1"
+                  "me-1",
                 )}
               ></i>
               Forwarded
@@ -480,7 +513,12 @@ const Message = ({
             {/* image message start */}
             {hasImages ? (
               <>
-                <Images images={message.image!} message={message} onSetReplyData={onSetReplyData} onDeleteImg={onDeleteImg} />
+                <Images
+                  images={message.image!}
+                  message={message}
+                  onSetReplyData={onSetReplyData}
+                  onDeleteImg={onDeleteImg}
+                />
               </>
             ) : (
               <>
@@ -570,14 +608,14 @@ const Message = ({
                   className={classnames(
                     "me-1",
                     { "text-success": isRead },
-                    { "text-muted": (isSent || isReceived) && !isRead }
+                    { "text-muted": (isSent || isReceived) && !isRead },
                   )}
                 >
                   <i
                     className={classnames(
                       "bx",
                       { "bx-check-double": isRead || isReceived },
-                      { "bx-check": isSent }
+                      { "bx-check": isSent },
                     )}
                   ></i>
                 </span>

@@ -11,8 +11,8 @@ let usersCache: { data: Array<any>; expiresAt: number } | null = null;
 let usersRequest: Promise<Array<any>> | null = null;
 let conversationsRequest: Promise<Array<any>> | null = null;
 
-const getUsers = async () => {
-  if (usersCache && usersCache.expiresAt > Date.now()) {
+const getUsers = async (forceRefresh = false) => {
+  if (!forceRefresh && usersCache && usersCache.expiresAt > Date.now()) {
     return usersCache.data;
   }
 
@@ -94,6 +94,10 @@ const createChannel = (data: any) => {
   return api.create("/conversations/groups", {
     name: data.name,
     participantIds: data.members || data.participantIds || [],
+    managerIds: data.managerIds || [],
+    description: data.description,
+    memberCanSendMessages: data.memberCanSendMessages ?? false,
+    membersCanLeave: data.membersCanLeave ?? true,
   });
 };
 
@@ -117,8 +121,24 @@ const removeConversationParticipant = (
 
 const updateGroupConversation = (
   conversationId: string | number,
-  name: string,
-) => api.patch(`/conversations/${conversationId}`, { name });
+  updates: Record<string, unknown> | string,
+) =>
+  api.patch(
+    `/conversations/${conversationId}`,
+    typeof updates === "string" ? { name: updates } : updates,
+  );
+
+const updateConversationParticipantRole = (
+  conversationId: string | number,
+  userId: string,
+  role: "manager" | "member",
+) =>
+  api.patch(`/conversations/${conversationId}/participants/${userId}/role`, {
+    role,
+  });
+
+const getManagementConversation = (conversationId: string | number) =>
+  api.get(`/conversations/${conversationId}/management`);
 
 const transferConversationOwner = (
   conversationId: string | number,
@@ -130,7 +150,7 @@ const leaveConversation = (conversationId: string | number) =>
 
 const getChatUserDetails = async (id: string | number) => {
   const [users, conversation] = await Promise.all([
-    getUsers(),
+    getUsers(true),
     findConversation(id),
   ]);
 
@@ -140,15 +160,18 @@ const getChatUserDetails = async (id: string | number) => {
 };
 
 const getChatUserConversations = async (id: string | number) => {
-  const response: any = await api.get(`/conversations/${id}/messages`, {
-    params: { limit: 100 },
-  });
+  const [response, users]: [any, Array<any>] = await Promise.all([
+    api.get(`/conversations/${id}/messages`, {
+      params: { limit: 100 },
+    }),
+    getUsers(true),
+  ]);
   const messages = Array.isArray(response) ? response : response?.items || [];
 
   return {
     conversationId: id,
     userId: id,
-    messages: messages.map(mapMessage),
+    messages: messages.map((message: any) => mapMessage(message, users)),
   };
 };
 
@@ -248,6 +271,8 @@ export {
   addConversationParticipant,
   removeConversationParticipant,
   updateGroupConversation,
+  updateConversationParticipantRole,
+  getManagementConversation,
   transferConversationOwner,
   leaveConversation,
   getChatUserDetails,

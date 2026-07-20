@@ -3,6 +3,7 @@ import { UserRole } from "../../users/user-role.enum";
 import { ConversationType } from "../../conversations/conversation-type.enum";
 import { MessageType } from "../../conversations/message-type.enum";
 import { ParticipantRole } from "../../conversations/participant-role.enum";
+import { ConversationStatus } from "../../conversations/conversation-status.enum";
 
 export class UserResponseDto {
   @ApiProperty({ format: "uuid" })
@@ -16,6 +17,9 @@ export class UserResponseDto {
 
   @ApiProperty({ enum: UserRole })
   role!: UserRole;
+
+  @ApiProperty({ description: "Whether this account is an automation bot" })
+  isBot!: boolean;
 
   @ApiProperty({ format: "date-time" })
   createdAt!: string;
@@ -93,11 +97,32 @@ export class ConversationResponseDto {
   @ApiPropertyOptional({ nullable: true })
   name!: string | null;
 
+  @ApiPropertyOptional({ nullable: true })
+  description!: string | null;
+
   @ApiProperty({ format: "uuid" })
   createdBy!: string;
 
   @ApiPropertyOptional({ nullable: true })
   externalRef!: string | null;
+
+  @ApiProperty()
+  isBotManaged!: boolean;
+
+  @ApiPropertyOptional({ nullable: true })
+  sourceName!: string | null;
+
+  @ApiProperty()
+  memberCanSendMessages!: boolean;
+
+  @ApiProperty()
+  membersCanLeave!: boolean;
+
+  @ApiProperty({ enum: ConversationStatus })
+  status!: ConversationStatus;
+
+  @ApiPropertyOptional({ format: "uuid", nullable: true })
+  parentConversationId!: string | null;
 
   @ApiProperty({ type: [ConversationParticipantResponseDto] })
   participants!: ConversationParticipantResponseDto[];

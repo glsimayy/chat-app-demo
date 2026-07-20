@@ -40,10 +40,16 @@ const DEVELOPMENT_USERS = [
   },
 ] as const;
 
+const AUTOMATION_BOT = {
+  username: "ellO Automation Bot",
+  email: "automation.bot@ello.local",
+} as const;
+
 @Injectable()
 export class UsersService implements OnModuleInit {
   private readonly users = new Map<string, UserRecord>();
   private readonly logger = new Logger(UsersService.name);
+  private automationBotCreation: Promise<PublicUser> | null = null;
 
   constructor(
     private readonly configService: ConfigService,
@@ -188,6 +194,33 @@ export class UsersService implements OnModuleInit {
       .map((user) => this.toPublicUser(user));
   }
 
+  async ensureAutomationBot(): Promise<PublicUser> {
+    const existing = this.findByEmailSync(AUTOMATION_BOT.email);
+
+    if (existing) {
+      return this.toPublicUser(existing);
+    }
+
+    if (this.automationBotCreation) {
+      return this.automationBotCreation;
+    }
+
+    this.automationBotCreation = bcrypt
+      .hash(crypto.randomUUID(), 10)
+      .then((passwordHash) =>
+        this.create({
+          ...AUTOMATION_BOT,
+          passwordHash,
+          role: UserRole.User,
+        }),
+      )
+      .finally(() => {
+        this.automationBotCreation = null;
+      });
+
+    return this.automationBotCreation;
+  }
+
   async clearAll() {
     const deletedUsers = this.users.size;
 
@@ -196,13 +229,17 @@ export class UsersService implements OnModuleInit {
     }
 
     this.users.clear();
+    this.automationBotCreation = null;
 
     return { deletedUsers };
   }
 
   toPublicUser(user: UserRecord): PublicUser {
     const { passwordHash: _passwordHash, ...publicUser } = user;
-    return publicUser;
+    return {
+      ...publicUser,
+      isBot: user.email === AUTOMATION_BOT.email,
+    };
   }
 
   private findByEmailSync(email: string) {

@@ -9,4 +9,6 @@ export interface UserRecord {
   createdAt: Date;
 }
 
-export type PublicUser = Omit<UserRecord, "passwordHash">;
+export type PublicUser = Omit<UserRecord, "passwordHash"> & {
+  isBot: boolean;
+};

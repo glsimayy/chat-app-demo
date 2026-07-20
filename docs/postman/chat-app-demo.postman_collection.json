@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "9d447d7a-c9ab-49ec-80c6-d51f221d7aa8",
     "name": "Chat App Demo - Backend",
-    "description": "Runs the core REST flow from a clean local backend: health, users, direct chat, idempotent messaging, group chat and bot integration.",
+    "description": "Runs the core REST flow and creates support, monitoring and onboarding groups through the external bot automation API.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -30,6 +30,8 @@
     { "key": "guestId", "value": "" },
     { "key": "directConversationId", "value": "" },
     { "key": "groupConversationId", "value": "" },
+    { "key": "botGroupId", "value": "" },
+    { "key": "botMessageId", "value": "" },
     { "key": "clientMessageId", "value": "" },
     { "key": "firstMessageId", "value": "" }
   ],
@@ -240,7 +242,7 @@
         "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Postman Demo Group\",\n  \"participantIds\": [\"{{memberId}}\"]\n}" },
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Postman Demo Group\",\n  \"description\": \"Manual group policy demo\",\n  \"participantIds\": [\"{{memberId}}\"],\n  \"managerIds\": [\"{{memberId}}\"],\n  \"memberCanSendMessages\": false,\n  \"membersCanLeave\": true\n}" },
         "url": "{{baseUrl}}/conversations/groups"
       },
       "event": [
@@ -299,7 +301,7 @@
       ]
     },
     {
-      "name": "13 - Create bot group",
+      "name": "13 - Bot scenario: create support group",
       "request": {
         "method": "POST",
         "header": [
@@ -308,7 +310,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"ownerId\": \"{{adminId}}\",\n  \"name\": \"Postman Bot Group\",\n  \"participantIds\": [\"{{memberId}}\"],\n  \"externalRef\": \"postman-demo-001\",\n  \"initialSystemMessage\": \"Bot integration is ready.\"\n}"
+          "raw": "{\n  \"name\": \"Support TICKET-4821\",\n  \"description\": \"Customer support coordination\",\n  \"participantIds\": [\"{{memberId}}\"],\n  \"managerIds\": [\"{{adminId}}\"],\n  \"externalRef\": \"ticket-4821\",\n  \"sourceName\": \"Support system\",\n  \"memberCanSendMessages\": false,\n  \"membersCanLeave\": false,\n  \"initialBotMessage\": \"Support request received. An agent will join shortly.\"\n}"
         },
         "url": "{{baseUrl}}/bot/groups"
       },
@@ -318,7 +320,135 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('External reference is preserved', function () { pm.expect(pm.response.json().data.externalRef).to.eql('postman-demo-001'); });"
+              "const responseData = pm.response.json().data;",
+              "pm.collectionVariables.set('botGroupId', responseData.id);",
+              "pm.test('Support group is automation-managed', function () { pm.expect(responseData.externalRef).to.eql('ticket-4821'); pm.expect(responseData.isBotManaged).to.eql(true); pm.expect(responseData.memberCanSendMessages).to.eql(false); pm.expect(responseData.participants.some(function (participant) { return participant.role === 'owner'; })).to.eql(false); pm.expect(responseData.participants.length).to.be.at.least(3); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 - Bot scenario: add escalation user",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-bot-secret", "value": "{{botSecret}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"participantIds\": [\"{{guestId}}\"],\n  \"managerIds\": [\"{{guestId}}\"]\n}"
+        },
+        "url": "{{baseUrl}}/bot/groups/{{botGroupId}}/participants"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Escalation user joined', function () { const participants = pm.response.json().data; pm.expect(participants.some(function (participant) { return participant.userId === pm.collectionVariables.get('guestId') && !participant.leftAt; })).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 - Bot scenario: send support status",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-bot-secret", "value": "{{botSecret}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"content\": \"Ticket priority changed to high.\",\n  \"clientMessageId\": \"{{$guid}}\"\n}"
+        },
+        "url": "{{baseUrl}}/bot/groups/{{botGroupId}}/messages"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const responseData = pm.response.json().data;",
+              "pm.collectionVariables.set('botMessageId', responseData.id);",
+              "pm.test('Message has a bot sender', function () { pm.expect(responseData.senderId).to.be.a('string'); pm.expect(responseData.messageType).to.eql('user'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 - Verify support group history",
+      "request": {
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{memberToken}}", "type": "string" }] },
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/conversations/{{botGroupId}}/messages?limit=50"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Support history contains the bot update', function () { const messages = pm.response.json().data.items; pm.expect(messages.some(function (message) { return message.id === pm.collectionVariables.get('botMessageId'); })).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 - Bot scenario: create critical alert group",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-bot-secret", "value": "{{botSecret}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Critical Alert MON-9001\",\n  \"description\": \"Critical infrastructure alert\",\n  \"participantIds\": [\"{{memberId}}\", \"{{guestId}}\"],\n  \"managerIds\": [\"{{adminId}}\"],\n  \"externalRef\": \"monitor-alert-9001\",\n  \"sourceName\": \"Monitoring system\",\n  \"memberCanSendMessages\": false,\n  \"membersCanLeave\": false,\n  \"initialBotMessage\": \"CPU usage exceeded 95%. Incident response has started.\"\n}"
+        },
+        "url": "{{baseUrl}}/bot/groups"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Critical alert group was created', function () { const group = pm.response.json().data; pm.expect(group.name).to.eql('Critical Alert MON-9001'); pm.expect(group.externalRef).to.eql('monitor-alert-9001'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 - Bot scenario: create onboarding group",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-bot-secret", "value": "{{botSecret}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Onboarding HR-77\",\n  \"description\": \"New employee onboarding\",\n  \"participantIds\": [\"{{guestId}}\"],\n  \"managerIds\": [\"{{adminId}}\"],\n  \"externalRef\": \"onboarding-hr-77\",\n  \"sourceName\": \"HR system\",\n  \"memberCanSendMessages\": true,\n  \"membersCanLeave\": false,\n  \"initialBotMessage\": \"Welcome. Your onboarding checklist is ready.\"\n}"
+        },
+        "url": "{{baseUrl}}/bot/groups"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Onboarding group was created', function () { const group = pm.response.json().data; pm.expect(group.name).to.eql('Onboarding HR-77'); pm.expect(group.externalRef).to.eql('onboarding-hr-77'); });"
             ]
           }
         }

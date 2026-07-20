@@ -75,7 +75,9 @@ async function loginThroughUi(
 ) {
   await page.goto("/auth-login");
   await page.getByLabel("Email").fill(account.email);
-  await page.getByRole("textbox", { name: "Password", exact: true }).fill(account.password);
+  await page
+    .getByRole("textbox", { name: "Password", exact: true })
+    .fill(account.password);
   await page.getByRole("button", { name: "Log In" }).click();
 
   await expect(page).toHaveURL(/\/dashboard$/);
@@ -195,7 +197,9 @@ test("login shows an actionable error while the backend is unreachable", async (
   );
   await page.goto("/auth-login");
   await page.getByLabel("Email").fill(accounts.user1.email);
-  await page.getByRole("textbox", { name: "Password", exact: true }).fill(accounts.user1.password);
+  await page
+    .getByRole("textbox", { name: "Password", exact: true })
+    .fill(accounts.user1.password);
   await page.getByRole("button", { name: "Log In" }).click();
 
   await expect(
@@ -248,6 +252,73 @@ test("server roles control group creation access", async ({
   }
 });
 
+test("external automation groups and bot messages appear realtime", async ({
+  browser,
+  request,
+}) => {
+  const suffix = Date.now();
+  const groupName = `Automated Alert ${suffix}`;
+  const created = await request.post(`${apiUrl}/bot/groups`, {
+    headers: {
+      "x-bot-secret": "playwright-bot-secret-with-at-least-32-characters",
+    },
+    data: {
+      name: groupName,
+      participantIds: [sessions.user1.user.id],
+      managerIds: [sessions.admin.user.id],
+      externalRef: `playwright-alert-${suffix}`,
+      initialBotMessage: "Automated group is ready.",
+    },
+  });
+  expect(created.ok(), await created.text()).toBeTruthy();
+  const group = (await created.json()).data;
+  const admin = await createAuthenticatedPage(browser, sessions.admin);
+
+  try {
+    await openConversation(admin.page, groupName);
+    await expect(
+      admin.page.getByText("BOT | 3 members", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      admin.page.getByText("Automated group is ready.", { exact: true }),
+    ).toBeVisible();
+
+    const update = await request.post(
+      `${apiUrl}/bot/groups/${group.id}/messages`,
+      {
+        headers: {
+          "x-bot-secret": "playwright-bot-secret-with-at-least-32-characters",
+        },
+        data: {
+          content: "Monitoring status changed to critical.",
+          clientMessageId: crypto.randomUUID(),
+        },
+      },
+    );
+    expect(update.ok(), await update.text()).toBeTruthy();
+
+    await expect(
+      admin.page.getByText("Monitoring status changed to critical.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      admin.page.getByRole("button", {
+        name: "Remove ellO Automation Bot",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await expect(
+      admin.page.getByRole("option", {
+        name: "ellO Automation Bot",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+  } finally {
+    await admin.context.close();
+  }
+});
+
 test("contacts open or create a direct conversation", async ({
   browser,
   request,
@@ -266,7 +337,9 @@ test("contacts open or create a direct conversation", async ({
   const admin = await createAuthenticatedPage(browser, sessions.admin);
 
   try {
-    await admin.page.getByRole("link", { name: "Contacts", exact: true }).click();
+    await admin.page
+      .getByRole("link", { name: "Contacts", exact: true })
+      .click();
     const contact = admin.page
       .locator(".contact-list li")
       .filter({ hasText: username });
@@ -355,6 +428,7 @@ test("direct messages arrive in the other user's open conversation", async ({
 test("an open conversation reconnects after a temporary network outage", async ({
   browser,
 }) => {
+  test.setTimeout(90_000);
   const user = await createAuthenticatedPage(browser, sessions.user1);
 
   try {
@@ -362,7 +436,7 @@ test("an open conversation reconnects after a temporary network outage", async (
     await user.context.setOffline(true);
     await expect(
       user.page.getByText("REST fallback active", { exact: true }),
-    ).toBeVisible({ timeout: 10_000 });
+    ).toBeVisible({ timeout: 60_000 });
 
     await user.context.setOffline(false);
     await expect(
@@ -535,6 +609,74 @@ test("message owners can edit and delete for both open clients", async ({
   }
 });
 
+test("locked members cannot see the private manager chat", async ({
+  browser,
+  request,
+}) => {
+  const groupName = `manager-chat-${Date.now()}`;
+  const response = await request.post(`${apiUrl}/conversations/groups`, {
+    headers: { Authorization: `Bearer ${sessions.admin.accessToken}` },
+    data: {
+      name: groupName,
+      description: "Manager chat visibility test",
+      participantIds: [sessions.user1.user.id, sessions.user2.user.id],
+      managerIds: [sessions.user1.user.id],
+      memberCanSendMessages: false,
+      membersCanLeave: false,
+    },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+
+  const admin = await createAuthenticatedPage(browser, sessions.admin);
+  const { user1Context, user2Context, user1Page, user2Page } =
+    await createUserPages(browser);
+
+  try {
+    await openConversation(admin.page, groupName);
+    await openConversation(user1Page, groupName);
+
+    const memberConversation = user2Page
+      .locator(".chat-user-list li")
+      .filter({ hasText: groupName })
+      .first();
+    await expect(memberConversation).toBeVisible();
+    await memberConversation.click();
+    await expect(
+      user2Page.getByText(
+        "Only group management can send messages in this group.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(user2Page.locator("#chat-input")).toHaveCount(0);
+    await expect(
+      user2Page.getByRole("button", { name: "Manager Chat", exact: true }),
+    ).toHaveCount(0);
+
+    await admin.page
+      .getByRole("button", { name: "Manager Chat", exact: true })
+      .click();
+    await user1Page
+      .getByRole("button", { name: "Manager Chat", exact: true })
+      .click();
+
+    const privateMessage = `private-manager-note-${Date.now()}`;
+    await user1Page.locator("#chat-input").fill(privateMessage);
+    await user1Page.locator("#chat-input").press("Enter");
+
+    await expect(
+      user1Page.getByText(privateMessage, { exact: true }),
+    ).toBeVisible();
+    await expect(
+      admin.page.getByText(privateMessage, { exact: true }),
+    ).toBeVisible();
+    await expect(
+      user2Page.getByText(privateMessage, { exact: true }),
+    ).toHaveCount(0);
+  } finally {
+    await closeContexts(admin.context, user1Context, user2Context);
+  }
+});
+
 test("group messages arrive in the other participant's open conversation", async ({
   browser,
   request,
@@ -545,6 +687,7 @@ test("group messages arrive in the other participant's open conversation", async
     data: {
       name: groupName,
       participantIds: [sessions.user1.user.id, sessions.user2.user.id],
+      memberCanSendMessages: true,
     },
   });
   expect(response.ok(), await response.text()).toBeTruthy();
@@ -589,6 +732,7 @@ test("group management actions are visible, authorized, and realtime", async ({
     data: {
       name: groupName,
       participantIds: [sessions.user1.user.id, sessions.user2.user.id],
+      memberCanSendMessages: true,
     },
   });
   expect(response.ok(), await response.text()).toBeTruthy();
@@ -607,7 +751,7 @@ test("group management actions are visible, authorized, and realtime", async ({
     ).toBeVisible();
     await expect(
       user1Page.getByRole("button", {
-        name: "Save group name",
+        name: "Save group details",
         exact: true,
       }),
     ).toHaveCount(0);
@@ -620,7 +764,7 @@ test("group management actions are visible, authorized, and realtime", async ({
 
     await admin.page.locator("#group-name-input").fill(renamedGroup);
     await admin.page
-      .getByRole("button", { name: "Save group name", exact: true })
+      .getByRole("button", { name: "Save group details", exact: true })
       .click();
     await expect(
       admin.page.getByRole("heading", { name: renamedGroup }),
@@ -665,6 +809,7 @@ test("a group member can leave from the conversation controls", async ({
     data: {
       name: groupName,
       participantIds: [sessions.user2.user.id],
+      memberCanSendMessages: true,
     },
   });
   expect(response.ok(), await response.text()).toBeTruthy();

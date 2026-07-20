@@ -34,7 +34,9 @@ const UserHead = ({
       ? `${chatUserDetails.firstName} ${chatUserDetails.lastName}`
       : "Conversation";
   const shortName = isChannel
-    ? "#"
+    ? chatUserDetails.automated
+      ? "BOT"
+      : "#"
     : `${chatUserDetails.firstName?.charAt(0) || "C"}${
         chatUserDetails.lastName?.charAt(0) || ""
       }`;
@@ -88,10 +90,15 @@ const UserHead = ({
               <p className="text-truncate text-muted mb-0">
                 <small>
                   {isChannel
-                    ? `${memberCount} members`
+                    ? `${chatUserDetails.automated ? "BOT | " : ""}${memberCount} members${chatUserDetails.status && chatUserDetails.status !== "active" ? ` | ${chatUserDetails.status}` : ""}`
                     : chatUserDetails.status || "offline"}
                 </small>
               </p>
+              {isChannel && chatUserDetails.description && (
+                <p className="text-truncate text-muted mb-0 font-size-11">
+                  {chatUserDetails.description}
+                </p>
+              )}
             </div>
           </div>
         </Col>

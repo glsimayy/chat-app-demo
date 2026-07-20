@@ -68,6 +68,14 @@ const onChangeDirectMessages = (newData: Array<UserTypes>) => {
 export interface ChannelTypes {
   id: number | string;
   name: string;
+  automated?: boolean;
+  isBotManaged?: boolean;
+  externalRef?: string | null;
+  description?: string | null;
+  sourceName?: string | null;
+  memberCanSendMessages?: boolean;
+  membersCanLeave?: boolean;
+  status?: "active" | "closed" | "archived";
   meta?: {
     unRead: number;
   };
@@ -102,7 +110,6 @@ export interface PinTypes {
   title: string;
   desc: string;
   icon: string;
-  
 }
 const pinnedTabs: Array<PinTypes> = [
   {

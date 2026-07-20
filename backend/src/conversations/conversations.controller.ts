@@ -38,6 +38,7 @@ import { SearchMessagesQueryDto } from "./dto/search-messages-query.dto";
 import { TransferGroupOwnerDto } from "./dto/transfer-group-owner.dto";
 import { UpdateGroupConversationDto } from "./dto/update-group-conversation.dto";
 import { UpdateMessageDto } from "./dto/update-message.dto";
+import { UpdateParticipantRoleDto } from "./dto/update-participant-role.dto";
 
 @ApiTags("conversations")
 @ApiBearerAuth()
@@ -91,6 +92,20 @@ export class ConversationsController {
     @Param("conversationId") conversationId: string,
   ) {
     return this.conversationsService.findOneForUser(conversationId, user.id);
+  }
+
+  @Get(":conversationId/management")
+  @ApiSuccessResponse(ConversationResponseDto, {
+    description: "Private management conversation for authorized group roles",
+  })
+  findManagementConversation(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("conversationId") conversationId: string,
+  ) {
+    return this.conversationsService.findManagementConversation(
+      conversationId,
+      user.id,
+    );
   }
 
   @Patch(":conversationId")
@@ -276,6 +291,25 @@ export class ConversationsController {
       user.id,
       user.role,
       targetUserId,
+    );
+  }
+
+  @Patch(":conversationId/participants/:userId/role")
+  @ApiSuccessResponse(ConversationResponseDto, {
+    description: "Participant group role updated",
+  })
+  updateParticipantRole(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("conversationId") conversationId: string,
+    @Param("userId") targetUserId: string,
+    @Body() dto: UpdateParticipantRoleDto,
+  ) {
+    return this.conversationsService.updateParticipantRole(
+      conversationId,
+      user.id,
+      user.role,
+      targetUserId,
+      dto,
     );
   }
 }

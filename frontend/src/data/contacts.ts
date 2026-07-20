@@ -31,6 +31,7 @@ export interface ContactTypes {
   status?: STATUS_TYPES;
   isFavourite?: boolean;
   isArchived?: boolean;
+  isBot?: boolean;
 }
 let contacts: ContactTypes[] = [
   {
