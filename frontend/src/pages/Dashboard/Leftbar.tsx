@@ -14,22 +14,21 @@ import Contacts from "./Contacts/index";
 import Calls from "./Calls/index";
 import Bookmark from "./Bookmark/index";
 import Settings from "./Settings/index";
+// Destek bileşenlerini ekledik
+import { SupportForm } from "../../components/support/SupportForm";
 
 interface LeftbarProps {}
 const Leftbar = (props: LeftbarProps) => {
   // global store
   const { useAppSelector } = useRedux();
 
-  // const { activeTab } = useAppSelector(state => ({
-  //   activeTab: state.Layout.activeTab,
-  // }));
   const errorData = createSelector(
     (state : any) => state.Layout,
     (state) => ({
       activeTab: state.activeTab,
     })
   );
-  // Inside your component
+  
   const { activeTab} = useAppSelector(errorData);
 
   return (
@@ -80,6 +79,11 @@ const Leftbar = (props: LeftbarProps) => {
             <Settings />
           </TabPane>
         </TabContent>
+
+        {/* Destek Alanı */}
+        <div style={{ padding: "20px", marginTop: "auto" }}>
+            <SupportForm />
+        </div>
       </div>
     </>
   );
