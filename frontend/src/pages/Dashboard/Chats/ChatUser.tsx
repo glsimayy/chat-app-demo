@@ -27,6 +27,7 @@ const ChatUser = ({ user, selectedChat, onSelectChat }: ChatUserProps) => {
   const [color] = useState(Math.floor(Math.random() * colors.length));
   const isOnline = user.status && user.status === STATUS_TYPES.ACTIVE;
   const unRead = user.meta && user.meta.unRead;
+  const isBot = Boolean((user as any).isBot);
 
   const isSelectedChat: boolean =
     selectedChat && selectedChat === user.id ? true : false;
@@ -43,7 +44,7 @@ const ChatUser = ({ user, selectedChat, onSelectChat }: ChatUserProps) => {
               "align-self-center",
               "me-2",
               "ms-0",
-              { online: isOnline }
+              { online: isOnline },
             )}
           >
             {user.profileImage ? (
@@ -63,10 +64,19 @@ const ChatUser = ({ user, selectedChat, onSelectChat }: ChatUserProps) => {
                     "rounded-circle",
                     "text-uppercase",
                     "text-white",
-                    colors[color]
+                    colors[color],
                   )}
                 >
-                  <span className="username">{shortName}</span>
+                  <span className="username">
+                    {isBot ? (
+                      <i
+                        className="bx bx-bot font-size-16"
+                        aria-hidden="true"
+                      ></i>
+                    ) : (
+                      shortName
+                    )}
+                  </span>
                   <span className="user-status"></span>
                 </span>
               </div>

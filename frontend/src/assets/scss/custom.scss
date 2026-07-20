@@ -297,3 +297,75 @@ body:not([data-bs-theme="dark"]) .chat-leftsidebar .text-muted,
 body[data-bs-theme="light"] .chat-leftsidebar .text-muted {
   color: #626a73 !important;
 }
+
+.profile-settings-cover,
+.profile-overview-cover {
+  height: 160px;
+  overflow: hidden;
+  background-color: #244c62;
+}
+
+.profile-settings-cover {
+  background-color: #27624f;
+}
+
+.profile-settings-cover-art,
+.profile-overview-cover-art {
+  position: absolute;
+  right: 20px;
+  bottom: -26px;
+  color: rgba(255, 255, 255, 0.16);
+  font-size: 132px;
+  line-height: 1;
+}
+
+.profile-editor-avatar {
+  display: inline-block;
+
+  > .avatar-title,
+  > img {
+    display: inline-flex;
+    width: 72px;
+    height: 72px;
+    align-items: center;
+    justify-content: center;
+    object-fit: cover;
+  }
+}
+
+.profile-info-form textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.profile-overview-about {
+  padding: 14px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 6px;
+  background-color: var(--bs-tertiary-bg);
+}
+
+.profile-overview-field {
+  border-bottom: 1px solid var(--bs-border-color);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.incoming-message-toast {
+  min-height: 76px;
+  border-left: 5px solid var(--bs-primary);
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  box-shadow: 0 12px 30px rgba(16, 24, 40, 0.24);
+  font-weight: 500;
+
+  .Toastify__toast-icon {
+    width: 26px;
+  }
+
+  .Toastify__close-button {
+    color: var(--bs-body-color);
+  }
+}

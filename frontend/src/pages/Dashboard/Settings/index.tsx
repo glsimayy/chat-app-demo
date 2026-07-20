@@ -6,7 +6,17 @@ import { createSelector } from "reselect";
 import { useRedux } from "../../../hooks/index";
 
 // actions
-import { getSettings, updateSettings } from "../../../redux/actions";
+import {
+  getProfileDetails,
+  getSettings,
+  updateSettings,
+} from "../../../redux/actions";
+import { getSettings as getSettingsApi, updateMyProfile } from "../../../api";
+import { compressProfileImage } from "../../../utils/profileImage";
+import {
+  showErrorNotification,
+  showSuccessNotification,
+} from "../../../helpers/notifications";
 
 // constants
 import { SETTINGS_COLLAPSES } from "../../../constants";
@@ -46,7 +56,7 @@ interface AccordianItemProps {
       | SETTINGS_COLLAPSES.HELP
       | SETTINGS_COLLAPSES.PRIVACY
       | SETTINGS_COLLAPSES.SECURITY
-      | SETTINGS_COLLAPSES.THEME
+      | SETTINGS_COLLAPSES.THEME,
   ) => void;
   selectedMenu:
     | null
@@ -79,7 +89,7 @@ const AccordianItem = ({
             "accordion-button",
             "font-size-14",
             "fw-medium",
-            { collapsed: !isOpen }
+            { collapsed: !isOpen },
           )}
           onClick={toggleCollapse}
           type="button"
@@ -103,28 +113,54 @@ const Index = (props: IndexProps) => {
   // global store
   const { dispatch, useAppSelector } = useRedux();
 
-
   const errorData = createSelector(
-    (state : any) => state.Settings,
-    (state : any) => state.Profile,
-    (state) => ({
-    settingsData: state.settings,
-    getSettingsLoading: state.getSettingsLoading,
-    isSettingsFetched: state.isSettingsFetched,
-    })
+    (state: any) => state.Settings,
+    (state: any) => state.Profile,
+    state => ({
+      settingsData: state.settings,
+      getSettingsLoading: state.getSettingsLoading,
+      isSettingsFetched: state.isSettingsFetched,
+    }),
   );
   // Inside your component
-  const { settingsData,getSettingsLoading } = useAppSelector(errorData);
+  const { settingsData, getSettingsLoading } = useAppSelector(errorData);
 
   // get user settings
   useEffect(() => {
     dispatch(getSettings());
   }, [dispatch]);
 
-  const [settings, setSettings] = useState<SettingsTypes>(settingsData);
+  const [settings, setSettings] = useState<SettingsTypes | null>(null);
   useEffect(() => {
-    setSettings(settingsData);
+    if (settingsData?.basicDetails) {
+      setSettings(settingsData);
+    }
   }, [settingsData]);
+
+  const saveProfile = async (updates: Record<string, unknown>) => {
+    try {
+      await updateMyProfile(updates);
+      const nextSettings = await getSettingsApi();
+      setSettings(nextSettings);
+      dispatch(getProfileDetails());
+      showSuccessNotification("Profile updated across ellO.");
+      return true;
+    } catch (error: any) {
+      showErrorNotification(String(error || "Profile could not be updated."));
+      return false;
+    }
+  };
+
+  const updateProfileImage = async (file: File) => {
+    try {
+      const profileImage = await compressProfileImage(file);
+      await saveProfile({ profileImage });
+    } catch (error: any) {
+      showErrorNotification(
+        String(error || "Profile image could not be saved."),
+      );
+    }
+  };
 
   /*
   api calling
@@ -145,47 +181,57 @@ const Index = (props: IndexProps) => {
     | SETTINGS_COLLAPSES.THEME
   >(null);
 
-  const collapseItems: CollapseItemTypes[] = [
-    {
-      value: SETTINGS_COLLAPSES.PROFILE,
-      label: "Personal Info",
-      icon: "bx bxs-user",
-      component: <PersonalInfo basicDetails={settings.basicDetails} />,
-    },
-    {
-      value: SETTINGS_COLLAPSES.THEME,
-      label: "Themes",
-      icon: "bx bxs-adjust-alt",
-      component: (
-        <ThemeSettings theme={settings.theme} onChangeData={onChangeData} />
-      ),
-    },
-    {
-      value: SETTINGS_COLLAPSES.PRIVACY,
-      label: "Privacy",
-      icon: "bx bxs-lock",
-      component: (
-        <Privacy privacy={settings.privacy} onChangeSettings={onChangeData} />
-      ),
-    },
-    {
-      value: SETTINGS_COLLAPSES.SECURITY,
-      label: "Security",
-      icon: "bx bxs-check-shield",
-      component: (
-        <Security
-          security={settings.security}
-          onChangeSettings={onChangeData}
-        />
-      ),
-    },
-    {
-      value: SETTINGS_COLLAPSES.HELP,
-      label: "Help",
-      icon: "bx bxs-help-circle",
-      component: <Help />,
-    },
-  ];
+  const collapseItems: CollapseItemTypes[] = settings
+    ? [
+        {
+          value: SETTINGS_COLLAPSES.PROFILE,
+          label: "Personal Info",
+          icon: "bx bxs-user",
+          component: (
+            <PersonalInfo
+              basicDetails={settings.basicDetails}
+              onSave={saveProfile}
+            />
+          ),
+        },
+        {
+          value: SETTINGS_COLLAPSES.THEME,
+          label: "Themes",
+          icon: "bx bxs-adjust-alt",
+          component: (
+            <ThemeSettings theme={settings.theme} onChangeData={onChangeData} />
+          ),
+        },
+        {
+          value: SETTINGS_COLLAPSES.PRIVACY,
+          label: "Privacy",
+          icon: "bx bxs-lock",
+          component: (
+            <Privacy
+              privacy={settings.privacy}
+              onChangeSettings={onChangeData}
+            />
+          ),
+        },
+        {
+          value: SETTINGS_COLLAPSES.SECURITY,
+          label: "Security",
+          icon: "bx bxs-check-shield",
+          component: (
+            <Security
+              security={settings.security}
+              onChangeSettings={onChangeData}
+            />
+          ),
+        },
+        {
+          value: SETTINGS_COLLAPSES.HELP,
+          label: "Help",
+          icon: "bx bxs-help-circle",
+          component: <Help />,
+        },
+      ]
+    : [];
 
   const onChangeCollapse = (
     id:
@@ -194,20 +240,22 @@ const Index = (props: IndexProps) => {
       | SETTINGS_COLLAPSES.HELP
       | SETTINGS_COLLAPSES.PRIVACY
       | SETTINGS_COLLAPSES.SECURITY
-      | SETTINGS_COLLAPSES.THEME
+      | SETTINGS_COLLAPSES.THEME,
   ) => {
     setSelectedMenu(id);
   };
 
   return (
     <div className="position-relative">
-      {getSettingsLoading && <Loader />}
-      <UserCoverImage basicDetails={settings.basicDetails} />
+      {(getSettingsLoading || !settings) && <Loader />}
+      <UserCoverImage />
 
-      <UserProfile
-        basicDetails={settings.basicDetails}
-        status={settings.status}
-      />
+      {settings && (
+        <UserProfile
+          basicDetails={settings.basicDetails}
+          onProfileImageChange={updateProfileImage}
+        />
+      )}
       {/* Start User profile description */}
       <AppSimpleBar className="user-setting">
         <div id="settingprofile" className="accordion accordion-flush">

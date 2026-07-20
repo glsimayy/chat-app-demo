@@ -37,6 +37,7 @@ const ContactItem = ({ contact, onSelectChat }: ContactItemProps) => {
     "bg-purple",
   ];
   const [color] = useState(Math.floor(Math.random() * colors.length));
+  const isBot = Boolean((contact as any).isBot);
 
   return (
     <li onClick={() => onSelectChat(contact.id)}>
@@ -59,7 +60,11 @@ const ContactItem = ({ contact, onSelectChat }: ContactItemProps) => {
                   colors[color],
                 )}
               >
-                {shortName}
+                {isBot ? (
+                  <i className="bx bx-bot font-size-16" aria-hidden="true"></i>
+                ) : (
+                  shortName
+                )}
               </span>
             )}
           </div>

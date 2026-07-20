@@ -21,8 +21,7 @@ import AuthHeader from "../../components/AuthHeader";
 import FormInput from "../../components/FormInput";
 import Loader from "../../components/Loader";
 
-//images
-import avatar1 from "../../assets/images/users/avatar-1.jpg";
+import { getCurrentAuthUser } from "../../api/backendAdapters";
 
 interface ChangePasswordProps {}
 const ChangePassword = (props: ChangePasswordProps) => {
@@ -36,17 +35,17 @@ const ChangePassword = (props: ChangePasswordProps) => {
   //     changePassLoading: state.ForgetPassword.loading,
   //   }));
 
-
   const errorData = createSelector(
-    (state : any) => state.ForgetPassword,
-    (state) => ({
+    (state: any) => state.ForgetPassword,
+    state => ({
       passwordChanged: state.passwordChanged,
       changepasswordError: state.changepasswordError,
       changePassLoading: state.loading,
-    })
+    }),
   );
   // Inside your component
-  const { passwordChanged,changepasswordError,changePassLoading} = useAppSelector(errorData);
+  const { passwordChanged, changepasswordError, changePassLoading } =
+    useAppSelector(errorData);
 
   const resolver = yupResolver(
     yup.object().shape({
@@ -56,7 +55,7 @@ const ChangePassword = (props: ChangePasswordProps) => {
         .string()
         .oneOf([yup.ref("password")], "Passwords don't match")
         .required("This value is required."),
-    })
+    }),
   );
 
   const defaultValues: any = {};
@@ -73,6 +72,10 @@ const ChangePassword = (props: ChangePasswordProps) => {
     dispatch(userChangePassword(values));
   };
 
+  const currentUser = getCurrentAuthUser();
+  const username = currentUser?.username || "ellO user";
+  const initials = username.slice(0, 2).toUpperCase();
+
   // const { userProfile, loading } = useProfile();
 
   return (
@@ -82,12 +85,18 @@ const ChangePassword = (props: ChangePasswordProps) => {
           <div className="py-md-5 py-4">
             <AuthHeader title="Change Password" />
             <div className="user-thumb text-center mb-4">
-              <img
-                src={avatar1}
-                className="rounded-circle img-thumbnail avatar-lg"
-                alt="thumbnail"
-              />
-              <h5 className="font-size-15 mt-3">Kathryn Swarey</h5>
+              {currentUser?.profileImage ? (
+                <img
+                  src={currentUser.profileImage}
+                  className="rounded-circle img-thumbnail avatar-lg"
+                  alt={`${username} profile`}
+                />
+              ) : (
+                <span className="avatar-lg rounded-circle img-thumbnail avatar-title bg-primary text-white mx-auto">
+                  {initials}
+                </span>
+              )}
+              <h5 className="font-size-15 mt-3">{username}</h5>
             </div>
             {changepasswordError && changepasswordError ? (
               <Alert color="danger">{changepasswordError}</Alert>

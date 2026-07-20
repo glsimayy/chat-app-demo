@@ -22,8 +22,7 @@ import { changeTab } from "../../redux/actions";
 import { TABS } from "../../constants/index";
 import LightDarkMode from "../../components/LightDarkMode";
 
-//images
-import avatar1 from "../../assets/images/users/avatar-1.jpg";
+import { getCurrentAuthUser } from "../../api/backendAdapters";
 
 // menu
 import { MENU_ITEMS, MenuItemType } from "./menu";
@@ -129,7 +128,17 @@ interface ProfileDropdownMenuProps {
 }
 const ProfileDropdownMenu = ({ onChangeTab }: ProfileDropdownMenuProps) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [profile, setProfile] = useState(() => getCurrentAuthUser());
   const toggle = () => setDropdownOpen(!dropdownOpen);
+
+  useEffect(() => {
+    const refreshProfile = () => setProfile(getCurrentAuthUser());
+    window.addEventListener("ello:profile-updated", refreshProfile);
+    return () =>
+      window.removeEventListener("ello:profile-updated", refreshProfile);
+  }, []);
+
+  const initials = (profile?.username || "U").slice(0, 2).toUpperCase();
 
   return (
     <Dropdown
@@ -143,7 +152,17 @@ const ProfileDropdownMenu = ({ onChangeTab }: ProfileDropdownMenuProps) => {
         aria-label="Open profile menu"
         className="bg-transparent"
       >
-        <img src={avatar1} alt="" className="profile-user rounded-circle" />
+        {profile?.profileImage ? (
+          <img
+            src={profile.profileImage}
+            alt={`${profile.username} profile`}
+            className="profile-user rounded-circle"
+          />
+        ) : (
+          <span className="profile-user rounded-circle avatar-title bg-primary text-white font-size-11">
+            {initials}
+          </span>
+        )}
       </DropdownToggle>
       <DropdownMenu>
         <DropdownItem

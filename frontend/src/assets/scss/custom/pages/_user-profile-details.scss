@@ -76,6 +76,31 @@
     background-color: #237a57;
   }
 
+  .direct-profile-cover {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #355f7c;
+  }
+
+  .direct-profile-cover-bot {
+    background-color: #237a57;
+  }
+
+  .direct-profile-symbol {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 92px;
+    height: 92px;
+    border: 2px solid rgba($white, 0.72);
+    border-radius: 50%;
+    background-color: rgba($white, 0.14);
+    color: $white;
+    font-size: 34px;
+    font-weight: 600;
+  }
+
   .group-profile-symbol {
     display: inline-flex;
     align-items: center;

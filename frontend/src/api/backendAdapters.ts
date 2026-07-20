@@ -105,9 +105,14 @@ export const mapConversationToListItem = (
 
   return {
     id: conversation.id,
+    username: mappedUser.username,
     firstName: mappedUser.firstName,
     lastName: mappedUser.lastName,
     email: mappedUser.email,
+    about: mappedUser.about,
+    location: mappedUser.location,
+    profileImage: mappedUser.profileImage,
+    isBot: Boolean(mappedUser.isBot),
     status: STATUS_TYPES.ACTIVE,
     participantId: otherParticipant?.userId,
     meta: {

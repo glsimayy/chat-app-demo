@@ -395,6 +395,54 @@ test("logout clears the session and protects the dashboard", async ({
   }
 });
 
+test("profile details and image are saved through settings", async ({
+  browser,
+  request,
+}) => {
+  const user = await createAuthenticatedPage(browser, sessions.user1);
+  const about = `ellO profile e2e ${Date.now()}`;
+  const location = "Istanbul, TR";
+
+  try {
+    await user.page.getByLabel("Open profile menu").click();
+    await user.page.getByText("Setting", { exact: true }).click();
+    await expect(
+      user.page.getByRole("heading", { name: "Profile settings" }),
+    ).toBeVisible();
+
+    await user.page.getByRole("button", { name: "Personal Info" }).click();
+    await user.page.getByRole("button", { name: "Edit personal info" }).click();
+    await user.page.getByLabel("About").fill(about);
+    await user.page.getByLabel("Location").fill(location);
+    await user.page.getByRole("button", { name: "Save profile" }).click();
+    await expect(user.page.getByText(about, { exact: true })).toBeVisible();
+
+    await user.page.locator("#profile-img-file-input").setInputFiles({
+      name: "profile.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nXQAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    });
+    await expect(
+      user.page.getByLabel("Open profile menu").locator("img"),
+    ).toHaveAttribute("src", /^data:image\/jpeg;base64,/);
+
+    await user.page.getByLabel("Open profile menu").click();
+    await user.page.getByText("Profile", { exact: true }).click();
+    const profilePanel = user.page.locator(".profile-desc");
+    await expect(profilePanel.getByText(about, { exact: true })).toBeVisible();
+    await expect(profilePanel.getByText(location, { exact: true })).toBeVisible();
+  } finally {
+    await request.patch(`${apiUrl}/users/me`, {
+      headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+      data: { about: null, location: null, profileImage: null },
+    });
+    await user.context.close();
+  }
+});
+
 test("direct messages arrive in the other user's open conversation", async ({
   browser,
   request,
@@ -420,6 +468,11 @@ test("direct messages arrive in the other user's open conversation", async ({
     await expect(user2Page.getByText(message, { exact: true })).toBeVisible();
     await expect(user1Page.getByText(message, { exact: true })).toHaveCount(1);
     await expect(user2Page.getByText(message, { exact: true })).toHaveCount(1);
+    const incomingToast = user2Page
+      .locator(".incoming-message-toast")
+      .filter({ hasText: message });
+    await expect(incomingToast).toBeVisible();
+    await expect(incomingToast).toContainText("user1 in user1");
 
     const reply = `direct-reply-e2e-${Date.now()}`;
     await user2Page.locator("#chat-input").fill(reply);

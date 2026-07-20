@@ -21,7 +21,7 @@ const Index = (props: IndexProps) => {
     (state: any) => state.Layout,
     (state: any) => ({
       layoutMode: state.layoutMode,
-    })
+    }),
   );
   // Inside your component
   const { layoutMode } = useSelector(layoutData);
@@ -46,7 +46,12 @@ const Index = (props: IndexProps) => {
       <SideMenu onChangeLayoutMode={onChangeLayoutMode} />
 
       {props.children}
-      <ToastContainer autoClose={2000} />
+      <ToastContainer
+        autoClose={3500}
+        newestOnTop
+        position="top-right"
+        limit={4}
+      />
     </div>
   );
 };

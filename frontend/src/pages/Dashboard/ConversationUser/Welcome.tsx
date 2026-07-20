@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Col, Row } from "reactstrap";
+import { Col, Row } from "reactstrap";
 
 const Welcome = () => {
   return (
@@ -13,14 +13,11 @@ const Welcome = () => {
                   <i className="bx bxs-message-alt-detail display-4 text-primary m-0"></i>
                 </div>
               </div>
-              <h4>Welcome to ellO</h4>
-              <p className="text-muted mb-4">
-                Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean
-                commodo ligula eget dolor. cum sociis natoque penatibus et
-              </p>
-              <Button type="button" className="btn btn-primary w-lg">
-                Get Started
-              </Button>
+              <h4>No conversation selected</h4>
+              <p className="text-muted mb-4">Your ellO inbox is ready.</p>
+              <span className="badge bg-primary-subtle text-primary px-3 py-2">
+                Ready
+              </span>
             </div>
           </Col>
         </Row>

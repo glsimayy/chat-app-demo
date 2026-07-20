@@ -80,7 +80,16 @@ const UserHead = ({
                       colors[color],
                     )}
                   >
-                    <span className="username">{shortName}</span>
+                    <span className="username">
+                      {chatUserDetails.isBot ? (
+                        <i
+                          className="bx bx-bot font-size-20"
+                          aria-hidden="true"
+                        ></i>
+                      ) : (
+                        shortName
+                      )}
+                    </span>
                   </span>
                 </div>
               )}

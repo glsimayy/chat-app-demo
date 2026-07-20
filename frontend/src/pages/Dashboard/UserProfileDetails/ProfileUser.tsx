@@ -8,9 +8,6 @@ import {
 } from "reactstrap";
 import classnames from "classnames";
 
-//images
-import imagePlaceholder from "../../../assets/images/users/user-dummy-img.jpg";
-
 // constants
 import { STATUS_TYPES } from "../../../constants";
 interface ProfileUserProps {
@@ -30,15 +27,15 @@ const ProfileUser = ({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const toggle = () => setDropdownOpen(!dropdownOpen);
 
-  const profile = chatUserDetails.profileImage
-    ? chatUserDetails.profileImage
-    : imagePlaceholder;
   const fullName =
     chatUserDetails.name === undefined
       ? chatUserDetails.firstName
         ? `${chatUserDetails.firstName} ${chatUserDetails.lastName}`
         : "-"
       : chatUserDetails.name;
+  const initials = String(fullName || "U")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <div className="p-3 border-bottom">
@@ -57,8 +54,22 @@ const ProfileUser = ({
               )}
             </span>
           </div>
+        ) : chatUserDetails.profileImage ? (
+          <img
+            src={chatUserDetails.profileImage}
+            className="profile-img rounded"
+            alt={`${fullName} profile`}
+          />
         ) : (
-          <img src={profile} className="profile-img rounded" alt="" />
+          <div
+            className={`profile-img rounded direct-profile-cover ${
+              chatUserDetails.isBot ? "direct-profile-cover-bot" : ""
+            }`}
+          >
+            <span className="direct-profile-symbol" aria-hidden="true">
+              {chatUserDetails.isBot ? <i className="bx bx-bot"></i> : initials}
+            </span>
+          </div>
         )}
         <div className="overlay-content rounded">
           <div className="user-chat-nav p-2">

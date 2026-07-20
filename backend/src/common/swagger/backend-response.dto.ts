@@ -18,6 +18,15 @@ export class UserResponseDto {
   @ApiProperty({ enum: UserRole })
   role!: UserRole;
 
+  @ApiPropertyOptional({ nullable: true })
+  about!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  location!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  profileImage!: string | null;
+
   @ApiProperty({ description: "Whether this account is an automation bot" })
   isBot!: boolean;
 

@@ -1,8 +1,9 @@
-import avatar1 from "../assets/images/users/avatar-1.jpg";
-import img4 from "../assets/images/small/img-4.jpg";
 import { DISPLAY_TYPES, STATUS_TYPES } from "../constants";
 
 export interface BasicDetailsTypes {
+  username: string;
+  role: string;
+  about: string;
   firstName: string;
   lastName: string;
   profile: string;
@@ -19,14 +20,10 @@ export interface PrivacyTypes {
   displayprofilePhoto: string;
   displayLastSeen: boolean;
   displayStatus:
-    | DISPLAY_TYPES.EVERYONE
-    | DISPLAY_TYPES.SELECTED
-    | DISPLAY_TYPES.EVERYONE;
+    DISPLAY_TYPES.EVERYONE | DISPLAY_TYPES.SELECTED | DISPLAY_TYPES.EVERYONE;
   readReceipts: boolean;
   displayGroups:
-    | DISPLAY_TYPES.EVERYONE
-    | DISPLAY_TYPES.SELECTED
-    | DISPLAY_TYPES.EVERYONE;
+    DISPLAY_TYPES.EVERYONE | DISPLAY_TYPES.SELECTED | DISPLAY_TYPES.EVERYONE;
 }
 export interface SecurityTypes {
   securityNotification: boolean;
@@ -42,12 +39,15 @@ export interface SettingsTypes {
 
 let settings: SettingsTypes = {
   basicDetails: {
-    firstName: "Kathryn",
-    lastName: "Swarey",
-    profile: avatar1,
-    coverImage: img4,
-    email: "adc@123.com",
-    location: "California, USA",
+    username: "",
+    role: "user",
+    about: "",
+    firstName: "",
+    lastName: "",
+    profile: "",
+    coverImage: "",
+    email: "",
+    location: "",
   },
   theme: {
     // color: "bgcolor-radio1",

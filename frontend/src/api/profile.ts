@@ -1,32 +1,71 @@
+import { APIClient } from "./apiCore";
 import { getCurrentAuthUser } from "./backendAdapters";
 import { settings } from "../data/settings";
 
-const getProfileDetails = () => {
-  const user = getCurrentAuthUser();
+const api = new APIClient();
+
+const syncAuthUser = (user: any) => {
+  const current = getCurrentAuthUser();
+  const nextUser = { ...current, ...user };
+  localStorage.setItem("authUser", JSON.stringify(nextUser));
+  window.dispatchEvent(
+    new CustomEvent("ello:profile-updated", { detail: nextUser }),
+  );
+  return nextUser;
+};
+
+const getMyProfile = () => api.get("/users/me");
+
+const updateMyProfile = (updates: Record<string, unknown>) =>
+  api.patch("/users/me", updates).then(syncAuthUser);
+
+const toBasicDetails = (user: any) => {
   const username = user?.username || "User";
 
-  return Promise.resolve({
+  return {
+    username,
+    role: user?.role || "user",
+    about: user?.about || "",
+    firstName: username,
+    lastName: "",
+    title: user?.role === "admin" ? "Administrator" : "Member",
+    description: user?.about || "",
+    fullName: username,
+    email: user?.email || "",
+    location: user?.location || "",
+    avatar: user?.profileImage || "",
+    profile: user?.profileImage || "",
+    coverImage: "",
+  };
+};
+
+const getProfileDetails = async () => {
+  const user = await getMyProfile();
+
+  return {
     basicDetails: {
-      firstName: username,
-      lastName: "",
-      title: user?.role === "admin" ? "Administrator" : "User",
-      description: "",
-      fullName: username,
-      email: user?.email || "",
-      location: "",
-      avatar: user?.profileImage || "",
-      coverImage: "",
+      ...toBasicDetails(user),
     },
     media: { total: 0, list: [] },
     attachedFiles: { total: 0, list: [] },
-  });
+  };
 };
 
-const getSettings = () => {
-  return Promise.resolve(settings);
+const getSettings = async () => {
+  const user = await getMyProfile();
+  return {
+    ...settings,
+    basicDetails: toBasicDetails(user),
+  };
 };
 const updateSettings = (field: string, value: any) => {
   return Promise.resolve({ field, value });
 };
 
-export { getProfileDetails, getSettings, updateSettings };
+export {
+  getMyProfile,
+  getProfileDetails,
+  getSettings,
+  updateMyProfile,
+  updateSettings,
+};

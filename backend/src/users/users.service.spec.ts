@@ -57,4 +57,23 @@ describe("UsersService development users", () => {
 
     await expect(service.findAll()).resolves.toEqual([]);
   });
+
+  it("updates a user's public profile", async () => {
+    const service = new UsersService(createConfigService("development"));
+    await service.onModuleInit();
+    const admin = await service.findByEmail("admin@ello.local");
+
+    const updated = await service.updateProfile(admin!.id, {
+      username: "admin_updated",
+      about: "Coordinates ellO workspaces.",
+      location: "Istanbul, TR",
+    });
+
+    expect(updated).toMatchObject({
+      username: "admin_updated",
+      about: "Coordinates ellO workspaces.",
+      location: "Istanbul, TR",
+    });
+    expect(updated).not.toHaveProperty("passwordHash");
+  });
 });

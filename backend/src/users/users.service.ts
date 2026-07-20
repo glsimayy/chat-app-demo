@@ -11,6 +11,7 @@ import * as bcrypt from "bcrypt";
 import { PrismaService } from "../database/prisma.service";
 import { UserRole } from "./user-role.enum";
 import { PublicUser, UserRecord } from "./user.types";
+import { UpdateProfileDto } from "./dto/update-profile.dto";
 
 interface CreateUserInput {
   username: string;
@@ -114,6 +115,9 @@ export class UsersService implements OnModuleInit {
       email,
       passwordHash: input.passwordHash,
       role: input.role ?? this.getDefaultRole(),
+      about: null,
+      location: null,
+      profileImage: null,
       createdAt: new Date(),
     };
 
@@ -168,6 +172,49 @@ export class UsersService implements OnModuleInit {
     }
 
     user.passwordHash = passwordHash;
+    return this.toPublicUser(user);
+  }
+
+  async updateProfile(id: string, input: UpdateProfileDto) {
+    const user = this.users.get(id);
+
+    if (!user) {
+      return undefined;
+    }
+
+    const nextUser = { ...user };
+    const username = input.username?.trim();
+    if (username) {
+      const existing = this.findByUsernameSync(username);
+      if (existing && existing.id !== id) {
+        throw new ConflictException("Username already exists");
+      }
+      nextUser.username = username;
+    }
+
+    if (input.about !== undefined) {
+      nextUser.about = input.about?.trim() || null;
+    }
+    if (input.location !== undefined) {
+      nextUser.location = input.location?.trim() || null;
+    }
+    if (input.profileImage !== undefined) {
+      nextUser.profileImage = input.profileImage || null;
+    }
+
+    if (this.prismaService?.enabled) {
+      await this.prismaService.client.user.update({
+        where: { id },
+        data: {
+          username: nextUser.username,
+          about: nextUser.about,
+          location: nextUser.location,
+          profileImage: nextUser.profileImage,
+        },
+      });
+    }
+
+    Object.assign(user, nextUser);
     return this.toPublicUser(user);
   }
 
@@ -268,6 +315,9 @@ export class UsersService implements OnModuleInit {
     email: string;
     passwordHash: string;
     role: string;
+    about: string | null;
+    location: string | null;
+    profileImage: string | null;
     createdAt: Date;
   }): UserRecord {
     return {
@@ -276,6 +326,9 @@ export class UsersService implements OnModuleInit {
       email: user.email,
       passwordHash: user.passwordHash,
       role: user.role as UserRole,
+      about: user.about,
+      location: user.location,
+      profileImage: user.profileImage,
       createdAt: user.createdAt,
     };
   }
