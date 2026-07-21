@@ -116,8 +116,8 @@ services:
     build:
       context: ./frontend
       args:
-        REACT_APP_API_URL: ${FRONTEND_API_URL:-http://localhost:3000/api}
-        REACT_APP_SOCKET_URL: ${FRONTEND_SOCKET_URL:-http://localhost:3000/chat}
+        REACT_APP_API_URL: ${FRONTEND_API_URL:-/api}
+        REACT_APP_SOCKET_URL: ${FRONTEND_SOCKET_URL:-/chat}
     restart: unless-stopped
     ports:
       - "5173:8080"

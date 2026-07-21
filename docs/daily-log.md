@@ -18,6 +18,12 @@
   dar kapsamli allowlist ile tarama temiz hale getirildi.
 - Her push ve pull request'te tum Git gecmisini tarayan salt-okunur Secret Scan
   GitHub Actions workflow'u eklendi.
+- Frontend API ve Socket.IO trafigi Nginx same-origin proxy arkasina alindi;
+  boylece Compose stack degisken laptop IP'sini frontend build'ine gommeden
+  ayni yerel agdaki ikinci cihazlardan kullanilabilir hale getirildi.
+- Production Compose uzerinde iki bagimsiz Socket.IO istemcisi Nginx proxy'ye
+  baglandi; realtime mesaj, duplicate kontrolu ve laptop LAN IP'sinden API
+  health istegi basariyla dogrulandi.
 
 ## 21.07.2026 Sali - Database Release Hardening
 

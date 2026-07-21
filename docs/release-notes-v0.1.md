@@ -53,6 +53,8 @@ servisi tek urun akisi icinde calisacak sekilde tasarlanmistir.
   Main Backend ile birlestirildi.
 - Birlesik Docker Compose stack temiz test database'iyle baslatildi; production
   login, Java webhook, ticket idempotency ve restart kaliciligi dogrulandi.
+- Frontend same-origin Nginx proxy ile API ve Socket.IO'ya baglandi; LAN IP'si
+  uzerinden health ve iki bagimsiz istemciyle realtime mesaj akisi gecti.
 
 ## Release Oncesi Bekleyen Kontroller
 

@@ -7,8 +7,8 @@ COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci
 
 COPY . .
-ARG REACT_APP_API_URL=http://localhost:3000/api
-ARG REACT_APP_SOCKET_URL=http://localhost:3000/chat
+ARG REACT_APP_API_URL=/api
+ARG REACT_APP_SOCKET_URL=/chat
 ENV REACT_APP_API_URL=${REACT_APP_API_URL}
 ENV REACT_APP_SOCKET_URL=${REACT_APP_SOCKET_URL}
 RUN npm run build

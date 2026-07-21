@@ -46,6 +46,20 @@ Adresler:
 Production Compose profilinde Swagger, demo kullanicilar, dev reset ve demo UI
 kapalidir.
 
+Frontend API ve Socket.IO baglantilarini ayni origin uzerinden Nginx ile
+backend'e proxy'ler. Bu nedenle ayni agdaki baska bir cihazda uygulama
+`http://LAPTOP_IP:5173` adresinden acilabilir; ikinci cihazda API adresini
+ayrica degistirmek gerekmez. Laptop IP adresini PowerShell'de gormek icin:
+
+```powershell
+Get-NetIPAddress -AddressFamily IPv4 |
+  Where-Object { $_.IPAddress -notlike "127.*" }
+```
+
+Ikinci cihaz erisemiyorsa Windows Firewall'da TCP `5173` portuna ayni ozel ag
+icin izin verilmelidir. Backend `3000`, Java webhook `8080` ve PostgreSQL `5432`
+portlarini ikinci cihaza acmak gerekmez.
+
 ## Kontrol ve Loglar
 
 ```powershell
