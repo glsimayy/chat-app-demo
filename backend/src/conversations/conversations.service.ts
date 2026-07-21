@@ -123,6 +123,14 @@ export class ConversationsService implements OnModuleInit {
       throw new NotFoundException("Participant user not found");
     }
 
+    const currentUser = await this.usersService.findById(currentUserId);
+
+    if (participant.isBot || currentUser?.isBot) {
+      throw new BadRequestException(
+        "Direct conversations with automation bots are not allowed",
+      );
+    }
+
     const existingConversation = this.findDirectConversation(
       currentUserId,
       dto.participantId,
@@ -1408,6 +1416,15 @@ export class ConversationsService implements OnModuleInit {
     conversation: ConversationRecord,
     userId: string,
   ) {
+    if (
+      conversation.type === ConversationType.Direct &&
+      this.hasAutomationBotParticipant(conversation)
+    ) {
+      throw new ForbiddenException(
+        "Direct messages to automation bots are not allowed",
+      );
+    }
+
     let policyConversation = conversation;
 
     if (conversation.type === ConversationType.Management) {
@@ -1450,6 +1467,14 @@ export class ConversationsService implements OnModuleInit {
 
     throw new ForbiddenException(
       "Only group management can send messages in this group",
+    );
+  }
+
+  private hasAutomationBotParticipant(conversation: ConversationRecord) {
+    return conversation.participants.some(
+      participant =>
+        !participant.leftAt &&
+        Boolean(this.usersService.findByIdSync(participant.userId)?.isBot),
     );
   }
 

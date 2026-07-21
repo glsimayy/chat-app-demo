@@ -122,6 +122,24 @@ export const mapConversationToListItem = (
   };
 };
 
+export const isBotDirectConversation = (
+  conversation: any,
+  users: Array<any> = [],
+) => {
+  if (conversation?.type !== "direct") {
+    return false;
+  }
+
+  const botUserIds = new Set(
+    users.filter(user => Boolean(user.isBot)).map(user => user.id),
+  );
+
+  return (conversation?.participants || []).some(
+    (participant: any) =>
+      !participant.leftAt && botUserIds.has(participant.userId),
+  );
+};
+
 export const mapConversationDetails = (
   conversation: any,
   users: Array<any> = [],

@@ -1,4 +1,8 @@
-import { mapConversationToListItem, mapMessage } from "./backendAdapters";
+import {
+  isBotDirectConversation,
+  mapConversationToListItem,
+  mapMessage,
+} from "./backendAdapters";
 
 describe("backend adapters for automation", () => {
   beforeEach(() => {
@@ -49,5 +53,23 @@ describe("backend adapters for automation", () => {
       isBot: true,
     });
     expect(message.meta.sent).toBe(false);
+  });
+
+  it("identifies direct conversations containing an automation bot", () => {
+    const conversation = {
+      id: "bot-direct",
+      type: "direct",
+      participants: [
+        { userId: "current-user", leftAt: null },
+        { userId: "bot-user", leftAt: null },
+      ],
+    };
+
+    expect(
+      isBotDirectConversation(conversation, [
+        { id: "current-user", isBot: false },
+        { id: "bot-user", isBot: true },
+      ]),
+    ).toBe(true);
   });
 });

@@ -9,7 +9,7 @@ const getContacts = (filters?: object) => {
     const userList = Array.isArray(users) ? users : users?.items || [];
 
     return userList
-      .filter((user: any) => user.id !== currentUserId)
+      .filter((user: any) => user.id !== currentUserId && !user.isBot)
       .map(mapContact);
   });
 };

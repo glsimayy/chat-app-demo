@@ -388,6 +388,11 @@ describe("App e2e", () => {
       username: "ellO Automation Bot",
       isBot: true,
     });
+    await request(app.getHttpServer())
+      .post("/api/conversations/direct")
+      .set("authorization", `Bearer ${member.accessToken}`)
+      .send({ participantId: botUser.id })
+      .expect(400);
     expect(retriedCreate.body.data.id).toBe(created.body.data.id);
     expect(created.body.data).toMatchObject({
       isBotManaged: true,

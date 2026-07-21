@@ -1,5 +1,6 @@
 import { APIClient } from "./apiCore";
 import {
+  isBotDirectConversation,
   mapConversationDetails,
   mapConversationToListItem,
   mapMessage,
@@ -65,7 +66,11 @@ const getDirectMessages = async () => {
   ]);
 
   return conversations
-    .filter((conversation: any) => conversation.type === "direct")
+    .filter(
+      (conversation: any) =>
+        conversation.type === "direct" &&
+        !isBotDirectConversation(conversation, users),
+    )
     .map((conversation: any) => mapConversationToListItem(conversation, users));
 };
 
