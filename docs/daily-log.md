@@ -13,6 +13,9 @@
   webhook, ayni ticket icin idempotency ve backend restart kaliciligi gecti.
 - Bootstrap servisi backend'den once calisacak sekilde siralanarak ilk acilista
   ADMIN hesabinin backend tarafindan gorulmesi garanti altina alindi.
+- Gitleaks ile 56 commit tarandi; CI test secret'i ve suresi dolmus eski tema
+  JWT fixture'lari siniflandirildi, kullanilmayan fixture dosyasi kaldirildi ve
+  dar kapsamli allowlist ile tarama temiz hale getirildi.
 
 ## 21.07.2026 Sali - Database Release Hardening
 

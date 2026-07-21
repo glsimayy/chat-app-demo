@@ -1,0 +1,20 @@
+title = "ellO Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "CI-only JWT secret used by backend test jobs"
+condition = "AND"
+targetRules = ["generic-api-key"]
+regexTarget = "line"
+paths = ['''^\.github/workflows/backend-ci\.yml$''']
+regexes = ['''(?i)JWT_SECRET:\s*["']?ci-jwt-secret-with-at-least-32-characters["']?''']
+
+[[allowlists]]
+description = "Expired 2020 JWT fixture from the removed frontend template backend"
+condition = "AND"
+targetRules = ["jwt"]
+regexTarget = "line"
+paths = ['''^frontend/src/helpers/(jwt-token-access/accessToken\.js|fakeBackend\.ts)$''']
+regexes = ['''Bearer\s+eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+''']

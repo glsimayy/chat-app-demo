@@ -64,7 +64,7 @@ Detayli akis: `docs/full-stack-docker.md`
 - [x] USER ve ADMIN yetki kontrolleri gecti.
 - [x] Ayni ticket iki kez geldiginde tek bot grubu olustu.
 - [x] Dev reset, demo kullanicilar ve demo UI production'da kapali.
-- [ ] Repo secret taramasi temiz.
+- [x] Tum Git gecmisinde Gitleaks secret taramasi temiz.
 - [x] Bilinen kisitlar release notuna yazildi.
 
 Release notu taslagi: `docs/release-notes-v0.1.md`
