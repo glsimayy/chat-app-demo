@@ -75,6 +75,7 @@ jobs:
         run: |
           npx prisma migrate deploy
           npm run prisma:generate
+          npm run db:audit
 
       - name: Typecheck application and tests
         run: |
