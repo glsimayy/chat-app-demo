@@ -47,11 +47,16 @@ servisi tek urun akisi icinde calisacak sekilde tasarlanmistir.
 - Database audit 21 indexi ve 6 foreign key delete kuralini dogruladi.
 - Production ADMIN bootstrap guclu parola politikasi ve tekrar calistirma
   guvenligiyle temiz database'de dogrulandi.
+- Java webhook icin non-root multi-stage production image, ayri health/readiness,
+  kontrollu timeout/retry ve 502 davranisi dogrulandi.
+- Database migration, audit, backup/restore ve ADMIN bootstrap release araclari
+  Main Backend ile birlestirildi.
+- Birlesik Docker Compose stack temiz test database'iyle baslatildi; production
+  login, Java webhook, ticket idempotency ve restart kaliciligi dogrulandi.
 
-## Release Oncesi Bekleyen Teslimler
+## Release Oncesi Bekleyen Kontroller
 
-- Database release paketinin Main Backend tarafindan review edilip merge edilmesi
-- Birlesik final stack smoke testi ve GitHub CI kontrollerinin yesile donmesi
+- GitHub CI kontrollerinin yesile donmesi
 - Gercek iki cihazla LAN/firewall erisim kontrolu (otomatik coklu istemci testi gecti)
 
 ## Bilinen Kisitlar

@@ -1,7 +1,7 @@
 # ellO v0.1 Release Checklist
 
 Bu dokuman Main Backend tarafinin final entegrasyon ve release kapilarini tutar.
-Database ve Java PR'lari `emir_frontend` hedefiyle geldikten sonra tamamlanir.
+Database ve Java release paketleri `main-backend-release-v01` ile birlestirildi.
 
 ## Production Environment
 
@@ -40,22 +40,26 @@ Java webhook environment degerleri `java-webhook/README.md` ile ayni tutulur.
 
 ## Baslatma Sirasi
 
-1. PostgreSQL servisini baslat ve healthcheck sonucunu bekle.
-2. `backend` klasorunde `npx prisma migrate deploy` calistir.
-3. NestJS backend'i production environment ile baslat.
-4. `GET /api/health` sonucunun 200 oldugunu dogrula.
-5. Java webhook servisini backend adresi ve ortak secret ile baslat.
-6. Production environment ile alinmis frontend build'ini yayinla.
+1. `.env.compose.example` dosyasini `.env` olarak kopyala ve secret'lari degistir.
+2. `docker compose up -d --build` ile final stack'i baslat.
+3. `migrate` servisinin `0` koduyla kapandigini dogrula.
+4. PostgreSQL, backend, Java webhook ve frontend healthcheck'lerini dogrula.
+5. `admin-bootstrap` servisinin `0` koduyla kapandigini ve backend'den once
+   tamamlandigini dogrula.
+
+Detayli akis: `docs/full-stack-docker.md`
 
 ## Release Gate
 
 - [x] Backend unit, e2e, build ve Prisma kontrolleri gecti.
 - [x] Frontend typecheck, unit, build ve Playwright kontrolleri gecti.
-- [ ] Java testleri ve Java CI gecti.
+- [x] Java testleri production Docker image icinde 20/20 gecti.
 - [x] Bos PostgreSQL veritabaninda migration basarili.
 - [x] Backend ve DB restart sonrasinda kullanici ve mesajlar korundu.
 - [x] PostgreSQL backup temiz test database'ine restore edildi ve audit gecti.
 - [x] Production ADMIN bootstrap temiz database'de dogrulandi.
+- [x] Database ve Java release paketleri Main Backend ile birlestirildi.
+- [x] Birlesik final Docker Compose stack smoke testi gecti.
 - [ ] Iki farkli cihazda direct ve group realtime mesajlasma calisti.
 - [x] USER ve ADMIN yetki kontrolleri gecti.
 - [x] Ayni ticket iki kez geldiginde tek bot grubu olustu.

@@ -4,18 +4,134 @@ services:
     container_name: chat-app-demo-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: chat_app_demo
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-chat_app_demo}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d chat_app_demo"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  migrate:
+    build:
+      context: ./backend
+      target: migration
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/chat_app_demo}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  admin-bootstrap:
+    build:
+      context: ./backend
+      target: migration
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/chat_app_demo}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Change-This-Admin-Password!42}
+    command: ["npm", "run", "db:bootstrap-admin"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      target: runtime
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      API_PREFIX: api
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      SWAGGER_ENABLED: "false"
+      BODY_LIMIT: 1mb
+      RATE_LIMIT_TTL_MS: "60000"
+      RATE_LIMIT_MAX: "120"
+      SOCKET_RATE_LIMIT_TTL_MS: "10000"
+      SOCKET_RATE_LIMIT_MAX: "60"
+      DEMO_USERS_ENABLED: "false"
+      DEV_ROUTES_ENABLED: "false"
+      SERVE_DEMO_UI: "false"
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/chat_app_demo}
+      JWT_SECRET: ${JWT_SECRET:-local-compose-jwt-secret-change-before-production}
+      BOT_WEBHOOK_SECRET: ${BOT_WEBHOOK_SECRET:-local-compose-bot-secret-change-before-production}
+    ports:
+      - "3000:3000"
+    depends_on:
+      admin-bootstrap:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  java-webhook:
+    build:
+      context: ./java-webhook
+    restart: unless-stopped
+    environment:
+      JAVA_WEBHOOK_PORT: "8080"
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-local-compose-incoming-secret-change-before-production}
+      CHAT_BACKEND_BASE_URL: http://backend:3000
+      BOT_WEBHOOK_SECRET: ${BOT_WEBHOOK_SECRET:-local-compose-bot-secret-change-before-production}
+      CHAT_BACKEND_CONNECT_TIMEOUT: 1s
+      CHAT_BACKEND_READ_TIMEOUT: 3s
+      CHAT_BACKEND_MAX_ATTEMPTS: "2"
+      CHAT_BACKEND_RETRY_DELAY: 100ms
+    ports:
+      - "8080:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        REACT_APP_API_URL: ${FRONTEND_API_URL:-http://localhost:3000/api}
+        REACT_APP_SOCKET_URL: ${FRONTEND_SOCKET_URL:-http://localhost:3000/chat}
+    restart: unless-stopped
+    ports:
+      - "5173:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+      java-webhook:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
 volumes:
   postgres_data:
