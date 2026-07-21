@@ -17,6 +17,9 @@ kapatir; Windows kapanis onayi sorarsa `Y` girilebilir. PowerShell script
 politikasi `npm` komutunu engelliyorsa ayni komutlar `npm.cmd install` ve
 `npm.cmd run dev` olarak calistirilabilir.
 
+PostgreSQL, backend, Java webhook ve frontend'in production benzeri Docker
+ortaminda birlikte calistirilmasi `docs/full-stack-docker.md` icinde anlatilir.
+
 ## Backend
 
 Backend NestJS ile yazildi. Gelistirme ve test ortaminda `DATABASE_URL`
@@ -211,3 +214,5 @@ message akislarini gercek frontend, backend ve Socket.IO uzerinde kontrol eder.
   icinde tutulur.
 - v0.1 ozellikleri, bekleyen teslimler ve bilinen kisitlar
   `docs/release-notes-v0.1.md` icinde tutulur.
+- Birlesik Docker Compose kurulum ve calistirma adimlari
+  `docs/full-stack-docker.md` icinde tutulur.
