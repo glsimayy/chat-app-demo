@@ -1,0 +1,38 @@
+### Geçerli istek
+POST http://localhost:8080/webhook/ticket-created
+X-Webhook-Token: local-webhook-secret
+Content-Type: application/json
+
+{
+  "eventType": "ticket.created",
+  "ticketId": "TICKET-42",
+  "ownerId": "00000000-0000-4000-8000-000000000001",
+  "title": "Support Room",
+  "participantIds": ["00000000-0000-4000-8000-000000000002"]
+}
+
+### Eksik/hatalı istek - title boş, participantIds boş liste
+POST http://localhost:8080/webhook/ticket-created
+X-Webhook-Token: local-webhook-secret
+Content-Type: application/json
+
+{
+  "eventType": "ticket.created",
+  "ticketId": "TICKET-42",
+  "ownerId": "00000000-0000-4000-8000-000000000001",
+  "title": "",
+  "participantIds": []
+}
+
+### Geçersiz UUID - ownerId bozuk
+POST http://localhost:8080/webhook/ticket-created
+X-Webhook-Token: local-webhook-secret
+Content-Type: application/json
+
+{
+  "eventType": "ticket.created",
+  "ticketId": "TICKET-42",
+  "ownerId": "abc",
+  "title": "Support Room",
+  "participantIds": ["00000000-0000-4000-8000-000000000002"]
+}

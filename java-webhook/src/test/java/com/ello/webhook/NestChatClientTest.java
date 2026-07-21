@@ -80,4 +80,80 @@ class NestChatClientTest {
         assertThrows(ChatBackendException.class, () -> client.createGroup(request));
         server.verify();
     }
+    // 1. NEGATİF SENARYO: NestJS 4xx Hata Döndüğünde (400 Bad Request-401 Unauthorized)
+    @Test
+    void propagatesClientErrorStatusWhenBackendReturns4xx() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NestChatClient client = new NestChatClient(builder, "http://localhost:3000", "wrong-secret");
+
+        CreateBotGroupRequest request = new CreateBotGroupRequest(
+                UUID.randomUUID(), "Support Room", List.of(UUID.randomUUID()), "TICKET-42", "Ticket created");
+
+        // NestJS 401 Unauthorized döndüğünü simüle ediyoruz
+        server.expect(requestTo("http://localhost:3000/api/bot/create-group"))
+                .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators.withUnauthorizedRequest());
+
+        // NestJS 4xx verdiğinde de ChatBackendException fırlatılmalı
+        assertThrows(ChatBackendException.class, () -> client.createGroup(request));
+        server.verify();
+    }
+
+    // 2. NEGATİF SENARYO: NestJS Sunucusu Tamamen Kapalıysa / Bağlantı Sağlanamıyorsa
+    @Test
+    void throwsChatBackendExceptionWhenServerIsUnreachable() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NestChatClient client = new NestChatClient(builder, "http://localhost:3000", "bot-secret");
+
+        CreateBotGroupRequest request = new CreateBotGroupRequest(
+                UUID.randomUUID(), "Support Room", List.of(UUID.randomUUID()), "TICKET-42", "Ticket created");
+
+        // Sunucuya hiç ulaşılamadığını (Connection Refused / ResourceAccessException) simüle ediyoruz
+        server.expect(requestTo("http://localhost:3000/api/bot/create-group"))
+                .andRespond(request1 -> {
+                    throw new java.net.ConnectException("Connection refused to NestJS backend");
+                });
+
+        assertThrows(ChatBackendException.class, () -> client.createGroup(request));
+        server.verify();
+    }
+
+    // 3. NEGATİF SENARYO: NestJS Yanıt Vermekte Geciktiğinde (Timeout)
+    @Test
+    void throwsChatBackendExceptionOnTimeout() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NestChatClient client = new NestChatClient(builder, "http://localhost:3000", "bot-secret");
+
+        CreateBotGroupRequest request = new CreateBotGroupRequest(
+                UUID.randomUUID(), "Support Room", List.of(UUID.randomUUID()), "TICKET-42", "Ticket created");
+
+        // Zaman aşımı (SocketTimeoutException) durumunu simüle ediyoruz
+        server.expect(requestTo("http://localhost:3000/api/bot/create-group"))
+                .andRespond(request1 -> {
+                    throw new java.net.SocketTimeoutException("Read timed out");
+                });
+
+        assertThrows(ChatBackendException.class, () -> client.createGroup(request));
+        server.verify();
+    }
+
+    // 4. NEGATİF SENARYO: NestJS Bozuk / Geçersiz JSON Döndüğünde
+    @Test
+    void throwsChatBackendExceptionWhenResponseBodyIsMalformed() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NestChatClient client = new NestChatClient(builder, "http://localhost:3000", "bot-secret");
+
+        CreateBotGroupRequest request = new CreateBotGroupRequest(
+                UUID.randomUUID(), "Support Room", List.of(UUID.randomUUID()), "TICKET-42", "Ticket created");
+
+        // NestJS 200 OK dönse bile JSON yerine bozuk veri dönerse
+        server.expect(requestTo("http://localhost:3000/api/bot/create-group"))
+                .andRespond(withSuccess("NOT_A_VALID_JSON", MediaType.APPLICATION_JSON));
+
+        assertThrows(ChatBackendException.class, () -> client.createGroup(request));
+        server.verify();
+    }
 }
