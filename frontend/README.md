@@ -44,3 +44,17 @@ You don’t have to ever use `eject`. The curated feature set is suitable for sm
 You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 
 To learn React, check out the [React documentation](https://reactjs.org/).
+
+---
+
+## 🚀 Proje Yapılandırması ve Çalıştırma (Docker & Environment)
+
+### 1. Environment (Ortam Değişkenleri)
+Projenin ana dizinine `.env` adında bir dosya oluşturun ve aşağıdaki örnek değişkenleri ekleyin:
+
+```env
+PORT=5000
+DB_SERVER=localhost
+DB_NAME=ElloDB
+DB_USER=sa
+DB_PASSWORD=glsm.0606
