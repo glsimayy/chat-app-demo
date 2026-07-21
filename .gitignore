@@ -11,6 +11,7 @@ yarn-error.log*
 .DS_Store
 *.tsbuildinfo
 java-webhook/target/
+backend/backups/
 *.class
 .idea/
 .codex-*.log

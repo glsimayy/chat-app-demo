@@ -41,15 +41,16 @@ servisi tek urun akisi icinde calisacak sekilde tasarlanmistir.
 - Iki bagimsiz browser oturumunda direct/group mesajlar yenilemesiz iletildi.
 - Mesaj duzenleme/silme islemleri iki acik istemciye gercek zamanli yansidi.
 - PostgreSQL migration bos veritabaninda uygulandi ve restart kaliciligi dogrulandi.
-- Java webhook testleri JDK 21 ile 10/10 gecti.
+- Java webhook testleri production Docker build icinde 20/20 gecti.
+- PostgreSQL custom-format backup temiz test database'ine restore edildi; ADMIN,
+  grup ve mesaj verileri uygulama tarafindan yeniden okundu.
+- Database audit 21 indexi ve 6 foreign key delete kuralini dogruladi.
+- Production ADMIN bootstrap guclu parola politikasi ve tekrar calistirma
+  guvenligiyle temiz database'de dogrulandi.
 
 ## Release Oncesi Bekleyen Teslimler
 
-- Database branch'inden backup/restore kaniti, constraint/index review'u ve son
-  database dokumani
-- Java branch'inden production Dockerfile, readiness, timeout/retry ve backend-down
-  senaryolari
-- Java ve Database PR'larinin Main Backend tarafindan review edilmesi
+- Database release paketinin Main Backend tarafindan review edilip merge edilmesi
 - Birlesik final stack smoke testi ve GitHub CI kontrollerinin yesile donmesi
 - Gercek iki cihazla LAN/firewall erisim kontrolu (otomatik coklu istemci testi gecti)
 
@@ -62,8 +63,6 @@ servisi tek urun akisi icinde calisacak sekilde tasarlanmistir.
 - Masaustu `.exe` paketi bulunmuyor; frontend web uygulamasi olarak calisiyor.
 - Development/test ortaminda `DATABASE_URL` verilmezse in-memory fallback
   kullanilabilir; production ortaminda PostgreSQL zorunludur.
-- Java webhook production dayanıklilik maddeleri Java tesliminden sonra final
-  entegrasyon testinde kapatilacaktir.
 
 ## Calistirma
 

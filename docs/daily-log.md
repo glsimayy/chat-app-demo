@@ -1,5 +1,18 @@
 # Daily Log
 
+## 21.07.2026 Sali - Database Release Hardening
+
+- Temiz test database'inde uc Prisma migration uygulandi.
+- Guclu parola kontrollu ve tekrar calistirilabilir production ADMIN bootstrap
+  eklendi; restore sonrasi ADMIN login ile dogrulandi.
+- Custom-format `pg_dump` backup ve onay kilitli `pg_restore` araclari eklendi.
+- Kullanici, grup ve mesaj iceren dump temizlendikten sonra geri yuklendi; tum
+  kayitlarin korundugu dogrulandi.
+- Otomatik audit 21 indexi ve 6 foreign key delete kuralini kontrol edecek
+  sekilde Backend CI'a eklendi.
+- Constraint/index incelemesi, troubleshooting ve recovery runbook dokumante
+  edildi.
+
 ## 17.07.2026 Cuma
 
 ### Manuel v0.1 Testleri

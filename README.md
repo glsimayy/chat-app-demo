@@ -50,7 +50,11 @@ docker compose up -d postgres
 cd backend
 npx prisma migrate deploy
 npm run prisma:generate
+npm run db:audit
 ```
+
+Production ADMIN bootstrap, backup/restore ve recovery adimlari
+`docs/database-setup.md` dosyasindadir.
 
 ### Calistirma
 
@@ -89,6 +93,7 @@ npm test
 npm run test:e2e
 npm run build
 npm run prisma:validate
+npm run db:audit
 npm run test:smoke
 npm run test:load
 ```
