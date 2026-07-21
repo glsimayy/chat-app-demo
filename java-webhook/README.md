@@ -22,6 +22,30 @@ $env:CHAT_BACKEND_BASE_URL = "http://localhost:3000"
 Java servis health endpoint'i `http://localhost:8080/health` adresindedir.
 Secret degerleri kaynak koda veya repoya yazilmaz.
 
+- `GET /health`: Yalnizca Java servisinin ayakta oldugunu bildirir.
+- `GET /ready`: NestJS backend bagimliligini ayrica kontrol eder. Backend kapaliysa
+  Java servisi calismaya devam eder, fakat bu endpoint `503` doner.
+
+Backend istemcisi varsayilan olarak 1 saniye connection timeout, 3 saniye read
+timeout ve toplam 2 deneme kullanir. Degerler `CHAT_BACKEND_CONNECT_TIMEOUT`,
+`CHAT_BACKEND_READ_TIMEOUT`, `CHAT_BACKEND_MAX_ATTEMPTS` ve
+`CHAT_BACKEND_RETRY_DELAY` ortam degiskenleriyle ayarlanabilir. Maksimum deneme
+sayisi 3 ile sinirlidir.
+
+## Production Image
+
+```powershell
+docker build -t ello-java-webhook:0.1 ./java-webhook
+docker run --rm -p 8080:8080 `
+  -e WEBHOOK_SECRET="local-webhook-secret" `
+  -e BOT_WEBHOOK_SECRET="NestJS ile ayni bot secret" `
+  -e CHAT_BACKEND_BASE_URL="http://host.docker.internal:3000" `
+  ello-java-webhook:0.1
+```
+
+Production image non-root kullanici ile calisir; build araclari, kaynak kod ve
+secret degerleri runtime katmanina kopyalanmaz.
+
 ## Webhook Sozlesmesi
 
 ```http
