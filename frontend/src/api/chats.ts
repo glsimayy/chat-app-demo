@@ -5,6 +5,7 @@ import {
   mapConversationToListItem,
   mapMessage,
 } from "./backendAdapters";
+import { createClientMessageId } from "../utils/clientMessageId";
 
 const api = new APIClient();
 
@@ -226,7 +227,7 @@ const forwardMessage = async (data: any) => {
     (data.contacts || []).map((conversationId: string | number) =>
       api.create(`/conversations/${conversationId}/messages`, {
         content,
-        clientMessageId: crypto.randomUUID(),
+        clientMessageId: createClientMessageId(),
       }),
     ),
   );

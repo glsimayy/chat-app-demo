@@ -31,6 +31,7 @@ import {
   updateMessage as updateMessageApi,
 } from "../../../api/chats";
 import { getCurrentAuthUser } from "../../../api/backendAdapters";
+import { createClientMessageId } from "../../../utils/clientMessageId";
 
 interface IndexProps {
   isChannel: boolean;
@@ -195,7 +196,7 @@ const Index = ({ isChannel }: IndexProps) => {
   }, [activeConversationId, chatUserDetails.id, dispatch]);
 
   const onSend = (data: any) => {
-    const clientMessageId = crypto.randomUUID();
+    const clientMessageId = createClientMessageId();
     let params: any = {
       text: data.text && data.text,
       time: new Date().toISOString(),

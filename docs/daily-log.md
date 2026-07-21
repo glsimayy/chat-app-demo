@@ -24,6 +24,15 @@
 - Production Compose uzerinde iki bagimsiz Socket.IO istemcisi Nginx proxy'ye
   baglandi; realtime mesaj, duplicate kontrolu ve laptop LAN IP'sinden API
   health istegi basariyla dogrulandi.
+- Guvenli olmayan yerel ag adreslerinde `crypto.randomUUID()` bulunmadigi icin
+  direct ve grup mesajlarinin socket'e ulasmamasina yol acan frontend hatasi
+  tarayici uyumlu istemci mesaj kimligi ureticisiyle giderildi.
+- LAN adresinden direct ve grup mesaji gonderimi tarayicida, grup mesajinin
+  ikinci Socket.IO istemcisine yenilemesiz teslimi de ayri bir admin oturumuyla
+  dogrulandi.
+- Mobil sohbet alani `100dvh` ve temaya uyumlu safe-area tamponu ile duzenlendi;
+  390x844 gorunumde yazma alani ile telefon gezinme bolgesi arasinda 22 px tampon
+  kaldigi kontrol edildi.
 
 ## 21.07.2026 Sali - Database Release Hardening
 
