@@ -1,5 +1,19 @@
 # Daily Log
 
+## 22.07.2026 Carsamba - Full Stack Otomasyon Testi
+
+- Yerel Docker Compose calismasinda Swagger varsayilan olarak acildi;
+  production environment orneginde kapali tutuldu.
+- `npm.cmd run test:full-stack` komutuyla image build ve stack baslatma dahil
+  tek komutluk release kontrolu eklendi.
+- Test frontend ve same-origin API proxy, backend health, Swagger UI/OpenAPI,
+  Java health/readiness, ADMIN ve user rolleri, direct Socket.IO teslimi ve
+  retry idempotency kontrollerini kapsiyor.
+- Java ticket webhook secret kontrolu, idempotent otomasyon grubu, read-only
+  member politikasi, group Socket.IO teslimi ve mesaj kaliciligi dogrulaniyor.
+- Tam komut production benzeri Docker stack uzerinde 12/12 kontrolle basarili
+  calisti; production Node bagimlilik audit'i temiz gecti.
+
 ## 21.07.2026 Sali - Final Stack Entegrasyonu
 
 - Java webhook production Dockerfile, health/readiness ve backend

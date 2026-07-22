@@ -65,6 +65,18 @@ portlarini ikinci cihaza acmak gerekmez.
 
 ## Kontrol ve Loglar
 
+Tum stack'i build edip health, Swagger, roller, direct/group realtime mesaj ve
+Java ticket webhook akislarini tek komutla dogrulamak icin:
+
+```powershell
+npm.cmd run test:full-stack
+```
+
+Test mevcut verileri silmez. `fullstack-user1@ello.local` ve
+`fullstack-user2@ello.local` hesaplarini ilk calismada olusturur, sonraki
+calismalarda ayni hesaplari yeniden kullanir. Compose ADMIN veya webhook
+secret degerleri `.env` ile degistirildiyse test de ayni dosyayi okur.
+
 ```powershell
 docker compose ps
 docker compose logs --tail 100 backend

@@ -20,6 +20,7 @@
         "test:typecheck": "tsc --noEmit -p tsconfig.test.json",
         "test": "jest --config jest.config.cjs --runInBand",
         "test:e2e": "jest --config test/jest-e2e.json --runInBand",
+        "test:full-stack": "node scripts/full-stack-test.js",
         "test:production-security": "node scripts/production-security-test.js",
         "test:smoke": "node scripts/smoke-test.js",
         "test:load": "node scripts/load-test.js",

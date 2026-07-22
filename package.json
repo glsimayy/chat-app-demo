@@ -7,6 +7,7 @@
     "dev:backend": "npm --prefix backend run start:dev",
     "dev:frontend": "npm --prefix frontend start",
     "test:contract": "npx --yes newman@6.2.2 run docs/postman/chat-app-demo.postman_collection.json",
+    "test:full-stack": "docker compose up -d --build && npm --prefix backend run test:full-stack",
     "check:licenses": "node scripts/check-licenses.js"
   },
   "devDependencies": {
