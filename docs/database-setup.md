@@ -53,8 +53,10 @@ In-memory modda sunucu kapaninca veri silinir.
 - `ConversationParticipant`
 - `Message`
 - `SupportTicket`
+- `SupportTicketActivity`
 - `UserRole`, `ConversationType`, `ParticipantRole`, `ConversationStatus` ve
-  `MessageType`, `SupportTicketPriority`, `SupportTicketStatus` enumlari
+  `MessageType`, `SupportTicketPriority`, `SupportTicketStatus`,
+  `SupportTicketActivityAction` enumlari
 
 ## Dikkat Edilecek Noktalar
 
@@ -65,6 +67,10 @@ In-memory modda sunucu kapaninca veri silinir.
 - `conversations.externalRef` unique'tir; ayni bot olayi ikinci bir grup olusturmaz.
 - Direct conversation tekrari uygulama katmaninda engellenir.
 - `support_tickets.requesterId` kullanici silindiginde cascade ile temizlenir.
+- `support_tickets.assignedAdminId` admin silindiginde `SET NULL` olur ve ticket
+  ortak havuza doner.
+- `support_ticket_activities` ticket silindiginde cascade ile temizlenir;
+  silinen actor kaydi ise `SET NULL` olur.
 
 Detayli inceleme sonucu `docs/database-constraint-index-audit.md` dosyasindadir.
 

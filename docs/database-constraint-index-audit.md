@@ -1,6 +1,6 @@
 # Database Constraint and Index Audit
 
-Tarih: 21 Temmuz 2026
+Tarih: 22 Temmuz 2026
 
 Bu kontrol Prisma migration'lari ile olusan PostgreSQL semasinin v0.1 veri
 butunlugu ve temel sorgu ihtiyaclarini kapsadigini dogrular. Otomatik kanit:
@@ -36,6 +36,10 @@ edilmis pair key dusunulmelidir.
 | Participant -> User | Cascade | Kullanici silinince uyelik satirlari kalmaz |
 | Message -> Conversation | Cascade | Sohbet silinince mesajlar kalmaz |
 | Message sender -> User | Set null | Kullanici silinse de mesaj gecmisi korunur |
+| Ticket requester -> User | Cascade | Kullanici silinince kendi destek talepleri temizlenir |
+| Ticket assignee -> User | Set null | Admin silinince ticket ortak havuza geri doner |
+| Ticket activity -> Ticket | Cascade | Ticket silinince activity gecmisi temizlenir |
+| Ticket activity actor -> User | Set null | Admin silinse de islem gecmisi korunur |
 
 ## Index Incelemesi
 
@@ -47,6 +51,10 @@ edilmis pair key dusunulmelidir.
 - Soft state filtreleri: participant `leftAt` ve message `deletedAt` indexleri
   bulunur.
 - BOT lookup: `externalRef` unique indexi bulunur.
+- Ticket havuzu: `(assignedAdminId, status)` ve `(status, priority)` indexleri
+  admin filtrelerini destekler.
+- Ticket gecmisi: `(ticketId, createdAt)` indexi activity zaman cizelgesini
+  destekler.
 
 v0.1 veri hacmi icin yeni index gerekmiyor. PostgreSQL `EXPLAIN ANALYZE` ve slow
 query olcumleri olmadan ek index eklenmemelidir; her index yazma maliyeti ve disk
@@ -54,5 +62,5 @@ kullanimi getirir.
 
 ## Sonuc
 
-Otomatik audit 21 beklenen indexi ve 6 foreign key delete kuralini kontrol eder.
+Otomatik audit 28 beklenen indexi ve 10 foreign key delete kuralini kontrol eder.
 Schema degisikliginde audit listesi ve bu belge ayni PR icinde guncellenmelidir.

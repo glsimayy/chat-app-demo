@@ -195,6 +195,8 @@ message akislarini gercek frontend, backend ve Socket.IO uzerinde kontrol eder.
 - Admin runtime metrics
 - Kullanici destek talebi olusturma ve kendi taleplerini takip etme
 - Admin destek taleplerinde arama, filtreleme, durum ve cevap yonetimi
+- Coklu admin ticket havuzu, admin atama/devretme ve islem gecmisi
+- Ticket guncellemelerinde optimistic version ile `409 Conflict` korumasi
 - Structured HTTP ve Socket.IO loglari
 - Dis uygulamadan bot grubu olusturma: `POST /api/bot/groups`
 - Otomasyon grubuna uye ekleme: `POST /api/bot/groups/:conversationId/participants`

@@ -504,12 +504,21 @@ body[data-bs-theme="light"] .chat-leftsidebar .text-muted {
 }
 
 .support-ticket-requester,
+.support-ticket-assignee,
 .support-ticket-preview,
 .support-ticket-meta {
   display: block;
   margin-top: 5px;
   color: var(--bs-secondary-color);
   font-size: 11px;
+}
+
+.support-ticket-assignee {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--bs-heading-color);
+  font-weight: 600;
 }
 
 .support-ticket-requester {
@@ -582,6 +591,87 @@ body[data-bs-theme="light"] .chat-leftsidebar .text-muted {
 .support-ticket-message {
   margin: 18px 0;
   white-space: pre-wrap;
+}
+
+.support-assignment-section,
+.support-resolution-form,
+.support-activity-section {
+  padding-top: 20px;
+  margin-top: 20px;
+  border-top: 1px solid var(--bs-border-color);
+
+  h6 {
+    margin: 0;
+    color: var(--bs-heading-color);
+    font-size: 13px;
+  }
+}
+
+.support-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.support-assignee-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.support-activity-list {
+  margin-top: 14px;
+}
+
+.support-activity-empty {
+  margin: 0;
+  font-size: 12px;
+}
+
+.support-activity-item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  padding: 0 0 16px;
+
+  &:last-child {
+    padding-bottom: 0;
+  }
+
+  strong,
+  p,
+  time {
+    display: block;
+  }
+
+  strong {
+    color: var(--bs-heading-color);
+    font-size: 12px;
+  }
+
+  p {
+    margin: 3px 0;
+    color: var(--bs-body-color);
+    font-size: 13px;
+  }
+
+  time {
+    color: var(--bs-secondary-color);
+    font-size: 11px;
+  }
+}
+
+.support-activity-marker {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: rgba(var(--bs-primary-rgb), 0.12);
+  color: var(--bs-primary);
 }
 
 .support-admin-note p {

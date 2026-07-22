@@ -48,42 +48,75 @@ enum SupportTicketStatus {
   closed
 }
 
+enum SupportTicketActivityAction {
+  created
+  assigned
+  unassigned
+  transferred
+  status_changed
+  priority_changed
+  note_updated
+}
+
 model User {
-  id                   String                    @id @default(uuid()) @db.Uuid
-  email                String                    @unique
-  username             String                    @unique
-  passwordHash         String
-  role                 UserRole                  @default(user)
-  about                String?
-  location             String?
-  profileImage         String?                   @db.Text
-  createdAt            DateTime                  @default(now())
-  updatedAt            DateTime                  @updatedAt
-  conversationsCreated Conversation[]            @relation("ConversationCreator")
-  messages             Message[]
-  participants         ConversationParticipant[]
-  supportTickets       SupportTicket[]
+  id                      String                    @id @default(uuid()) @db.Uuid
+  email                   String                    @unique
+  username                String                    @unique
+  passwordHash            String
+  role                    UserRole                  @default(user)
+  about                   String?
+  location                String?
+  profileImage            String?                   @db.Text
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  conversationsCreated    Conversation[]            @relation("ConversationCreator")
+  messages                Message[]
+  participants            ConversationParticipant[]
+  supportTicketsRequested SupportTicket[]           @relation("SupportTicketRequester")
+  supportTicketsAssigned  SupportTicket[]           @relation("SupportTicketAssignee")
+  supportTicketActivities SupportTicketActivity[]   @relation("SupportTicketActivityActor")
 
   @@index([role])
   @@map("users")
 }
 
 model SupportTicket {
-  id          String                @id @default(uuid()) @db.Uuid
-  requesterId String                @db.Uuid
-  subject     String
-  message     String                @db.Text
-  priority    SupportTicketPriority @default(medium)
-  status      SupportTicketStatus   @default(open)
-  adminNote   String?               @db.Text
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
-  resolvedAt  DateTime?
-  requester   User                  @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  id              String                  @id @default(uuid()) @db.Uuid
+  requesterId     String                  @db.Uuid
+  assignedAdminId String?                 @db.Uuid
+  subject         String
+  message         String                  @db.Text
+  priority        SupportTicketPriority   @default(medium)
+  status          SupportTicketStatus     @default(open)
+  adminNote       String?                 @db.Text
+  version         Int                     @default(1)
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  resolvedAt      DateTime?
+  requester       User                    @relation("SupportTicketRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  assignedAdmin   User?                   @relation("SupportTicketAssignee", fields: [assignedAdminId], references: [id], onDelete: SetNull)
+  activities      SupportTicketActivity[]
 
   @@index([requesterId, createdAt])
+  @@index([assignedAdminId, status])
   @@index([status, priority])
   @@map("support_tickets")
+}
+
+model SupportTicketActivity {
+  id        String                      @id @default(uuid()) @db.Uuid
+  ticketId  String                      @db.Uuid
+  actorId   String?                     @db.Uuid
+  action    SupportTicketActivityAction
+  fromValue String?
+  toValue   String?
+  createdAt DateTime                    @default(now())
+  ticket    SupportTicket               @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  actor     User?                       @relation("SupportTicketActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@index([actorId])
+  @@map("support_ticket_activities")
 }
 
 model Conversation {

@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -22,6 +24,8 @@ import {
 } from "../common/swagger/backend-response.dto";
 import { UserRole } from "../users/user-role.enum";
 import { CreateSupportTicketDto } from "./dto/create-support-ticket.dto";
+import { AssignSupportTicketDto } from "./dto/assign-support-ticket.dto";
+import { ClaimSupportTicketDto } from "./dto/claim-support-ticket.dto";
 import { FindSupportTicketsQueryDto } from "./dto/find-support-tickets-query.dto";
 import { UpdateSupportTicketDto } from "./dto/update-support-ticket.dto";
 import { TicketsService } from "./tickets.service";
@@ -73,9 +77,37 @@ export class TicketsController {
     description: "Support ticket updated by an administrator",
   })
   update(
+    @CurrentUser() user: AuthenticatedUser,
     @Param("ticketId", new ParseUUIDPipe()) ticketId: string,
     @Body() dto: UpdateSupportTicketDto,
   ) {
-    return this.ticketsService.update(ticketId, dto);
+    return this.ticketsService.update(ticketId, user.id, dto);
+  }
+
+  @Post(":ticketId/claim")
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.Admin)
+  @ApiSuccessResponse(SupportTicketResponseDto, {
+    description: "Unassigned support ticket claimed by current admin",
+  })
+  claim(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("ticketId", new ParseUUIDPipe()) ticketId: string,
+    @Body() dto: ClaimSupportTicketDto,
+  ) {
+    return this.ticketsService.claim(ticketId, user.id, dto);
+  }
+
+  @Patch(":ticketId/assignee")
+  @Roles(UserRole.Admin)
+  @ApiSuccessResponse(SupportTicketResponseDto, {
+    description: "Support ticket assigned, transferred, or unassigned",
+  })
+  assign(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("ticketId", new ParseUUIDPipe()) ticketId: string,
+    @Body() dto: AssignSupportTicketDto,
+  ) {
+    return this.ticketsService.assign(ticketId, user.id, dto);
   }
 }

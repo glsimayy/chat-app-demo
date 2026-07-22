@@ -296,7 +296,10 @@ async function main() {
     `${API_BASE_URL}/tickets/${createdTicket.data.id}`,
     {
       token: user1.accessToken,
-      body: { status: "resolved" },
+      body: {
+        expectedVersion: createdTicket.data.version,
+        status: "resolved",
+      },
     },
   );
   assert(
@@ -316,12 +319,27 @@ async function main() {
     "Admin could not find the new support ticket",
   );
 
+  const claimedTicket = await expectRequest(
+    "POST",
+    `${API_BASE_URL}/tickets/${createdTicket.data.id}/claim`,
+    {
+      token: adminLogin.data.accessToken,
+      body: { expectedVersion: createdTicket.data.version },
+    },
+  );
+  assert(
+    claimedTicket.data.assignedAdminId === adminLogin.data.user.id &&
+      claimedTicket.data.version === createdTicket.data.version + 1,
+    "Admin could not claim the support ticket",
+  );
+
   const resolvedTicket = await expectRequest(
     "PATCH",
     `${API_BASE_URL}/tickets/${createdTicket.data.id}`,
     {
       token: adminLogin.data.accessToken,
       body: {
+        expectedVersion: claimedTicket.data.version,
         status: "resolved",
         adminNote: "Full-stack support flow verified.",
       },
@@ -331,6 +349,30 @@ async function main() {
     resolvedTicket.data.status === "resolved" &&
       resolvedTicket.data.adminNote === "Full-stack support flow verified.",
     "Admin ticket resolution was not persisted",
+  );
+  assert(
+    resolvedTicket.data.activities.some(
+      (activity) =>
+        activity.action === "assigned" &&
+        activity.actorId === adminLogin.data.user.id,
+    ),
+    "Ticket assignment activity was not persisted",
+  );
+
+  const staleTicketUpdate = await request(
+    "PATCH",
+    `${API_BASE_URL}/tickets/${createdTicket.data.id}`,
+    {
+      token: adminLogin.data.accessToken,
+      body: {
+        expectedVersion: claimedTicket.data.version,
+        status: "in_progress",
+      },
+    },
+  );
+  assert(
+    staleTicketUpdate.status === 409,
+    "Stale ticket update did not return 409 Conflict",
   );
 
   const requesterTickets = await expectRequest(
@@ -520,7 +562,7 @@ async function main() {
           "ADMIN login and roles",
           "idempotent test user provisioning",
           "regular user authorization boundary",
-          "support ticket ownership and admin resolution",
+          "support ticket assignment, conflict protection and admin resolution",
           "direct Socket.IO delivery and retry idempotency",
           "Java webhook authentication",
           "ticket webhook group idempotency",

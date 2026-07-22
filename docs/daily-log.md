@@ -10,6 +10,13 @@
   in-memory gelistirme destegi eklendi.
 - Ticket sahipligi ve admin cozumleme akisi unit test ve full-stack Docker testi
   ile dogrulandi; masaustu ile mobil yerlesim kontrol edildi.
+- Coklu admin icin ortak ticket havuzu, `All / Mine / Unassigned` filtresi,
+  uzerine alma, devretme ve havuza geri birakma akislari eklendi.
+- Yalnizca atanan admin ticket detaylarini degistirebilir; her islem actor ve
+  zaman bilgisiyle activity gecmisine kaydedilir.
+- Optimistic `version` kontroluyle eski ekrandan yapilan guncellemeler `409
+  Conflict` alir. Unit testler 34/34, database audit 28 index / 10 foreign key
+  ve full-stack Docker kontrolu temiz gecti.
 
 - Yerel Docker Compose calismasinda Swagger varsayilan olarak acildi;
   production environment orneginde kapali tutuldu.

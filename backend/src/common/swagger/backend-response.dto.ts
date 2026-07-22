@@ -6,6 +6,7 @@ import { ParticipantRole } from "../../conversations/participant-role.enum";
 import { ConversationStatus } from "../../conversations/conversation-status.enum";
 import { SupportTicketPriority } from "../../tickets/support-ticket-priority.enum";
 import { SupportTicketStatus } from "../../tickets/support-ticket-status.enum";
+import { SupportTicketActivityAction } from "../../tickets/support-ticket-activity-action.enum";
 
 export class UserResponseDto {
   @ApiProperty({ format: "uuid" })
@@ -181,12 +182,44 @@ export class SupportTicketRequesterResponseDto {
   email!: string;
 }
 
+export class SupportTicketActivityResponseDto {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty({ format: "uuid" })
+  ticketId!: string;
+
+  @ApiPropertyOptional({ format: "uuid", nullable: true })
+  actorId!: string | null;
+
+  @ApiProperty({ enum: SupportTicketActivityAction })
+  action!: SupportTicketActivityAction;
+
+  @ApiPropertyOptional({ nullable: true })
+  fromValue!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  toValue!: string | null;
+
+  @ApiProperty({ format: "date-time" })
+  createdAt!: string;
+
+  @ApiPropertyOptional({
+    type: SupportTicketRequesterResponseDto,
+    nullable: true,
+  })
+  actor!: SupportTicketRequesterResponseDto | null;
+}
+
 export class SupportTicketResponseDto {
   @ApiProperty({ format: "uuid" })
   id!: string;
 
   @ApiProperty({ format: "uuid" })
   requesterId!: string;
+
+  @ApiPropertyOptional({ format: "uuid", nullable: true })
+  assignedAdminId!: string | null;
 
   @ApiProperty({ example: "I cannot join the release group" })
   subject!: string;
@@ -203,6 +236,9 @@ export class SupportTicketResponseDto {
   @ApiPropertyOptional({ nullable: true })
   adminNote!: string | null;
 
+  @ApiProperty({ minimum: 1 })
+  version!: number;
+
   @ApiProperty({ format: "date-time" })
   createdAt!: string;
 
@@ -217,6 +253,15 @@ export class SupportTicketResponseDto {
     nullable: true,
   })
   requester!: SupportTicketRequesterResponseDto | null;
+
+  @ApiPropertyOptional({
+    type: SupportTicketRequesterResponseDto,
+    nullable: true,
+  })
+  assignedAdmin!: SupportTicketRequesterResponseDto | null;
+
+  @ApiProperty({ type: [SupportTicketActivityResponseDto] })
+  activities!: SupportTicketActivityResponseDto[];
 }
 
 export class SupportTicketListResponseDto {

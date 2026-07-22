@@ -385,19 +385,44 @@ Priority degerleri: `low`, `medium`, `high`.
 
 - Normal kullanici sadece kendi taleplerini gorur.
 - Admin tum talepleri gorur.
-- `status`, `priority`, `search`, `limit` ve `offset` query alanlari desteklenir.
+- `status`, `priority`, `search`, `assignment`, `limit` ve `offset` query
+  alanlari desteklenir.
+- Admin icin `assignment`: `all`, `mine` veya `unassigned` olabilir.
 
 `GET /api/tickets/{ticketId}`
 
 Normal kullanici sadece kendi ticket detayini, admin tum ticket detaylarini
 gorur.
 
-`PATCH /api/tickets/{ticketId}`
+`POST /api/tickets/{ticketId}/claim`
 
-Sadece admin kullanabilir:
+Sahipsiz ticket'i mevcut admine atar:
 
 ```json
 {
+  "expectedVersion": 1
+}
+```
+
+`PATCH /api/tickets/{ticketId}/assignee`
+
+Her global admin ticket'i baska bir admine devredebilir veya `null` ile ortak
+havuza geri birakabilir:
+
+```json
+{
+  "adminId": "admin-user-uuid",
+  "expectedVersion": 2
+}
+```
+
+`PATCH /api/tickets/{ticketId}`
+
+Sadece ticket'a atanmis admin kullanabilir:
+
+```json
+{
+  "expectedVersion": 2,
   "status": "resolved",
   "priority": "high",
   "adminNote": "Erisim kaydi yenilendi ve sorun giderildi."
@@ -407,6 +432,11 @@ Sadece admin kullanabilir:
 Status degerleri: `open`, `in_progress`, `resolved`, `closed`. `resolved` veya
 `closed` durumunda `resolvedAt` otomatik atanir; ticket yeniden acilirsa
 temizlenir.
+
+Her atama, devretme, durum, oncelik ve cevap degisikligi actor ve zaman
+bilgisiyle `activities` listesine yazilir. Guncelleme isteklerindeki
+`expectedVersion` mevcut ticket `version` degeriyle uyusmazsa API `409 Conflict`
+dondurur; istemci ticket'i yenileyip tekrar denemelidir.
 
 ## Dis Uygulama Bot Otomasyonu
 

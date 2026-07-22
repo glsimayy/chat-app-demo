@@ -3,8 +3,18 @@ import { Type } from "class-transformer";
 import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from "class-validator";
 import { SupportTicketPriority } from "../support-ticket-priority.enum";
 import { SupportTicketStatus } from "../support-ticket-status.enum";
+import { SupportTicketAssignmentFilter } from "../support-ticket-assignment-filter.enum";
 
 export class FindSupportTicketsQueryDto {
+  @ApiPropertyOptional({
+    enum: SupportTicketAssignmentFilter,
+    default: SupportTicketAssignmentFilter.All,
+  })
+  @IsOptional()
+  @IsEnum(SupportTicketAssignmentFilter)
+  assignment?: SupportTicketAssignmentFilter =
+    SupportTicketAssignmentFilter.All;
+
   @ApiPropertyOptional({ enum: SupportTicketStatus })
   @IsOptional()
   @IsEnum(SupportTicketStatus)

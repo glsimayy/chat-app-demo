@@ -1,9 +1,21 @@
-import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsEnum, IsOptional, IsString, MaxLength } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+} from "class-validator";
 import { SupportTicketPriority } from "../support-ticket-priority.enum";
 import { SupportTicketStatus } from "../support-ticket-status.enum";
 
 export class UpdateSupportTicketDto {
+  @ApiProperty({ minimum: 1, example: 2 })
+  @IsInt()
+  @Min(1)
+  expectedVersion!: number;
+
   @ApiPropertyOptional({ enum: SupportTicketStatus })
   @IsOptional()
   @IsEnum(SupportTicketStatus)

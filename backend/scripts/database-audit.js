@@ -21,8 +21,12 @@ const EXPECTED_INDEXES = [
   "messages_senderId_clientMessageId_key",
   "messages_senderId_idx",
   "support_tickets_pkey",
+  "support_tickets_assignedAdminId_status_idx",
   "support_tickets_requesterId_createdAt_idx",
   "support_tickets_status_priority_idx",
+  "support_ticket_activities_pkey",
+  "support_ticket_activities_actorId_idx",
+  "support_ticket_activities_ticketId_createdAt_idx",
   "users_email_key",
   "users_pkey",
   "users_role_idx",
@@ -37,6 +41,9 @@ const EXPECTED_FOREIGN_KEYS = new Map([
   ["messages_conversationId_fkey", "CASCADE"],
   ["messages_senderId_fkey", "SET NULL"],
   ["support_tickets_requesterId_fkey", "CASCADE"],
+  ["support_tickets_assignedAdminId_fkey", "SET NULL"],
+  ["support_ticket_activities_ticketId_fkey", "CASCADE"],
+  ["support_ticket_activities_actorId_fkey", "SET NULL"],
 ]);
 
 async function main() {
