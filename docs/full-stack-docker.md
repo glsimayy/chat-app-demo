@@ -42,8 +42,11 @@ Adresler:
 - Backend health: `http://localhost:3000/api/health`
 - Java health: `http://localhost:8080/health`
 - Java readiness: `http://localhost:8080/ready`
+- Swagger UI: `http://localhost:3000/api/docs`
 
-Production Compose profilinde Swagger, demo kullanicilar, dev reset ve demo UI
+Yerel Compose calismasinda Swagger varsayilan olarak aciktir. Production icin
+hazirlanan `.env.compose.example`, `SWAGGER_ENABLED=false` degeriyle Swagger'i
+kapatir. Demo kullanicilar, dev reset ve demo UI production profilinde
 kapalidir.
 
 Frontend API ve Socket.IO baglantilarini ayni origin uzerinden Nginx ile
