@@ -12,6 +12,7 @@ import { DevModule } from "./dev/dev.module";
 import { DatabaseModule } from "./database/database.module";
 import { HealthModule } from "./health/health.module";
 import { MetricsModule } from "./metrics/metrics.module";
+import { TicketsModule } from "./tickets/tickets.module";
 import { UsersModule } from "./users/users.module";
 
 @Module({
@@ -38,6 +39,7 @@ import { UsersModule } from "./users/users.module";
     ConversationsModule,
     ChatModule,
     BotModule,
+    TicketsModule,
     DevModule,
   ],
   providers: [

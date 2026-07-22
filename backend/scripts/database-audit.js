@@ -20,6 +20,9 @@ const EXPECTED_INDEXES = [
   "messages_pkey",
   "messages_senderId_clientMessageId_key",
   "messages_senderId_idx",
+  "support_tickets_pkey",
+  "support_tickets_requesterId_createdAt_idx",
+  "support_tickets_status_priority_idx",
   "users_email_key",
   "users_pkey",
   "users_role_idx",
@@ -33,6 +36,7 @@ const EXPECTED_FOREIGN_KEYS = new Map([
   ["conversation_participants_userId_fkey", "CASCADE"],
   ["messages_conversationId_fkey", "CASCADE"],
   ["messages_senderId_fkey", "SET NULL"],
+  ["support_tickets_requesterId_fkey", "CASCADE"],
 ]);
 
 async function main() {
@@ -48,8 +52,10 @@ async function main() {
       FROM pg_indexes
       WHERE schemaname = 'public'
     `;
-    const indexNames = new Set(indexes.map(row => row.indexname));
-    const missingIndexes = EXPECTED_INDEXES.filter(name => !indexNames.has(name));
+    const indexNames = new Set(indexes.map((row) => row.indexname));
+    const missingIndexes = EXPECTED_INDEXES.filter(
+      (name) => !indexNames.has(name),
+    );
 
     const foreignKeys = await prisma.$queryRaw`
       SELECT
@@ -63,7 +69,7 @@ async function main() {
         AND tc.constraint_type = 'FOREIGN KEY'
     `;
     const foreignKeyRules = new Map(
-      foreignKeys.map(row => [row.constraintName, row.deleteRule]),
+      foreignKeys.map((row) => [row.constraintName, row.deleteRule]),
     );
     const invalidForeignKeys = Array.from(EXPECTED_FOREIGN_KEYS).filter(
       ([name, rule]) => foreignKeyRules.get(name) !== rule,
@@ -92,7 +98,7 @@ async function main() {
   }
 }
 
-main().catch(error => {
+main().catch((error) => {
   console.error(`Database audit failed: ${error.message}`);
   process.exitCode = 1;
 });

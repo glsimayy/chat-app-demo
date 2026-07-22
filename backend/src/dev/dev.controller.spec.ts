@@ -1,6 +1,7 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ConversationsService } from "../conversations/conversations.service";
+import { TicketsService } from "../tickets/tickets.service";
 import { UsersService } from "../users/users.service";
 import { DevController } from "./dev.controller";
 
@@ -14,14 +15,19 @@ function createController(config: Record<string, string | undefined>) {
   const usersService = {
     clearAll: jest.fn().mockResolvedValue({ deletedUsers: 3 }),
   } as unknown as UsersService;
+  const ticketsService = {
+    clearAll: jest.fn().mockResolvedValue({ deletedTickets: 1 }),
+  } as unknown as TicketsService;
 
   return {
     controller: new DevController(
       configService,
       conversationsService,
+      ticketsService,
       usersService,
     ),
     conversationsService,
+    ticketsService,
     usersService,
   };
 }
@@ -50,20 +56,21 @@ describe("DevController", () => {
   });
 
   it("clears conversations and users with the configured secret", async () => {
-    const { controller, conversationsService, usersService } = createController(
-      {
+    const { controller, conversationsService, ticketsService, usersService } =
+      createController({
         DEV_ROUTES_ENABLED: "true",
         DEV_RESET_SECRET: "reset-secret",
-      },
-    );
+      });
 
     await expect(controller.resetInMemoryData("reset-secret")).resolves.toEqual(
       {
         conversations: { deletedConversations: 2 },
+        tickets: { deletedTickets: 1 },
         users: { deletedUsers: 3 },
       },
     );
     expect(conversationsService.clearAll).toHaveBeenCalledTimes(1);
+    expect(ticketsService.clearAll).toHaveBeenCalledTimes(1);
     expect(usersService.clearAll).toHaveBeenCalledTimes(1);
   });
 });

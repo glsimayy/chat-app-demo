@@ -270,6 +270,79 @@ async function main() {
   assert(user1.user.role === "user", "First test user role is incorrect");
   assert(user2.user.role === "user", "Second test user role is incorrect");
 
+  const ticketSubject = `Full-stack support ${crypto.randomUUID()}`;
+  const createdTicket = await expectRequest("POST", `${API_BASE_URL}/tickets`, {
+    token: user1.accessToken,
+    body: {
+      subject: ticketSubject,
+      message: "This ticket verifies the complete support request flow.",
+      priority: "high",
+    },
+  });
+  assert(createdTicket.data.status === "open", "New ticket is not open");
+
+  const otherUsersTickets = await expectRequest(
+    "GET",
+    `${API_BASE_URL}/tickets?search=${encodeURIComponent(ticketSubject)}`,
+    { token: user2.accessToken },
+  );
+  assert(
+    otherUsersTickets.data.items.length === 0,
+    "Regular user could see another user's ticket",
+  );
+
+  const forbiddenTicketUpdate = await request(
+    "PATCH",
+    `${API_BASE_URL}/tickets/${createdTicket.data.id}`,
+    {
+      token: user1.accessToken,
+      body: { status: "resolved" },
+    },
+  );
+  assert(
+    forbiddenTicketUpdate.status === 403,
+    "Regular user unexpectedly updated a ticket",
+  );
+
+  const adminTickets = await expectRequest(
+    "GET",
+    `${API_BASE_URL}/tickets?search=${encodeURIComponent(ticketSubject)}`,
+    { token: adminLogin.data.accessToken },
+  );
+  assert(
+    adminTickets.data.items.some(
+      (ticket) => ticket.id === createdTicket.data.id,
+    ),
+    "Admin could not find the new support ticket",
+  );
+
+  const resolvedTicket = await expectRequest(
+    "PATCH",
+    `${API_BASE_URL}/tickets/${createdTicket.data.id}`,
+    {
+      token: adminLogin.data.accessToken,
+      body: {
+        status: "resolved",
+        adminNote: "Full-stack support flow verified.",
+      },
+    },
+  );
+  assert(
+    resolvedTicket.data.status === "resolved" &&
+      resolvedTicket.data.adminNote === "Full-stack support flow verified.",
+    "Admin ticket resolution was not persisted",
+  );
+
+  const requesterTickets = await expectRequest(
+    "GET",
+    `${API_BASE_URL}/tickets?search=${encodeURIComponent(ticketSubject)}`,
+    { token: user1.accessToken },
+  );
+  assert(
+    requesterTickets.data.items[0]?.status === "resolved",
+    "Requester could not see the resolved ticket",
+  );
+
   const forbiddenGroup = await request(
     "POST",
     `${API_BASE_URL}/conversations/groups`,
@@ -447,6 +520,7 @@ async function main() {
           "ADMIN login and roles",
           "idempotent test user provisioning",
           "regular user authorization boundary",
+          "support ticket ownership and admin resolution",
           "direct Socket.IO delivery and retry idempotency",
           "Java webhook authentication",
           "ticket webhook group idempotency",

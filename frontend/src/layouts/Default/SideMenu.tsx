@@ -16,7 +16,7 @@ import { createSelector } from "reselect";
 import { useRedux } from "../../hooks/index";
 
 // actions
-import { changeTab } from "../../redux/actions";
+import { changeSelectedChat, changeTab } from "../../redux/actions";
 
 // costants
 import { TABS } from "../../constants/index";
@@ -78,6 +78,7 @@ interface MenuNavItemProps {
     | TABS.CALLS
     | TABS.CHAT
     | TABS.CONTACTS
+    | TABS.SUPPORT
     | TABS.SETTINGS
     | TABS.USERS;
   onChangeTab: (
@@ -86,6 +87,7 @@ interface MenuNavItemProps {
       | TABS.CALLS
       | TABS.CHAT
       | TABS.CONTACTS
+      | TABS.SUPPORT
       | TABS.SETTINGS
       | TABS.USERS,
   ) => void;
@@ -122,6 +124,7 @@ interface ProfileDropdownMenuProps {
       | TABS.CALLS
       | TABS.CHAT
       | TABS.CONTACTS
+      | TABS.SUPPORT
       | TABS.SETTINGS
       | TABS.USERS,
   ) => void;
@@ -225,6 +228,7 @@ const SideMenu = ({ onChangeLayoutMode }: any) => {
     | TABS.CALLS
     | TABS.CHAT
     | TABS.CONTACTS
+    | TABS.SUPPORT
     | TABS.SETTINGS
     | TABS.USERS
   >(TABS.CHAT);
@@ -234,11 +238,15 @@ const SideMenu = ({ onChangeLayoutMode }: any) => {
       | TABS.CALLS
       | TABS.CHAT
       | TABS.CONTACTS
+      | TABS.SUPPORT
       | TABS.SETTINGS
       | TABS.USERS,
   ) => {
     setSelectedTab(id);
     dispatch(changeTab(id));
+    if (id === TABS.SUPPORT) {
+      dispatch(changeSelectedChat(null));
+    }
   };
 
   useEffect(() => {

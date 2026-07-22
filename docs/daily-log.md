@@ -1,6 +1,15 @@
 # Daily Log
 
-## 22.07.2026 Carsamba - Full Stack Otomasyon Testi
+## 22.07.2026 Carsamba - Support Ticket ve Full Stack Testi
+
+- Database branchindeki sade konu, mesaj ve aciliyet formu ellO temasina uygun
+  ayri bir Support sekmesine donusturuldu.
+- Kullanicilar ticket olusturup yalnizca kendi kayitlarini gorebilir; admin tum
+  kayitlarda arama/filtreleme yapip durum, oncelik ve cevap notu guncelleyebilir.
+- `SupportTicket` Prisma modeli, PostgreSQL migration'i, Swagger kontrati ve
+  in-memory gelistirme destegi eklendi.
+- Ticket sahipligi ve admin cozumleme akisi unit test ve full-stack Docker testi
+  ile dogrulandi; masaustu ile mobil yerlesim kontrol edildi.
 
 - Yerel Docker Compose calismasinda Swagger varsayilan olarak acildi;
   production environment orneginde kapali tutuldu.
@@ -11,7 +20,7 @@
   retry idempotency kontrollerini kapsiyor.
 - Java ticket webhook secret kontrolu, idempotent otomasyon grubu, read-only
   member politikasi, group Socket.IO teslimi ve mesaj kaliciligi dogrulaniyor.
-- Tam komut production benzeri Docker stack uzerinde 12/12 kontrolle basarili
+- Tam komut production benzeri Docker stack uzerinde 13/13 kontrolle basarili
   calisti; production Node bagimlilik audit'i temiz gecti.
 
 ## 21.07.2026 Sali - Final Stack Entegrasyonu

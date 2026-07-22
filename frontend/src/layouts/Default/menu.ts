@@ -12,6 +12,7 @@ export interface MenuItemType {
     | TABS.CALLS
     | TABS.CHAT
     | TABS.CONTACTS
+    | TABS.SUPPORT
     | TABS.SETTINGS
     | TABS.USERS;
 }
@@ -54,6 +55,13 @@ const MENU_ITEMS: MenuItemType[] = [
   },
   {
     id: 6,
+    key: "pills-support-tab",
+    icon: "bx bx-support",
+    tooltipTitle: "Support",
+    tabId: TABS.SUPPORT,
+  },
+  {
+    id: 7,
     key: "pills-setting-tab",
     icon: "bx bx-cog",
     tooltipTitle: "Settings",

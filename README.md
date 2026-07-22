@@ -193,6 +193,8 @@ message akislarini gercek frontend, backend ve Socket.IO uzerinde kontrol eder.
 - Socket reconnect ve conversation sync
 - `clientMessageId` ile tekrar gonderim korumasi
 - Admin runtime metrics
+- Kullanici destek talebi olusturma ve kendi taleplerini takip etme
+- Admin destek taleplerinde arama, filtreleme, durum ve cevap yonetimi
 - Structured HTTP ve Socket.IO loglari
 - Dis uygulamadan bot grubu olusturma: `POST /api/bot/groups`
 - Otomasyon grubuna uye ekleme: `POST /api/bot/groups/:conversationId/participants`

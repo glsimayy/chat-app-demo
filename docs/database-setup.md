@@ -41,10 +41,10 @@ icin:
 npm run db:audit
 ```
 
-Backend `DATABASE_URL` tanimliysa kullanicilari, konusmalari, katilimcilari ve
-mesajlari Prisma ile PostgreSQL'e kaydeder. Degisken tanimli degilse yerel test
-ve hizli gelistirme icin in-memory moda geri doner. In-memory modda sunucu
-kapaninca veri silinir.
+Backend `DATABASE_URL` tanimliysa kullanicilari, konusmalari, katilimcilari,
+mesajlari ve destek taleplerini Prisma ile PostgreSQL'e kaydeder. Degisken
+tanimli degilse yerel test ve hizli gelistirme icin in-memory moda geri doner.
+In-memory modda sunucu kapaninca veri silinir.
 
 ## Model Ozeti
 
@@ -52,8 +52,9 @@ kapaninca veri silinir.
 - `Conversation`
 - `ConversationParticipant`
 - `Message`
+- `SupportTicket`
 - `UserRole`, `ConversationType`, `ParticipantRole`, `ConversationStatus` ve
-  `MessageType` enumlari
+  `MessageType`, `SupportTicketPriority`, `SupportTicketStatus` enumlari
 
 ## Dikkat Edilecek Noktalar
 
@@ -63,6 +64,7 @@ kapaninca veri silinir.
 - `messages.senderId` system mesajlari icin nullable olabilir.
 - `conversations.externalRef` unique'tir; ayni bot olayi ikinci bir grup olusturmaz.
 - Direct conversation tekrari uygulama katmaninda engellenir.
+- `support_tickets.requesterId` kullanici silindiginde cascade ile temizlenir.
 
 Detayli inceleme sonucu `docs/database-constraint-index-audit.md` dosyasindadir.
 

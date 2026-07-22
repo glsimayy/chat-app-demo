@@ -14,5 +14,6 @@ export enum TABS {
   CONTACTS = "pills-contacts",
   CALLS = "pills-calls",
   BOOKMARK = "pills-bookmark",
+  SUPPORT = "pills-support",
   SETTINGS = "pills-setting",
 }

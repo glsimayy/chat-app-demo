@@ -10,6 +10,7 @@ import { ApiHeader, ApiTags } from "@nestjs/swagger";
 import { ApiSuccessResponse } from "../common/swagger/api-success-response.decorator";
 import { DevResetResponseDto } from "../common/swagger/backend-response.dto";
 import { ConversationsService } from "../conversations/conversations.service";
+import { TicketsService } from "../tickets/tickets.service";
 import { UsersService } from "../users/users.service";
 
 @ApiTags("dev")
@@ -18,6 +19,7 @@ export class DevController {
   constructor(
     private readonly configService: ConfigService,
     private readonly conversationsService: ConversationsService,
+    private readonly ticketsService: TicketsService,
     private readonly usersService: UsersService,
   ) {}
 
@@ -43,8 +45,9 @@ export class DevController {
     }
 
     const conversations = await this.conversationsService.clearAll();
+    const tickets = await this.ticketsService.clearAll();
     const users = await this.usersService.clearAll();
 
-    return { conversations, users };
+    return { conversations, tickets, users };
   }
 }

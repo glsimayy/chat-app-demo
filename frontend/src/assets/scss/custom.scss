@@ -389,3 +389,214 @@ body[data-bs-theme="light"] .chat-leftsidebar .text-muted {
     color: var(--bs-body-color);
   }
 }
+
+.support-panel {
+  height: 100vh;
+
+  .support-panel-scroll {
+    height: calc(100vh - 76px);
+  }
+
+  h5 {
+    font-size: 14px;
+  }
+
+  label {
+    margin-bottom: 6px;
+    color: var(--bs-heading-color);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  textarea.form-control {
+    resize: vertical;
+  }
+}
+
+.support-create-section {
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.support-list-section {
+  padding-top: 22px;
+}
+
+.support-refresh-button {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+
+  i {
+    font-size: 18px;
+  }
+}
+
+.support-filters {
+  display: grid;
+  gap: 8px;
+}
+
+.support-ticket-list {
+  border-top: 1px solid var(--bs-border-color);
+}
+
+.support-ticket-item {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 14px 10px 14px 15px;
+  overflow: hidden;
+  border: 0;
+  border-bottom: 1px solid var(--bs-border-color);
+  background: transparent;
+  color: var(--bs-body-color);
+  text-align: left;
+
+  &::before {
+    position: absolute;
+    top: 14px;
+    bottom: 14px;
+    left: 0;
+    width: 3px;
+    border-radius: 2px;
+    background-color: var(--bs-secondary-color);
+    content: "";
+  }
+
+  &.priority-medium::before {
+    background-color: var(--bs-warning);
+  }
+
+  &.priority-high::before {
+    background-color: var(--bs-danger);
+  }
+
+  &:hover,
+  &:focus-visible {
+    background-color: var(--bs-tertiary-bg);
+  }
+}
+
+.support-ticket-heading,
+.support-ticket-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.support-ticket-heading strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--bs-heading-color);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.support-ticket-heading .badge {
+  flex-shrink: 0;
+}
+
+.support-ticket-requester,
+.support-ticket-preview,
+.support-ticket-meta {
+  display: block;
+  margin-top: 5px;
+  color: var(--bs-secondary-color);
+  font-size: 11px;
+}
+
+.support-ticket-requester {
+  color: var(--bs-primary);
+  font-weight: 600;
+}
+
+.support-ticket-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.support-ticket-meta {
+  display: flex;
+  flex-wrap: wrap;
+
+  time {
+    margin-left: auto;
+  }
+}
+
+.support-loading,
+.support-empty {
+  display: flex;
+  min-height: 110px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.support-empty {
+  flex-direction: column;
+
+  i {
+    font-size: 28px;
+  }
+}
+
+.support-ticket-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  color: var(--bs-secondary-color);
+  font-size: 12px;
+}
+
+.support-requester-detail,
+.support-admin-note {
+  padding: 12px;
+  margin-top: 16px;
+  border-left: 3px solid var(--bs-primary);
+  background-color: var(--bs-tertiary-bg);
+
+  strong,
+  span {
+    display: block;
+  }
+
+  span {
+    margin-top: 3px;
+    color: var(--bs-secondary-color);
+    font-size: 12px;
+  }
+}
+
+.support-ticket-message {
+  margin: 18px 0;
+  white-space: pre-wrap;
+}
+
+.support-admin-note p {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 991.98px) {
+  .support-panel {
+    height: calc(100vh - 60px);
+    height: calc(100dvh - 60px);
+
+    .support-panel-scroll {
+      height: calc(100vh - 136px);
+      height: calc(100dvh - 136px);
+    }
+  }
+}

@@ -35,6 +35,19 @@ enum MessageType {
   system
 }
 
+enum SupportTicketPriority {
+  low
+  medium
+  high
+}
+
+enum SupportTicketStatus {
+  open
+  in_progress
+  resolved
+  closed
+}
+
 model User {
   id                   String                    @id @default(uuid()) @db.Uuid
   email                String                    @unique
@@ -49,9 +62,28 @@ model User {
   conversationsCreated Conversation[]            @relation("ConversationCreator")
   messages             Message[]
   participants         ConversationParticipant[]
+  supportTickets       SupportTicket[]
 
   @@index([role])
   @@map("users")
+}
+
+model SupportTicket {
+  id          String                @id @default(uuid()) @db.Uuid
+  requesterId String                @db.Uuid
+  subject     String
+  message     String                @db.Text
+  priority    SupportTicketPriority @default(medium)
+  status      SupportTicketStatus   @default(open)
+  adminNote   String?               @db.Text
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  resolvedAt  DateTime?
+  requester   User                  @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+
+  @@index([requesterId, createdAt])
+  @@index([status, priority])
+  @@map("support_tickets")
 }
 
 model Conversation {

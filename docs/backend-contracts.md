@@ -363,6 +363,51 @@ dondurebilir.
 }
 ```
 
+## Support Tickets
+
+Tum support ticket endpointleri JWT ister.
+
+`POST /api/tickets`
+
+Normal kullanici veya admin yeni destek talebi olusturabilir:
+
+```json
+{
+  "subject": "Release grubuna katilamiyorum",
+  "message": "Grup aciliyor ancak katilma islemi hata veriyor.",
+  "priority": "high"
+}
+```
+
+Priority degerleri: `low`, `medium`, `high`.
+
+`GET /api/tickets`
+
+- Normal kullanici sadece kendi taleplerini gorur.
+- Admin tum talepleri gorur.
+- `status`, `priority`, `search`, `limit` ve `offset` query alanlari desteklenir.
+
+`GET /api/tickets/{ticketId}`
+
+Normal kullanici sadece kendi ticket detayini, admin tum ticket detaylarini
+gorur.
+
+`PATCH /api/tickets/{ticketId}`
+
+Sadece admin kullanabilir:
+
+```json
+{
+  "status": "resolved",
+  "priority": "high",
+  "adminNote": "Erisim kaydi yenilendi ve sorun giderildi."
+}
+```
+
+Status degerleri: `open`, `in_progress`, `resolved`, `closed`. `resolved` veya
+`closed` durumunda `resolvedAt` otomatik atanir; ticket yeniden acilirsa
+temizlenir.
+
 ## Dis Uygulama Bot Otomasyonu
 
 Java servisi, Postman, Swagger veya baska bir guvenilir servis bu endpointleri

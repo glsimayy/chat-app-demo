@@ -4,6 +4,8 @@ import { ConversationType } from "../../conversations/conversation-type.enum";
 import { MessageType } from "../../conversations/message-type.enum";
 import { ParticipantRole } from "../../conversations/participant-role.enum";
 import { ConversationStatus } from "../../conversations/conversation-status.enum";
+import { SupportTicketPriority } from "../../tickets/support-ticket-priority.enum";
+import { SupportTicketStatus } from "../../tickets/support-ticket-status.enum";
 
 export class UserResponseDto {
   @ApiProperty({ format: "uuid" })
@@ -168,6 +170,63 @@ export class OffsetPageInfoResponseDto {
   hasMore!: boolean;
 }
 
+export class SupportTicketRequesterResponseDto {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty({ example: "emir" })
+  username!: string;
+
+  @ApiProperty({ example: "emir@example.com" })
+  email!: string;
+}
+
+export class SupportTicketResponseDto {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty({ format: "uuid" })
+  requesterId!: string;
+
+  @ApiProperty({ example: "I cannot join the release group" })
+  subject!: string;
+
+  @ApiProperty({ example: "The group opens, but joining returns an error." })
+  message!: string;
+
+  @ApiProperty({ enum: SupportTicketPriority })
+  priority!: SupportTicketPriority;
+
+  @ApiProperty({ enum: SupportTicketStatus })
+  status!: SupportTicketStatus;
+
+  @ApiPropertyOptional({ nullable: true })
+  adminNote!: string | null;
+
+  @ApiProperty({ format: "date-time" })
+  createdAt!: string;
+
+  @ApiProperty({ format: "date-time" })
+  updatedAt!: string;
+
+  @ApiPropertyOptional({ format: "date-time", nullable: true })
+  resolvedAt!: string | null;
+
+  @ApiPropertyOptional({
+    type: SupportTicketRequesterResponseDto,
+    nullable: true,
+  })
+  requester!: SupportTicketRequesterResponseDto | null;
+}
+
+export class SupportTicketListResponseDto {
+  @ApiProperty({ type: [SupportTicketResponseDto] })
+  items!: SupportTicketResponseDto[];
+
+  @ApiProperty({ type: OffsetPageInfoResponseDto })
+  pageInfo!: OffsetPageInfoResponseDto;
+}
+
 export class ConversationListResponseDto {
   @ApiProperty({ type: [ConversationSummaryResponseDto] })
   items!: ConversationSummaryResponseDto[];
@@ -253,6 +312,9 @@ export class HealthResponseDto {
 export class DevResetResponseDto {
   @ApiProperty({ type: Object })
   conversations!: Record<string, number>;
+
+  @ApiProperty({ type: Object })
+  tickets!: Record<string, number>;
 
   @ApiProperty({ type: Object })
   users!: Record<string, number>;
