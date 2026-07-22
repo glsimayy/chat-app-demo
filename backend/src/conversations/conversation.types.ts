@@ -39,4 +39,20 @@ export interface MessageRecord {
   createdAt: Date;
   updatedAt: Date | null;
   deletedAt: Date | null;
+  attachments?: MessageAttachmentRecord[];
+}
+
+export interface MessageAttachmentRecord {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  createdAt: Date;
+}
+
+export interface UploadedMessageFile {
+  originalname: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
 }

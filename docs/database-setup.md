@@ -52,6 +52,7 @@ In-memory modda sunucu kapaninca veri silinir.
 - `Conversation`
 - `ConversationParticipant`
 - `Message`
+- `MessageAttachment`
 - `SupportTicket`
 - `SupportTicketActivity`
 - `UserRole`, `ConversationType`, `ParticipantRole`, `ConversationStatus` ve
@@ -64,6 +65,11 @@ In-memory modda sunucu kapaninca veri silinir.
 - `leftAt` soft leave icin kullanilir.
 - `messages.deletedAt` soft delete icin kullanilir.
 - `messages.senderId` system mesajlari icin nullable olabilir.
+- `message_attachments.data` dosya icerigini PostgreSQL `bytea` olarak tutar.
+- Attachment metadata mesaj listesinde dondurulur; binary icerik yalnizca
+  katilimci kontrollu download endpointiyle okunur.
+- Mesaj silindiginde iliskili attachment verisi de temizlenir; conversation
+  silindiginde foreign key `CASCADE` uygulanir.
 - `conversations.externalRef` unique'tir; ayni bot olayi ikinci bir grup olusturmaz.
 - Direct conversation tekrari uygulama katmaninda engellenir.
 - `support_tickets.requesterId` kullanici silindiginde cascade ile temizlenir.

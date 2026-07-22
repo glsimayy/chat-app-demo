@@ -19,6 +19,7 @@ const MoreMenu = ({
     const files = [...e.target.files];
     if (files) {
       onSelectImages(files);
+      e.target.value = "";
       onToggle();
     }
   };
@@ -27,6 +28,7 @@ const MoreMenu = ({
     const files = [...e.target.files];
     if (files) {
       onSelectFiles(files);
+      e.target.value = "";
       onToggle();
     }
   };
@@ -48,6 +50,7 @@ const MoreMenu = ({
                     id="attachedfile-input"
                     type="file"
                     className="d-none"
+                    accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain"
                     onChange={(e: any) => onSelectF(e)}
                     multiple
                   />
@@ -90,7 +93,7 @@ const MoreMenu = ({
                     id="attached-image-input"
                     type="file"
                     className="d-none"
-                    accept="image/png, image/jpeg"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
                     onChange={(e: any) => onSelect(e)}
                     multiple
                   />

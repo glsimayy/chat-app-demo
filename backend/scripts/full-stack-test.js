@@ -452,6 +452,63 @@ async function main() {
     );
     await duplicatePromise;
 
+    const attachmentClientMessageId = crypto.randomUUID();
+    const attachmentBytes = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZlVQAAAAASUVORK5CYII=",
+      "base64",
+    );
+    const attachmentEventPromise = waitForSocketEvent(
+      user1Socket,
+      "message:new",
+      (message) => message?.clientMessageId === attachmentClientMessageId,
+    );
+    const attachmentForm = new FormData();
+    attachmentForm.append("content", "Full-stack persistent attachment");
+    attachmentForm.append("clientMessageId", attachmentClientMessageId);
+    attachmentForm.append(
+      "files",
+      new Blob([attachmentBytes], { type: "image/png" }),
+      "full-stack.png",
+    );
+    const attachmentUpload = await fetch(
+      `${API_BASE_URL}/conversations/${direct.data.id}/messages/attachments`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${adminLogin.data.accessToken}`,
+        },
+        body: attachmentForm,
+      },
+    );
+    const attachmentPayload = await attachmentUpload.json();
+    assert(
+      attachmentUpload.status === 201,
+      `Attachment upload failed: ${JSON.stringify(attachmentPayload)}`,
+    );
+    const attachmentMessage = attachmentPayload.data;
+    const attachmentEvent = await attachmentEventPromise;
+    assert(
+      attachmentEvent.attachments?.[0]?.fileName === "full-stack.png",
+      "Attachment message was not delivered in realtime",
+    );
+    assert(
+      attachmentMessage.attachments?.[0]?.data === undefined,
+      "Attachment binary leaked into the message response",
+    );
+    const attachmentDownload = await fetch(
+      `${API_BASE_URL}/conversations/${direct.data.id}/attachments/${attachmentMessage.attachments[0].id}`,
+      {
+        headers: { authorization: `Bearer ${user1.accessToken}` },
+      },
+    );
+    const downloadedAttachment = Buffer.from(
+      await attachmentDownload.arrayBuffer(),
+    );
+    assert(
+      attachmentDownload.ok && downloadedAttachment.equals(attachmentBytes),
+      "Stored attachment could not be downloaded by the recipient",
+    );
+
     const ticketId = `FULLSTACK-${crypto.randomUUID()}`;
     const webhookPayload = {
       eventType: "ticket.created",
@@ -564,6 +621,7 @@ async function main() {
           "regular user authorization boundary",
           "support ticket assignment, conflict protection and admin resolution",
           "direct Socket.IO delivery and retry idempotency",
+          "persistent attachment upload, realtime delivery and download",
           "Java webhook authentication",
           "ticket webhook group idempotency",
           "read-only automation group policy",

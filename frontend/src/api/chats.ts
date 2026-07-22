@@ -183,16 +183,26 @@ const getChatUserConversations = async (id: string | number) => {
 
 const sendMessage = (data: any) => {
   const conversationId = data?.meta?.receiver;
-  const content =
-    data?.text ||
-    (data?.attachments?.length ? "[attachment]" : "") ||
-    (data?.image?.length || data?.newimage?.length ? "[image]" : "");
+  const content = data?.text || "";
+
+  if (data?.files?.length) {
+    return api.createWithFile(
+      `/conversations/${conversationId}/messages/attachments`,
+      {
+        content,
+        clientMessageId: data?.clientMessageId,
+        files: data.files,
+      },
+    );
+  }
 
   return api.create(`/conversations/${conversationId}/messages`, {
     content,
     clientMessageId: data?.clientMessageId,
   });
 };
+
+const getAttachmentBlob = (downloadPath: string) => api.getBlob(downloadPath);
 
 const receiveMessage = (id: string | number) => getChatUserConversations(id);
 
@@ -284,6 +294,7 @@ export {
   getChatUserDetails,
   getChatUserConversations,
   sendMessage,
+  getAttachmentBlob,
   receiveMessage,
   readMessage,
   receiveMessageFromUser,

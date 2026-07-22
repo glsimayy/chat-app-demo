@@ -4,15 +4,20 @@ import img1 from "../assets/images/small/img-1.jpg";
 import img2 from "../assets/images/small/img-2.jpg";
 
 export interface AttachmentTypes {
-  id: number;
+  id: string | number;
   name: string;
   downloadLink: string;
   desc: string;
+  requiresAuth?: boolean;
+  mimeType?: string;
 }
 
 export interface ImageTypes {
-  id: number;
+  id: string | number;
   downloadLink: string;
+  requiresAuth?: boolean;
+  mimeType?: string;
+  name?: string;
 }
 export interface MessagesTypes {
   mId: string | number;

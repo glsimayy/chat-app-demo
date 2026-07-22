@@ -11,6 +11,17 @@ import Reply from "./Reply";
 // interface
 import { MessagesTypes } from "../../../../data/messages";
 
+const MAX_ATTACHMENT_COUNT = 5;
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+const ALLOWED_ATTACHMENT_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "application/pdf",
+  "text/plain",
+]);
+
 interface IndexProps {
   onSend: (data: any) => void;
   onTyping: (value: string) => void;
@@ -56,16 +67,47 @@ const Index = ({
   images
   */
   const [images, setImages] = useState<Array<any> | null | undefined>();
-  const onSelectImages = (images: Array<any>) => {
-    setImages(images);
-  };
+  const [selectionError, setSelectionError] = useState("");
 
   /*
   files
   */
   const [files, setFiles] = useState<Array<any> | null | undefined>();
-  const onSelectFiles = (files: Array<any>) => {
-    setFiles(files);
+  const applySelection = (nextImages: File[], nextFiles: File[]) => {
+    const selected = [...nextImages, ...nextFiles];
+
+    if (selected.length > MAX_ATTACHMENT_COUNT) {
+      setSelectionError(
+        `You can attach at most ${MAX_ATTACHMENT_COUNT} files to one message.`,
+      );
+      return;
+    }
+
+    const oversized = selected.find(file => file.size > MAX_ATTACHMENT_BYTES);
+
+    if (oversized) {
+      setSelectionError(`${oversized.name} is larger than 5 MB.`);
+      return;
+    }
+
+    const unsupported = selected.find(
+      file => !ALLOWED_ATTACHMENT_TYPES.has(file.type),
+    );
+
+    if (unsupported) {
+      setSelectionError(`${unsupported.name} has an unsupported file type.`);
+      return;
+    }
+
+    setSelectionError("");
+    setImages(nextImages);
+    setFiles(nextFiles);
+  };
+  const onSelectImages = (selectedImages: File[]) => {
+    applySelection(selectedImages, (files || []) as File[]);
+  };
+  const onSelectFiles = (selectedFiles: File[]) => {
+    applySelection((images || []) as File[], selectedFiles);
   };
   useEffect(() => {
     if (text || images || files) {
@@ -89,34 +131,17 @@ const Index = ({
     if (text) {
       data["text"] = text;
     }
-    if (images && images.length) {
-      const imgs = (images || []).map((i: any, key: number) => {
-        const src = URL.createObjectURL(i);
-        return {
-          id: key + 1,
-          downloadLink: src,
-        };
-      });
-      data["image"] = imgs;
-    }
+    const selectedFiles = [...(images || []), ...(files || [])];
 
-    if (files && files.length) {
-      const fs = (files || []).map((f: any, key: number) => {
-        const src = URL.createObjectURL(f);
-        return {
-          id: key + 1,
-          name: f.name,
-          downloadLink: src,
-          desc: f.size,
-        };
-      });
-      data["attachments"] = fs;
+    if (selectedFiles.length) {
+      data["files"] = selectedFiles;
     }
 
     setText("");
     onTyping("");
     setImages(null);
     setFiles(null);
+    setSelectionError("");
     setemojiPicker(false);
     onSend(data);
   };
@@ -124,6 +149,7 @@ const Index = ({
   const onClearMedia = () => {
     setImages(null);
     setFiles(null);
+    setSelectionError("");
   };
 
   if (!canSend) {
@@ -181,6 +207,12 @@ const Index = ({
           </p>
         </Alert>
       ) : null}
+
+      {selectionError && (
+        <Alert color="danger" className="font-size-12 mt-2 mb-0">
+          {selectionError}
+        </Alert>
+      )}
 
       <MoreMenu
         isOpen={isOpen}

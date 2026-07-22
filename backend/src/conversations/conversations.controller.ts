@@ -7,9 +7,20 @@ import {
   Patch,
   Post,
   Query,
+  StreamableFile,
   UseGuards,
+  UseInterceptors,
+  UploadedFiles,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOkResponse,
+  ApiProduces,
+  ApiTags,
+} from "@nestjs/swagger";
+import { FilesInterceptor } from "@nestjs/platform-express";
 import { AuthenticatedUser } from "../auth/authenticated-user.interface";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -28,10 +39,16 @@ import {
 } from "../common/swagger/backend-response.dto";
 import { UserRole } from "../users/user-role.enum";
 import { ConversationsService } from "./conversations.service";
+import {
+  MAX_MESSAGE_ATTACHMENT_BYTES,
+  MAX_MESSAGE_ATTACHMENTS,
+} from "./attachment.config";
+import { UploadedMessageFile } from "./conversation.types";
 import { AddParticipantDto } from "./dto/add-participant.dto";
 import { CreateDirectConversationDto } from "./dto/create-direct-conversation.dto";
 import { CreateGroupConversationDto } from "./dto/create-group-conversation.dto";
 import { CreateMessageDto } from "./dto/create-message.dto";
+import { CreateMessageWithAttachmentsDto } from "./dto/create-message-with-attachments.dto";
 import { FindConversationsQueryDto } from "./dto/find-conversations-query.dto";
 import { FindMessagesQueryDto } from "./dto/find-messages-query.dto";
 import { SearchMessagesQueryDto } from "./dto/search-messages-query.dto";
@@ -157,6 +174,84 @@ export class ConversationsController {
       user.id,
       dto,
     );
+  }
+
+  @Post(":conversationId/messages/attachments")
+  @UseInterceptors(
+    FilesInterceptor("files", MAX_MESSAGE_ATTACHMENTS, {
+      limits: { fileSize: MAX_MESSAGE_ATTACHMENT_BYTES },
+    }),
+  )
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        content: { type: "string", maxLength: 2000 },
+        clientMessageId: { type: "string", format: "uuid" },
+        files: {
+          type: "array",
+          maxItems: MAX_MESSAGE_ATTACHMENTS,
+          items: { type: "string", format: "binary" },
+        },
+      },
+      required: ["files"],
+    },
+  })
+  @ApiSuccessResponse(MessageResponseDto, {
+    description: "Message with persistent attachments created",
+    status: 201,
+  })
+  createMessageWithAttachments(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("conversationId") conversationId: string,
+    @Body() dto: CreateMessageWithAttachmentsDto,
+    @UploadedFiles() files: UploadedMessageFile[] = [],
+  ) {
+    return this.conversationsService.createMessageWithAttachments(
+      conversationId,
+      user.id,
+      dto,
+      files,
+    );
+  }
+
+  @Get(":conversationId/attachments/:attachmentId")
+  @ApiProduces(
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "application/pdf",
+    "text/plain",
+  )
+  @ApiOkResponse({
+    description: "Attachment content",
+    schema: { type: "string", format: "binary" },
+  })
+  async downloadAttachment(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("conversationId") conversationId: string,
+    @Param("attachmentId") attachmentId: string,
+  ) {
+    const { attachment, data } = await this.conversationsService.getAttachment(
+      conversationId,
+      attachmentId,
+      user.id,
+    );
+    const disposition = attachment.mimeType.startsWith("image/")
+      ? "inline"
+      : "attachment";
+    const encodedFileName = encodeURIComponent(attachment.fileName).replace(
+      /'/g,
+      "%27",
+    );
+
+    return new StreamableFile(data, {
+      type: attachment.mimeType,
+      length: attachment.fileSize,
+      disposition: `${disposition}; filename*=UTF-8''${encodedFileName}`,
+    });
   }
 
   @Get(":conversationId/messages")

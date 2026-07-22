@@ -15,8 +15,15 @@
 - Yalnizca atanan admin ticket detaylarini degistirebilir; her islem actor ve
   zaman bilgisiyle activity gecmisine kaydedilir.
 - Optimistic `version` kontroluyle eski ekrandan yapilan guncellemeler `409
-  Conflict` alir. Unit testler 34/34, database audit 28 index / 10 foreign key
+  Conflict` alir. Unit testler 34/34, database audit 30 index / 11 foreign key
   ve full-stack Docker kontrolu temiz gecti.
+- Mesajlara JPEG, PNG, GIF, WebP, PDF ve text attachment yukleme eklendi.
+  Binary icerik PostgreSQL'de tutuluyor; metadata mesajla birlikte geliyor ve
+  download endpointi conversation katilimciligini kontrol ediyor.
+- Frontenddeki gecici `[image]` placeholder akisi gercek multipart upload,
+  kimlik dogrulamali gorsel onizleme ve dosya indirme akisi ile degistirildi.
+- E2E ortaminda local `.env` veritabaninin yanlislikla temizlenmesini onlemek
+  icin `DATABASE_URL` testlerde kesin olarak in-memory moda sabitlendi.
 
 - Yerel Docker Compose calismasinda Swagger varsayilan olarak acildi;
   production environment orneginde kapali tutuldu.
@@ -27,7 +34,7 @@
   retry idempotency kontrollerini kapsiyor.
 - Java ticket webhook secret kontrolu, idempotent otomasyon grubu, read-only
   member politikasi, group Socket.IO teslimi ve mesaj kaliciligi dogrulaniyor.
-- Tam komut production benzeri Docker stack uzerinde 13/13 kontrolle basarili
+- Tam komut production benzeri Docker stack uzerinde 14/14 kontrolle basarili
   calisti; production Node bagimlilik audit'i temiz gecti.
 
 ## 21.07.2026 Sali - Final Stack Entegrasyonu

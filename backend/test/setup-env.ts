@@ -1,4 +1,5 @@
 process.env.NODE_ENV = "test";
+process.env.DATABASE_URL = "";
 process.env.API_PREFIX = "api";
 process.env.CORS_ORIGIN = "http://localhost:5173,http://127.0.0.1:5173";
 process.env.SWAGGER_ENABLED = "false";

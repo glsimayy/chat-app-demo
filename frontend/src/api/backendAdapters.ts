@@ -179,6 +179,28 @@ export const mapMessage = (message: any, users: Array<any> = []) => {
         location: "",
         isBot: false,
       };
+  const storedAttachments = isDeleted ? [] : message.attachments || [];
+  const attachmentPath = (attachmentId: string) =>
+    `/conversations/${message.conversationId}/attachments/${attachmentId}`;
+  const images = storedAttachments
+    .filter((attachment: any) => attachment.mimeType?.startsWith("image/"))
+    .map((attachment: any) => ({
+      id: attachment.id,
+      downloadLink: attachmentPath(attachment.id),
+      requiresAuth: true,
+      mimeType: attachment.mimeType,
+      name: attachment.fileName,
+    }));
+  const files = storedAttachments
+    .filter((attachment: any) => !attachment.mimeType?.startsWith("image/"))
+    .map((attachment: any) => ({
+      id: attachment.id,
+      name: attachment.fileName,
+      downloadLink: attachmentPath(attachment.id),
+      requiresAuth: true,
+      mimeType: attachment.mimeType,
+      desc: formatFileSize(attachment.fileSize),
+    }));
 
   return {
     mId: message.id,
@@ -188,6 +210,8 @@ export const mapMessage = (message: any, users: Array<any> = []) => {
     isEdited: Boolean(message.updatedAt) && !isDeleted,
     isDeleted,
     messageType: message.messageType,
+    image: images,
+    attachments: files,
     meta: {
       receiver: message.conversationId,
       sender: message.senderId || "system",
@@ -197,4 +221,21 @@ export const mapMessage = (message: any, users: Array<any> = []) => {
       read: true,
     },
   };
+};
+
+const formatFileSize = (bytes: number) => {
+  if (!Number.isFinite(bytes) || bytes < 1024) {
+    return `${Math.max(0, bytes || 0)} B`;
+  }
+
+  const units = ["KB", "MB", "GB"];
+  let value = bytes / 1024;
+  let unit = units[0];
+
+  for (let index = 1; index < units.length && value >= 1024; index += 1) {
+    value /= 1024;
+    unit = units[index];
+  }
+
+  return `${value.toFixed(value >= 10 ? 0 : 1)} ${unit}`;
 };

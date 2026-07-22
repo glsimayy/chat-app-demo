@@ -17,7 +17,7 @@ import { MessagesTypes } from "../../../data/messages";
 import ForwardModal from "../../../components/ForwardModal";
 
 // actions
-import { forwardMessage, deleteImage } from "../../../redux/actions";
+import { forwardMessage } from "../../../redux/actions";
 interface ConversationProps {
   chatUserConversations: any;
   chatUserDetails: any;
@@ -40,14 +40,15 @@ const Conversation = ({
   const { userProfile } = useProfile();
 
   const errorData = createSelector(
-    (state : any) => state.Chats,
-    (state) => ({
+    (state: any) => state.Chats,
+    state => ({
       getUserConversationsLoading: state.getUserConversationsLoading,
       isMessageForwarded: state.isMessageForwarded,
-    })
+    }),
   );
   // Inside your component
-  const { getUserConversationsLoading,isMessageForwarded } = useAppSelector(errorData);
+  const { getUserConversationsLoading, isMessageForwarded } =
+    useAppSelector(errorData);
 
   const messages =
     chatUserConversations.messages && chatUserConversations.messages.length
@@ -110,15 +111,6 @@ const Conversation = ({
     }
   }, [isMessageForwarded]);
 
-  /*
-  image delete
-  */
-  const onDeleteImage = (
-    messageId: string | number,
-    imageId: string | number
-  ) => {
-    dispatch(deleteImage(chatUserDetails.id, messageId, imageId));
-  };
   return (
     <AppSimpleBar
       scrollRef={ref}
@@ -142,7 +134,6 @@ const Conversation = ({
               isFromMe={isFromMe}
               onOpenForward={onOpenForward}
               isChannel={isChannel}
-              onDeleteImage={onDeleteImage}
             />
           );
         })}

@@ -113,6 +113,7 @@ tamamini birlikte kontrol eder:
 - Socket.IO presence
 - reconnect conversation sync
 - idempotent message retry
+- PostgreSQL-backed image/file attachments with participant-only downloads
 - bot group create
 - group rename
 

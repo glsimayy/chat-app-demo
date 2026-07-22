@@ -165,17 +165,18 @@ model ConversationParticipant {
 }
 
 model Message {
-  id              String       @id @default(uuid()) @db.Uuid
-  clientMessageId String?      @db.Uuid
-  conversationId  String       @db.Uuid
-  senderId        String?      @db.Uuid
+  id              String              @id @default(uuid()) @db.Uuid
+  clientMessageId String?             @db.Uuid
+  conversationId  String              @db.Uuid
+  senderId        String?             @db.Uuid
   content         String
-  messageType     MessageType  @default(user)
-  createdAt       DateTime     @default(now())
+  messageType     MessageType         @default(user)
+  createdAt       DateTime            @default(now())
   updatedAt       DateTime?
   deletedAt       DateTime?
-  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender          User?        @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  conversation    Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender          User?               @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  attachments     MessageAttachment[]
 
   @@unique([senderId, clientMessageId])
   @@index([conversationId, createdAt])
@@ -183,4 +184,18 @@ model Message {
   @@index([messageType])
   @@index([deletedAt])
   @@map("messages")
+}
+
+model MessageAttachment {
+  id        String   @id @default(uuid()) @db.Uuid
+  messageId String   @db.Uuid
+  fileName  String
+  mimeType  String
+  fileSize  Int
+  data      Bytes
+  createdAt DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("message_attachments")
 }

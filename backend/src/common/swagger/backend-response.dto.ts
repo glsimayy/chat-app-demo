@@ -70,6 +70,23 @@ export class ConversationParticipantResponseDto {
   leftAt!: string | null;
 }
 
+export class MessageAttachmentResponseDto {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty({ example: "release-screenshot.png" })
+  fileName!: string;
+
+  @ApiProperty({ example: "image/png" })
+  mimeType!: string;
+
+  @ApiProperty({ example: 245760 })
+  fileSize!: number;
+
+  @ApiProperty({ format: "date-time" })
+  createdAt!: string;
+}
+
 export class MessageResponseDto {
   @ApiProperty({ format: "uuid" })
   id!: string;
@@ -97,6 +114,9 @@ export class MessageResponseDto {
 
   @ApiPropertyOptional({ format: "date-time", nullable: true })
   deletedAt!: string | null;
+
+  @ApiProperty({ type: [MessageAttachmentResponseDto] })
+  attachments!: MessageAttachmentResponseDto[];
 }
 
 export class ConversationResponseDto {

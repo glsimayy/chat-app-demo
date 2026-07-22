@@ -19,11 +19,21 @@ import { UserRole } from "../users/user-role.enum";
 import { MetricsService } from "../metrics/metrics.service";
 import { ConversationType } from "./conversation-type.enum";
 import { ConversationStatus } from "./conversation-status.enum";
-import { ConversationRecord, MessageRecord } from "./conversation.types";
+import {
+  ConversationRecord,
+  MessageRecord,
+  UploadedMessageFile,
+} from "./conversation.types";
+import {
+  ALLOWED_MESSAGE_ATTACHMENT_TYPES,
+  MAX_MESSAGE_ATTACHMENT_BYTES,
+  MAX_MESSAGE_ATTACHMENTS,
+} from "./attachment.config";
 import { AddParticipantDto } from "./dto/add-participant.dto";
 import { CreateDirectConversationDto } from "./dto/create-direct-conversation.dto";
 import { CreateGroupConversationDto } from "./dto/create-group-conversation.dto";
 import { CreateMessageDto } from "./dto/create-message.dto";
+import { CreateMessageWithAttachmentsDto } from "./dto/create-message-with-attachments.dto";
 import { FindConversationsQueryDto } from "./dto/find-conversations-query.dto";
 import { FindMessagesQueryDto } from "./dto/find-messages-query.dto";
 import { SearchMessagesQueryDto } from "./dto/search-messages-query.dto";
@@ -39,6 +49,7 @@ import { RealtimeEventsService } from "./realtime-events.service";
 export class ConversationsService implements OnModuleInit {
   private readonly conversations = new Map<string, ConversationRecord>();
   private readonly messages = new Map<string, MessageRecord[]>();
+  private readonly attachmentData = new Map<string, Buffer>();
   private readonly externalGroupCreations = new Map<
     string,
     Promise<ConversationRecord>
@@ -60,7 +71,20 @@ export class ConversationsService implements OnModuleInit {
       await this.prismaService.client.conversation.findMany({
         include: {
           participants: true,
-          messages: { orderBy: { createdAt: "asc" } },
+          messages: {
+            orderBy: { createdAt: "asc" },
+            include: {
+              attachments: {
+                select: {
+                  id: true,
+                  fileName: true,
+                  mimeType: true,
+                  fileSize: true,
+                  createdAt: true,
+                },
+              },
+            },
+          },
         },
       });
 
@@ -99,6 +123,7 @@ export class ConversationsService implements OnModuleInit {
           createdAt: message.createdAt,
           updatedAt: message.updatedAt,
           deletedAt: message.deletedAt,
+          attachments: message.attachments,
         }),
       );
 
@@ -804,6 +829,7 @@ export class ConversationsService implements OnModuleInit {
 
     this.conversations.clear();
     this.messages.clear();
+    this.attachmentData.clear();
     this.externalGroupCreations.clear();
 
     return { deletedConversations, deletedMessageGroups };
@@ -914,6 +940,7 @@ export class ConversationsService implements OnModuleInit {
       createdAt: new Date(),
       updatedAt: null,
       deletedAt: null,
+      attachments: [],
     };
 
     conversation.updatedAt = message.createdAt;
@@ -923,6 +950,123 @@ export class ConversationsService implements OnModuleInit {
     this.realtimeEventsService.emit({ type: "message.created", data: message });
 
     return message;
+  }
+
+  async createMessageWithAttachments(
+    conversationId: string,
+    userId: string,
+    dto: CreateMessageWithAttachmentsDto,
+    files: UploadedMessageFile[],
+  ) {
+    const conversation = await this.findOneForUser(conversationId, userId);
+    this.ensureCanSendMessage(conversation, userId);
+    this.validateAttachmentFiles(files);
+    const content = dto.content?.trim() ?? "";
+
+    if (!content && files.length === 0) {
+      throw new BadRequestException("A message or attachment is required");
+    }
+
+    const existingMessage = dto.clientMessageId
+      ? this.findMessageByClientId(userId, dto.clientMessageId)
+      : undefined;
+
+    if (existingMessage) {
+      if (
+        existingMessage.conversationId !== conversationId ||
+        existingMessage.content !== content
+      ) {
+        throw new ConflictException(
+          "clientMessageId has already been used for another message",
+        );
+      }
+
+      return existingMessage;
+    }
+
+    const createdAt = new Date();
+    const attachments = files.map((file) => ({
+      id: crypto.randomUUID(),
+      fileName: this.normalizeAttachmentFileName(file.originalname),
+      mimeType: file.mimetype.toLowerCase(),
+      fileSize: file.size,
+      createdAt,
+    }));
+    const message: MessageRecord = {
+      id: crypto.randomUUID(),
+      clientMessageId: dto.clientMessageId ?? null,
+      conversationId,
+      senderId: userId,
+      content,
+      messageType: MessageType.User,
+      createdAt,
+      updatedAt: null,
+      deletedAt: null,
+      attachments,
+    };
+
+    conversation.updatedAt = createdAt;
+    await this.persistMessageWithAttachments(conversation, message, files);
+
+    if (!this.prismaService?.enabled) {
+      attachments.forEach((attachment, index) => {
+        this.attachmentData.set(
+          attachment.id,
+          Buffer.from(files[index].buffer),
+        );
+      });
+    }
+
+    this.messages.get(conversation.id)?.push(message);
+    this.metricsService.recordMessageCreated();
+    this.realtimeEventsService.emit({ type: "message.created", data: message });
+
+    return message;
+  }
+
+  async getAttachment(
+    conversationId: string,
+    attachmentId: string,
+    userId: string,
+  ) {
+    await this.findOneForUser(conversationId, userId);
+    const message = (this.messages.get(conversationId) ?? []).find(
+      (item) =>
+        !item.deletedAt &&
+        item.attachments?.some((attachment) => attachment.id === attachmentId),
+    );
+    const attachment = message?.attachments?.find(
+      (item) => item.id === attachmentId,
+    );
+
+    if (!attachment) {
+      throw new NotFoundException("Attachment not found");
+    }
+
+    if (this.prismaService?.enabled) {
+      const persistedAttachment =
+        await this.prismaService.client.messageAttachment.findUnique({
+          where: { id: attachmentId },
+          select: { data: true },
+        });
+
+      if (!persistedAttachment) {
+        throw new NotFoundException("Attachment not found");
+      }
+
+      return {
+        attachment,
+        data: Buffer.from(persistedAttachment.data),
+      };
+    }
+
+    const data = this.attachmentData.get(attachmentId);
+
+    if (!data) {
+      throw new NotFoundException("Attachment not found");
+    }
+
+    return { attachment, data };
   }
 
   getActiveConversationIdsForUser(userId: string) {
@@ -1065,6 +1209,10 @@ export class ConversationsService implements OnModuleInit {
     message.deletedAt = now;
     conversation.updatedAt = now;
     await this.persistMessageUpdate(message, conversation.updatedAt);
+    for (const attachment of message.attachments ?? []) {
+      this.attachmentData.delete(attachment.id);
+    }
+    message.attachments = [];
     this.realtimeEventsService.emit({ type: "message.deleted", data: message });
 
     return message;
@@ -1472,7 +1620,7 @@ export class ConversationsService implements OnModuleInit {
 
   private hasAutomationBotParticipant(conversation: ConversationRecord) {
     return conversation.participants.some(
-      participant =>
+      (participant) =>
         !participant.leftAt &&
         Boolean(this.usersService.findByIdSync(participant.userId)?.isBot),
     );
@@ -1658,6 +1806,7 @@ export class ConversationsService implements OnModuleInit {
       createdAt,
       updatedAt: null,
       deletedAt: null,
+      attachments: [],
     };
 
     return message;
@@ -1812,6 +1961,38 @@ export class ConversationsService implements OnModuleInit {
     });
   }
 
+  private async persistMessageWithAttachments(
+    conversation: ConversationRecord,
+    message: MessageRecord,
+    files: UploadedMessageFile[],
+  ) {
+    if (!this.prismaService?.enabled) {
+      return;
+    }
+
+    await this.prismaService.client.$transaction(async (transaction) => {
+      await transaction.conversation.update({
+        where: { id: conversation.id },
+        data: { updatedAt: conversation.updatedAt },
+      });
+      await transaction.message.create({
+        data: {
+          ...this.toPersistedMessage(message),
+          attachments: {
+            create: (message.attachments ?? []).map((attachment, index) => ({
+              id: attachment.id,
+              fileName: attachment.fileName,
+              mimeType: attachment.mimeType,
+              fileSize: attachment.fileSize,
+              data: Uint8Array.from(files[index].buffer),
+              createdAt: attachment.createdAt,
+            })),
+          },
+        },
+      });
+    });
+  }
+
   private async persistMessageUpdate(
     message: MessageRecord,
     conversationUpdatedAt: Date,
@@ -1820,20 +2001,26 @@ export class ConversationsService implements OnModuleInit {
       return;
     }
 
-    await this.prismaService.client.$transaction([
-      this.prismaService.client.message.update({
+    await this.prismaService.client.$transaction(async (transaction) => {
+      await transaction.message.update({
         where: { id: message.id },
         data: {
           content: message.content,
           updatedAt: message.updatedAt,
           deletedAt: message.deletedAt,
         },
-      }),
-      this.prismaService.client.conversation.update({
+      });
+      await transaction.conversation.update({
         where: { id: message.conversationId },
         data: { updatedAt: conversationUpdatedAt },
-      }),
-    ]);
+      });
+
+      if (message.deletedAt) {
+        await transaction.messageAttachment.deleteMany({
+          where: { messageId: message.id },
+        });
+      }
+    });
   }
 
   private toPersistedMessage(message: MessageRecord) {
@@ -1848,6 +2035,88 @@ export class ConversationsService implements OnModuleInit {
       updatedAt: message.updatedAt,
       deletedAt: message.deletedAt,
     };
+  }
+
+  private validateAttachmentFiles(files: UploadedMessageFile[]) {
+    if (files.length === 0) {
+      throw new BadRequestException("At least one attachment is required");
+    }
+
+    if (files.length > MAX_MESSAGE_ATTACHMENTS) {
+      throw new BadRequestException(
+        `A message can contain at most ${MAX_MESSAGE_ATTACHMENTS} attachments`,
+      );
+    }
+
+    for (const file of files) {
+      if (!ALLOWED_MESSAGE_ATTACHMENT_TYPES.has(file.mimetype.toLowerCase())) {
+        throw new BadRequestException(
+          `Unsupported attachment type: ${file.mimetype || "unknown"}`,
+        );
+      }
+
+      if (file.size <= 0 || file.size > MAX_MESSAGE_ATTACHMENT_BYTES) {
+        throw new BadRequestException(
+          `Each attachment must be between 1 byte and ${MAX_MESSAGE_ATTACHMENT_BYTES} bytes`,
+        );
+      }
+
+      if (!this.hasValidAttachmentSignature(file)) {
+        throw new BadRequestException(
+          `Attachment content does not match its declared type: ${file.originalname}`,
+        );
+      }
+    }
+  }
+
+  private hasValidAttachmentSignature(file: UploadedMessageFile) {
+    const mimeType = file.mimetype.toLowerCase();
+    const data = file.buffer;
+
+    switch (mimeType) {
+      case "image/jpeg":
+        return (
+          data.length >= 3 &&
+          data.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))
+        );
+      case "image/png":
+        return (
+          data.length >= 8 &&
+          data
+            .subarray(0, 8)
+            .equals(
+              Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+            )
+        );
+      case "image/gif": {
+        const signature = data.subarray(0, 6).toString("ascii");
+        return signature === "GIF87a" || signature === "GIF89a";
+      }
+      case "image/webp":
+        return (
+          data.length >= 12 &&
+          data.subarray(0, 4).toString("ascii") === "RIFF" &&
+          data.subarray(8, 12).toString("ascii") === "WEBP"
+        );
+      case "application/pdf":
+        return (
+          data.length >= 5 && data.subarray(0, 5).toString("ascii") === "%PDF-"
+        );
+      case "text/plain":
+        return !data.includes(0);
+      default:
+        return false;
+    }
+  }
+
+  private normalizeAttachmentFileName(value: string) {
+    const normalized = value
+      .replace(/[\\/]/g, "_")
+      .replace(/[\u0000-\u001f\u007f]/g, "")
+      .trim()
+      .slice(0, 255);
+
+    return normalized || "attachment";
   }
 
   private findMessageOrThrow(conversationId: string, messageId: string) {

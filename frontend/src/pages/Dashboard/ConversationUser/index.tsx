@@ -203,6 +203,7 @@ const Index = ({ isChannel }: IndexProps) => {
       image: data.image && data.image,
       newimage: data.newimage && data.newimage,
       attachments: data.attachments && data.attachments,
+      files: data.files && data.files,
       clientMessageId,
       meta: {
         receiver: activeConversationId,
@@ -214,17 +215,16 @@ const Index = ({ isChannel }: IndexProps) => {
       params["replyOf"] = replyData;
     }
 
-    const content =
-      data.text ||
-      (data.attachments?.length ? "[attachment]" : "") ||
-      (data.image?.length || data.newimage?.length ? "[image]" : "");
+    const content = data.text || "";
     const socket = getChatSocket();
     const sendWithRestFallback = () => dispatch(onSendMessage(params));
 
     setRealtimeError("");
     stopTyping();
 
-    if (socket?.connected) {
+    if (data.files?.length) {
+      sendWithRestFallback();
+    } else if (socket?.connected) {
       socket.timeout(5000).emit(
         "message:send",
         {

@@ -92,6 +92,10 @@ class APIClient {
     return axios.get(url, params);
   };
 
+  getBlob = (url: string): Promise<Blob> => {
+    return axios.get(url, { responseType: "blob" }) as unknown as Promise<Blob>;
+  };
+
   /**
    * post given data to url
    */
@@ -140,15 +144,21 @@ class APIClient {
   createWithFile = (url: string, data: any) => {
     const formData = new FormData();
     for (const k in data) {
-      formData.append(k, data[k]);
+      const value = data[k];
+
+      if (value === undefined || value === null) {
+        continue;
+      }
+
+      if (Array.isArray(value)) {
+        value.forEach(item => formData.append(k, item));
+      } else {
+        formData.append(k, value);
+      }
     }
-    // const config = {
-    //   headers: {
-    //     ...axios.defaults.headers,
-    //     "content-type": "multipart/form-data",
-    //   },
-    // };
-    return axios.post(url, formData);
+    return axios.post(url, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
   };
 }
 

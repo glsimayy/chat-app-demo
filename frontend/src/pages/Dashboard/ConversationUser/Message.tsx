@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   DropdownToggle,
   DropdownMenu,
@@ -34,6 +34,7 @@ import { useProfile } from "../../../hooks";
 // utils
 import { formateDate } from "../../../utils";
 import RepliedMessage from "./RepliedMessage";
+import { getAttachmentBlob } from "../../../api/chats";
 
 interface MenuProps {
   canModify: boolean;
@@ -115,11 +116,13 @@ const Menu = ({
 };
 interface ImageMoreMenuProps {
   imagelink: any;
+  canModify: boolean;
   onReply: () => any;
   onDelete: () => void;
 }
 const ImageMoreMenu = ({
   imagelink,
+  canModify,
   onReply,
   onDelete,
 }: ImageMoreMenuProps) => {
@@ -166,14 +169,16 @@ const ImageMoreMenu = ({
             >
               Bookmark <i className="bx bx-bookmarks text-muted ms-2"></i>
             </DropdownItem>
-            <DropdownItem
-              tag="a"
-              className=" d-flex align-items-center justify-content-between delete-item"
-              href="#"
-              onClick={onDelete}
-            >
-              Delete <i className="bx bx-trash ms-2 text-muted"></i>
-            </DropdownItem>
+            {canModify && (
+              <DropdownItem
+                tag="a"
+                className=" d-flex align-items-center justify-content-between delete-item"
+                href="#"
+                onClick={onDelete}
+              >
+                Delete <i className="bx bx-trash ms-2 text-muted"></i>
+              </DropdownItem>
+            )}
           </DropdownMenu>
         </UncontrolledDropdown>
       </ul>
@@ -184,6 +189,7 @@ const ImageMoreMenu = ({
 interface ImageProps {
   message: MessagesTypes;
   image: ImageTypes;
+  canModify: boolean;
   onImageClick: (id: number) => void;
   index: number;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
@@ -192,6 +198,7 @@ interface ImageProps {
 const Image = ({
   message,
   image,
+  canModify,
   onImageClick,
   index,
   onSetReplyData,
@@ -215,19 +222,32 @@ const Image = ({
     <React.Fragment>
       <div className="message-img-list">
         <div>
-          <Link
-            className="popup-img d-inline-block"
-            to={"#"}
-            onClick={() => onImageClick(index)}
-          >
-            <img src={image.downloadLink} alt="" className="rounded border" />
-          </Link>
+          {image.downloadLink ? (
+            <Link
+              className="popup-img d-inline-block"
+              to={"#"}
+              onClick={() => onImageClick(index)}
+            >
+              <img
+                src={image.downloadLink}
+                alt={image.name || "Message attachment"}
+                className="rounded border"
+              />
+            </Link>
+          ) : (
+            <div className="message-image-loading rounded border">
+              <Spinner size="sm" />
+            </div>
+          )}
         </div>
-        <ImageMoreMenu
-          imagelink={image.downloadLink}
-          onReply={onClickReply}
-          onDelete={onDelete}
-        />
+        {image.downloadLink && (
+          <ImageMoreMenu
+            imagelink={image.downloadLink}
+            canModify={canModify}
+            onReply={onClickReply}
+            onDelete={onDelete}
+          />
+        )}
       </div>
     </React.Fragment>
   );
@@ -235,17 +255,58 @@ const Image = ({
 interface ImagesProps {
   message: MessagesTypes;
   images: ImageTypes[];
+  canModify: boolean;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   onDeleteImg: (imageId: string | number) => void;
 }
 const Images = ({
   message,
   images,
+  canModify,
   onSetReplyData,
   onDeleteImg,
 }: ImagesProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selected, setSelected] = useState(0);
+  const [resolvedImages, setResolvedImages] = useState<ImageTypes[]>(images);
+
+  useEffect(() => {
+    let active = true;
+    const objectUrls: string[] = [];
+
+    setResolvedImages(
+      images.map(image =>
+        image.requiresAuth ? { ...image, downloadLink: "" } : image,
+      ),
+    );
+
+    Promise.all(
+      images.map(async image => {
+        if (!image.requiresAuth) {
+          return image;
+        }
+
+        try {
+          const blob = await getAttachmentBlob(image.downloadLink);
+          const objectUrl = URL.createObjectURL(blob);
+          objectUrls.push(objectUrl);
+          return { ...image, downloadLink: objectUrl, requiresAuth: false };
+        } catch {
+          return { ...image, downloadLink: "" };
+        }
+      }),
+    ).then(nextImages => {
+      if (active) {
+        setResolvedImages(nextImages);
+      }
+    });
+
+    return () => {
+      active = false;
+      objectUrls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [images]);
+
   const onImageClick = (id: number) => {
     setSelected(id);
     setIsOpen(true);
@@ -257,10 +318,11 @@ const Images = ({
   return (
     <>
       <div className="message-img mb-0">
-        {(images || []).map((image: ImageTypes, key: number) => (
+        {(resolvedImages || []).map((image: ImageTypes, key: number) => (
           <Image
             message={message}
             image={image}
+            canModify={canModify}
             key={key}
             index={key}
             onImageClick={onImageClick}
@@ -272,7 +334,7 @@ const Images = ({
       {isOpen && (
         <LightBox
           isOpen={isOpen}
-          images={images}
+          images={resolvedImages.filter(image => image.downloadLink)}
           onClose={onClose}
           defaultIdx={selected}
         />
@@ -285,6 +347,27 @@ interface AttachmentsProps {
   attachments: AttachmentTypes[] | undefined;
 }
 const Attachments = ({ attachments }: AttachmentsProps) => {
+  const [downloadingId, setDownloadingId] = useState<string | number | null>(
+    null,
+  );
+
+  const onDownload = async (attachment: AttachmentTypes) => {
+    try {
+      setDownloadingId(attachment.id);
+      const blob = await getAttachmentBlob(attachment.downloadLink);
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = attachment.name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   return (
     <>
       {(attachments || []).map((attachment: AttachmentTypes, key: number) => (
@@ -311,15 +394,31 @@ const Attachments = ({ attachments }: AttachmentsProps) => {
             <div className="flex-shrink-0 ms-4">
               <div className="d-flex gap-2 font-size-20 d-flex align-items-start">
                 <div>
-                  <a
-                    href={
-                      attachment.downloadLink ? attachment.downloadLink : "#"
-                    }
-                    className="text-muted"
-                    download
-                  >
-                    <i className="bx bxs-download"></i>
-                  </a>
+                  {attachment.requiresAuth ? (
+                    <Button
+                      type="button"
+                      color="link"
+                      className="text-muted p-0"
+                      title={`Download ${attachment.name}`}
+                      aria-label={`Download ${attachment.name}`}
+                      disabled={downloadingId === attachment.id}
+                      onClick={() => onDownload(attachment)}
+                    >
+                      {downloadingId === attachment.id ? (
+                        <Spinner size="sm" />
+                      ) : (
+                        <i className="bx bxs-download"></i>
+                      )}
+                    </Button>
+                  ) : (
+                    <a
+                      href={attachment.downloadLink || "#"}
+                      className="text-muted"
+                      download
+                    >
+                      <i className="bx bxs-download"></i>
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
@@ -351,8 +450,6 @@ interface MessageProps {
   isFromMe: boolean;
   onOpenForward: (message: MessagesTypes) => void;
   isChannel: boolean;
-  onDeleteImage: (messageId: string | number, imageId: string | number) => void;
-  // onSetReplyImageData: () => void;
 }
 const Message = ({
   message,
@@ -363,7 +460,6 @@ const Message = ({
   isFromMe,
   onOpenForward,
   isChannel,
-  onDeleteImage,
 }: MessageProps) => {
   const { userProfile } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
@@ -450,8 +546,10 @@ const Message = ({
     onOpenForward(message);
   };
 
-  const onDeleteImg = (imageId: number | string) => {
-    onDeleteImage(message.mId, imageId);
+  const onDeleteImg = (_imageId: number | string) => {
+    if (canModify) {
+      setIsDeleteConfirmOpen(true);
+    }
   };
   return (
     <li
@@ -516,6 +614,7 @@ const Message = ({
                 <Images
                   images={message.image!}
                   message={message}
+                  canModify={canModify}
                   onSetReplyData={onSetReplyData}
                   onDeleteImg={onDeleteImg}
                 />

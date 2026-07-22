@@ -36,6 +36,7 @@ edilmis pair key dusunulmelidir.
 | Participant -> User | Cascade | Kullanici silinince uyelik satirlari kalmaz |
 | Message -> Conversation | Cascade | Sohbet silinince mesajlar kalmaz |
 | Message sender -> User | Set null | Kullanici silinse de mesaj gecmisi korunur |
+| Attachment -> Message | Cascade | Mesaj fiziksel olarak silinince dosya verisi de temizlenir |
 | Ticket requester -> User | Cascade | Kullanici silinince kendi destek talepleri temizlenir |
 | Ticket assignee -> User | Set null | Admin silinince ticket ortak havuza geri doner |
 | Ticket activity -> Ticket | Cascade | Ticket silinince activity gecmisi temizlenir |
@@ -48,6 +49,7 @@ edilmis pair key dusunulmelidir.
 - Mesaj gecmisi: `(conversationId, createdAt)` composite indexi pagination ve
   sirali gecmis sorgularini destekler.
 - Idempotency: `(senderId, clientMessageId)` unique indexi bulunur.
+- Attachment lookup: `message_attachments.messageId` indexi bulunur.
 - Soft state filtreleri: participant `leftAt` ve message `deletedAt` indexleri
   bulunur.
 - BOT lookup: `externalRef` unique indexi bulunur.
@@ -62,5 +64,5 @@ kullanimi getirir.
 
 ## Sonuc
 
-Otomatik audit 28 beklenen indexi ve 10 foreign key delete kuralini kontrol eder.
+Otomatik audit 30 beklenen indexi ve 11 foreign key delete kuralini kontrol eder.
 Schema degisikliginde audit listesi ve bu belge ayni PR icinde guncellenmelidir.

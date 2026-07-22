@@ -679,6 +679,15 @@ body[data-bs-theme="light"] .chat-leftsidebar .text-muted {
   white-space: pre-wrap;
 }
 
+.message-image-loading {
+  align-items: center;
+  background: var(--bs-tertiary-bg);
+  display: flex;
+  height: 110px;
+  justify-content: center;
+  width: 150px;
+}
+
 @media (max-width: 991.98px) {
   .support-panel {
     height: calc(100vh - 60px);

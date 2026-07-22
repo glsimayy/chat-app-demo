@@ -248,6 +248,26 @@ Grup owner'i veya admin kullanici ownership'i aktif bir participante devredebili
 ile tekrar gonderirse backend yeni mesaj olusturmaz; ilk mesaji geri dondurur.
 Ayni id farkli conversation veya content ile kullanilirsa `409 Conflict` doner.
 
+`POST /api/conversations/{conversationId}/messages/attachments`
+
+`multipart/form-data` kabul eder:
+
+- `content`: opsiyonel mesaj metni, en fazla 2000 karakter.
+- `clientMessageId`: opsiyonel UUID idempotency anahtari.
+- `files`: zorunlu, mesaj basina en fazla 5 dosya.
+
+Her dosya en fazla 5 MB olabilir. Desteklenen tipler JPEG, PNG, GIF, WebP,
+PDF ve plain text'tir. Backend MIME degerine ek olarak dosya imzasini da
+kontrol eder. Dosyanin binary icerigi PostgreSQL'de tutulur; message
+response yalnizca `id`, `fileName`, `mimeType`, `fileSize` ve `createdAt`
+metadata alanlarini dondurur.
+
+`GET /api/conversations/{conversationId}/attachments/{attachmentId}`
+
+Dosyayi binary olarak dondurur. JWT zorunludur ve yalnizca conversation'in
+aktif katilimcilari dosyaya erisebilir. Gorseller `inline`, diger dosyalar
+`attachment` content disposition ile sunulur.
+
 `GET /api/conversations/{conversationId}/messages`
 
 Query parametreleri:
@@ -273,6 +293,15 @@ Response:
       "senderId": "user-uuid",
       "content": "Merhaba",
       "messageType": "user",
+      "attachments": [
+        {
+          "id": "attachment-uuid",
+          "fileName": "release.png",
+          "mimeType": "image/png",
+          "fileSize": 245760,
+          "createdAt": "2026-07-22T17:00:00.000Z"
+        }
+      ],
       "createdAt": "2026-07-13T17:00:00.000Z"
     }
   ],
@@ -316,6 +345,7 @@ Sadece mesaji atan kullanici kendi mesajini silebilir. Silme soft delete olarak 
 
 - `content` bosaltilir.
 - `deletedAt` dolar.
+- Iliskili attachment binary kayitlari kalici olarak temizlenir.
 - Mesaj kaydi pagination icinde kalmaya devam eder.
 
 `PATCH /api/conversations/{conversationId}/read`

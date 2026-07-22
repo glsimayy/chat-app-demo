@@ -175,6 +175,84 @@ describe("App e2e", () => {
     ).toHaveLength(1);
   });
 
+  it("stores attachments and restricts downloads to conversation members", async () => {
+    const sender = await createAuthUser("attachment_sender");
+    const recipient = await createAuthUser("attachment_recipient");
+    const outsider = await createAuthUser("attachment_outsider");
+    const direct = await request(app.getHttpServer())
+      .post("/api/conversations/direct")
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .send({ participantId: recipient.user.id })
+      .expect(201);
+    const image = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZlVQAAAAASUVORK5CYII=",
+      "base64",
+    );
+    const created = await request(app.getHttpServer())
+      .post(`/api/conversations/${direct.body.data.id}/messages/attachments`)
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .field("content", "Persistent release screenshot")
+      .field("clientMessageId", crypto.randomUUID())
+      .attach("files", image, {
+        filename: "release.png",
+        contentType: "image/png",
+      })
+      .expect(201);
+
+    expect(created.body.data).toMatchObject({
+      content: "Persistent release screenshot",
+      attachments: [
+        expect.objectContaining({
+          fileName: "release.png",
+          mimeType: "image/png",
+          fileSize: image.length,
+        }),
+      ],
+    });
+    expect(created.body.data.attachments[0].data).toBeUndefined();
+
+    const attachmentId = created.body.data.attachments[0].id;
+    const history = await request(app.getHttpServer())
+      .get(`/api/conversations/${direct.body.data.id}/messages`)
+      .set("authorization", `Bearer ${recipient.accessToken}`)
+      .expect(200);
+    expect(history.body.data.items.at(-1).attachments[0].id).toBe(attachmentId);
+
+    const downloaded = await request(app.getHttpServer())
+      .get(
+        `/api/conversations/${direct.body.data.id}/attachments/${attachmentId}`,
+      )
+      .set("authorization", `Bearer ${recipient.accessToken}`)
+      .expect("content-type", /image\/png/)
+      .expect(200);
+    expect(downloaded.body).toEqual(image);
+
+    await request(app.getHttpServer())
+      .get(
+        `/api/conversations/${direct.body.data.id}/attachments/${attachmentId}`,
+      )
+      .set("authorization", `Bearer ${outsider.accessToken}`)
+      .expect(404);
+
+    await request(app.getHttpServer())
+      .post(`/api/conversations/${direct.body.data.id}/messages/attachments`)
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .attach("files", Buffer.from("console.log('no')"), {
+        filename: "script.js",
+        contentType: "application/javascript",
+      })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .post(`/api/conversations/${direct.body.data.id}/messages/attachments`)
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .attach("files", Buffer.from("not-a-real-png"), {
+        filename: "spoofed.png",
+        contentType: "image/png",
+      })
+      .expect(400);
+  });
+
   it("enforces manager roles, group policies, and private management chat", async () => {
     const admin = await createAuthUser("policy_admin");
     const manager = await createAuthUser("policy_manager");
