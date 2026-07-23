@@ -17,6 +17,8 @@ import { Link } from "react-router-dom";
 
 // components
 import LightBox from "../../../components/LightBox";
+import SharedContactCard from "../../../components/SharedContactCard";
+import UserProfileModal from "../../../components/UserProfileModal";
 
 //images
 import imagePlaceholder from "../../../assets/images/users/user-dummy-img.jpg";
@@ -35,6 +37,7 @@ import { useProfile } from "../../../hooks";
 import { formateDate } from "../../../utils";
 import RepliedMessage from "./RepliedMessage";
 import { getAttachmentBlob } from "../../../api/chats";
+import { parseSharedContactMessage } from "../../../utils/sharedContact";
 
 interface MenuProps {
   canModify: boolean;
@@ -467,9 +470,13 @@ const Message = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const hasImages = Boolean(message.image?.length);
   const hasAttachments = Boolean(message.attachments?.length);
-  const hasText = Boolean(message.text);
+  const sharedContactUserId = message.isDeleted
+    ? null
+    : parseSharedContactMessage(message.text);
+  const hasText = Boolean(message.text) && !sharedContactUserId;
   const isTyping = false;
 
   const chatUserFullName = chatUserDetails.firstName
@@ -488,6 +495,13 @@ const Message = ({
     : imagePlaceholder;
   const profile = isChannel ? channeluserProfile : chatUserprofile;
   const isBotMessage = Boolean(message.meta.userData?.isBot);
+  const senderUserId = String(message.meta.sender || "");
+  const canOpenSenderProfile =
+    isChannel &&
+    !isFromMe &&
+    !isBotMessage &&
+    senderUserId !== "system" &&
+    Boolean(message.meta.userData?.id);
   const date = formateDate(message.time, "hh:mmaaa");
   const isSent = message.meta.sent;
   const isReceived = message.meta.received;
@@ -570,6 +584,16 @@ const Message = ({
             >
               <i className="bx bx-bot" aria-hidden="true"></i>
             </span>
+          ) : canOpenSenderProfile ? (
+            <Button
+              type="button"
+              color="link"
+              className="message-avatar-button p-0 border-0"
+              aria-label={`Open ${message.meta.userData?.username || "sender"} profile`}
+              onClick={() => setProfileUserId(senderUserId)}
+            >
+              <img src={profile} alt="" />
+            </Button>
           ) : (
             <img src={isFromMe ? myProfile : profile} alt="" />
           )}
@@ -674,6 +698,8 @@ const Message = ({
                         <i className="bx bx-x" aria-hidden="true"></i>
                       </Button>
                     </form>
+                  ) : sharedContactUserId ? (
+                    <SharedContactCard userId={sharedContactUserId} />
                   ) : hasText ? (
                     <p className="mb-0 ctext-content">{message.text}</p>
                   ) : null}
@@ -769,6 +795,12 @@ const Message = ({
           </Button>
         </ModalFooter>
       </Modal>
+      <UserProfileModal
+        isOpen={Boolean(profileUserId)}
+        userId={profileUserId}
+        initialUser={message.meta.userData}
+        onClose={() => setProfileUserId(null)}
+      />
     </li>
   );
 };

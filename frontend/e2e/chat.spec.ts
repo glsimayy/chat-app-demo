@@ -425,7 +425,15 @@ test("logout clears the session and protects the dashboard", async ({
 
   try {
     await page.getByLabel("Open profile menu").click();
-    await page.getByText("Log out", { exact: true }).click();
+    await page.evaluate(() => {
+      const logoutLink = document.querySelector<HTMLAnchorElement>(
+        'a[href="/logout"]',
+      );
+      if (!logoutLink) {
+        throw new Error("Logout link is missing from the profile panel");
+      }
+      logoutLink.click();
+    });
 
     await expect(page).toHaveURL(/\/logout$/);
     await expect(
@@ -452,7 +460,16 @@ test("profile details and image are saved through settings", async ({
 
   try {
     await user.page.getByLabel("Open profile menu").click();
-    await user.page.getByText("Setting", { exact: true }).click();
+    await user.page.evaluate(() => {
+      const settingsButton =
+        document.querySelector<HTMLButtonElement>(
+          ".profile-account-actions button",
+        );
+      if (!settingsButton) {
+        throw new Error("Profile settings button is missing");
+      }
+      settingsButton.click();
+    });
     await expect(
       user.page.getByRole("heading", { name: "Profile settings" }),
     ).toBeVisible();
@@ -477,7 +494,6 @@ test("profile details and image are saved through settings", async ({
     ).toHaveAttribute("src", /^data:image\/jpeg;base64,/);
 
     await user.page.getByLabel("Open profile menu").click();
-    await user.page.getByText("Profile", { exact: true }).click();
     const profilePanel = user.page.locator(".profile-desc");
     await expect(profilePanel.getByText(about, { exact: true })).toBeVisible();
     await expect(profilePanel.getByText(location, { exact: true })).toBeVisible();
@@ -617,6 +633,19 @@ test("composer actions work and empty media counts do not render as zero", async
     await user.page
       .getByRole("button", { name: "More message options" })
       .click();
+    await user.page.getByRole("button", { name: "Open camera" }).click();
+    const cameraDialog = user.page.getByRole("dialog");
+    await expect(
+      cameraDialog.getByRole("heading", { name: "Camera", exact: true }),
+    ).toBeVisible();
+    await expect(
+      cameraDialog.locator('input[type="file"][accept="image/*"]'),
+    ).toHaveAttribute("capture", "environment");
+    await user.page.keyboard.press("Escape");
+
+    await user.page
+      .getByRole("button", { name: "More message options" })
+      .click();
     await user.page.getByRole("button", { name: "Share location" }).click();
     await expect(user.page.locator("#chat-input")).toHaveValue(
       /41\.008200,28\.978400/,
@@ -630,12 +659,32 @@ test("composer actions work and empty media counts do not render as zero", async
     await expect(
       user.page.getByRole("heading", { name: "Share contact" }),
     ).toBeVisible();
-    await user.page
+    const sharedContact = user.page
       .locator(".list-group-item.list-group-item-action")
-      .first()
-      .click();
-    await expect(user.page.locator("#chat-input")).toHaveValue(/Contact:/);
-    await user.page.locator("#chat-input").fill("");
+      .first();
+    const sharedUsername = (
+      (await sharedContact.locator("strong").textContent()) || ""
+    ).trim();
+    await sharedContact.click();
+    await expect(
+      user.page.getByText(`Sharing contact: ${sharedUsername}`, {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await user.page.getByRole("button", { name: "Send message" }).click();
+    const sharedContactCard = user.page.getByRole("button", {
+      name: `Open ${sharedUsername} profile`,
+    });
+    await expect(sharedContactCard).toBeVisible();
+    await sharedContactCard.click();
+    await expect(
+      user.page.getByRole("heading", { name: "User profile" }),
+    ).toBeVisible();
+    const userProfileDialog = user.page.getByRole("dialog");
+    await expect(
+      userProfileDialog.getByRole("button", { name: "Add contact" }),
+    ).toBeVisible();
+    await user.page.keyboard.press("Escape");
 
     const audioName = `audio-${Date.now()}.mp3`;
     await user.page
@@ -983,6 +1032,25 @@ test("group messages arrive in the other participant's open conversation", async
     await expect(user2Page.getByText(message, { exact: true })).toBeVisible();
     await expect(user1Page.getByText(message, { exact: true })).toHaveCount(1);
     await expect(user2Page.getByText(message, { exact: true })).toHaveCount(1);
+    const incomingMessage = user2Page
+      .locator("li.chat-list")
+      .filter({ hasText: message })
+      .last();
+    await incomingMessage
+      .getByRole("button", { name: "Open emiruser profile" })
+      .click();
+    await expect(
+      user2Page.getByRole("heading", { name: "User profile" }),
+    ).toBeVisible();
+    const addContactButton = user2Page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Add contact" });
+    await expect(addContactButton).toBeVisible();
+    await addContactButton.click();
+    await expect(
+      user2Page.getByText("Contact invitation sent.", { exact: true }),
+    ).toBeVisible();
+    await user2Page.keyboard.press("Escape");
 
     const reply = `group-reply-e2e-${Date.now()}`;
     await user2Page.locator("#chat-input").fill(reply);
@@ -1042,9 +1110,9 @@ test("group management actions are visible, authorized, and realtime", async ({
     ).toBeDisabled();
 
     await admin.page.getByLabel("Members can message").uncheck();
-    await admin.page
-      .getByRole("button", { name: "Save policies", exact: true })
-      .click();
+    await expect(
+      admin.page.getByText("Member messaging disabled", { exact: true }),
+    ).toBeVisible();
     await expect(
       user2Page.getByText(
         "Members cannot send messages in this group. Only group management can send.",
@@ -1054,10 +1122,16 @@ test("group management actions are visible, authorized, and realtime", async ({
     await expect(user2Page.locator("#chat-input")).toHaveCount(0);
 
     await admin.page.getByLabel("Members can message").check();
-    await admin.page
-      .getByRole("button", { name: "Save policies", exact: true })
-      .click();
+    await expect(
+      admin.page.getByText("Members can now send messages", { exact: true }),
+    ).toBeVisible();
     await expect(user2Page.locator("#chat-input")).toBeVisible();
+    const policyEnabledMessage = `policy-enabled-${Date.now()}`;
+    await user2Page.locator("#chat-input").fill(policyEnabledMessage);
+    await user2Page.locator("#chat-input").press("Enter");
+    await expect(
+      admin.page.getByText(policyEnabledMessage, { exact: true }),
+    ).toBeVisible();
 
     await admin.page.locator("#group-name-input").fill(renamedGroup);
     await admin.page

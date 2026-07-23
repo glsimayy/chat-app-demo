@@ -187,16 +187,58 @@ const GroupManagement = ({
       "Group details updated",
     );
 
-  const saveGroupPolicies = () =>
-    runAction(
+  const updateMessagePolicy = async (enabled: boolean) => {
+    const previousValue = memberCanSendMessages;
+    setMemberCanSendMessages(enabled);
+
+    const succeeded = await runAction(
       () =>
         updateGroupConversation(conversationId, {
-          memberCanSendMessages,
-          membersCanLeave,
-          status,
+          memberCanSendMessages: enabled,
         }),
-      "Group policies updated",
+      enabled
+        ? "Members can now send messages"
+        : "Member messaging disabled",
     );
+
+    if (!succeeded) {
+      setMemberCanSendMessages(previousValue);
+    }
+  };
+
+  const updateLeavePolicy = async (enabled: boolean) => {
+    const previousValue = membersCanLeave;
+    setMembersCanLeave(enabled);
+
+    const succeeded = await runAction(
+      () =>
+        updateGroupConversation(conversationId, {
+          membersCanLeave: enabled,
+        }),
+      enabled ? "Members can now leave" : "Member leaving disabled",
+    );
+
+    if (!succeeded) {
+      setMembersCanLeave(previousValue);
+    }
+  };
+
+  const updateGroupStatus = async (nextStatus: string) => {
+    const previousValue = status;
+    setStatus(nextStatus);
+
+    const succeeded = await runAction(
+      () =>
+        updateGroupConversation(conversationId, {
+          status: nextStatus,
+        }),
+      "Group status updated",
+    );
+
+    if (!succeeded) {
+      setStatus(previousValue);
+    }
+  };
 
   const toggleManager = (participant: any) =>
     runAction(
@@ -566,7 +608,7 @@ const GroupManagement = ({
               id="group-message-policy"
               checked={memberCanSendMessages}
               disabled={loading}
-              onChange={event => setMemberCanSendMessages(event.target.checked)}
+              onChange={event => void updateMessagePolicy(event.target.checked)}
             />
             <Label className="form-check-label" htmlFor="group-message-policy">
               Members can message
@@ -578,7 +620,7 @@ const GroupManagement = ({
               id="group-leave-policy"
               checked={membersCanLeave}
               disabled={loading}
-              onChange={event => setMembersCanLeave(event.target.checked)}
+              onChange={event => void updateLeavePolicy(event.target.checked)}
             />
             <Label className="form-check-label" htmlFor="group-leave-policy">
               Members can leave
@@ -596,22 +638,15 @@ const GroupManagement = ({
             aria-label="Group status"
             value={status}
             disabled={loading}
-            onChange={event => setStatus(event.target.value)}
+            onChange={event => void updateGroupStatus(event.target.value)}
           >
             <option value="active">Active</option>
             <option value="closed">Closed</option>
             <option value="archived">Archived</option>
           </Input>
-          <Button
-            color="primary"
-            outline
-            className="w-100 mt-3"
-            disabled={loading}
-            onClick={saveGroupPolicies}
-          >
-            <i className="bx bx-shield-quarter me-1" aria-hidden="true"></i>
-            Save policies
-          </Button>
+          <p className="text-muted small mb-0 mt-3">
+            Policy changes are saved automatically.
+          </p>
         </section>
       )}
 

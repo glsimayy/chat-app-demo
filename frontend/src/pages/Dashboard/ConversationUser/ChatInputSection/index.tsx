@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Alert, Form } from "reactstrap";
+import React, { useEffect, useRef, useState } from "react";
+import { Alert, Form, Input } from "reactstrap";
 
 // components
 import StartButtons from "./StartButtons";
@@ -8,6 +8,8 @@ import EndButtons from "./EndButtons";
 import MoreMenu from "./MoreMenu";
 import Reply from "./Reply";
 import ShareContactModal from "./ShareContactModal";
+import CameraCaptureModal from "./CameraCaptureModal";
+import { createSharedContactMessage } from "../../../../utils/sharedContact";
 
 // interface
 import { MessagesTypes } from "../../../../data/messages";
@@ -64,7 +66,11 @@ const Index = ({
   input text
   */
   const [text, setText] = useState<null | string>("");
+  const [sharedContact, setSharedContact] = useState<any>(null);
   const onChangeText = (value: string) => {
+    if (sharedContact) {
+      setSharedContact(null);
+    }
     setText(value);
     onTyping(value);
   };
@@ -116,12 +122,12 @@ const Index = ({
     applySelection(images, selectedFiles);
   };
   useEffect(() => {
-    if (text || images.length || files.length) {
+    if (text || images.length || files.length || sharedContact) {
       setDisabled(false);
     } else {
       setDisabled(true);
     }
-  }, [text, images, files]);
+  }, [text, images, files, sharedContact]);
 
   // emoji picker
   const [emojiArray, setemojiArray] = useState<any>("");
@@ -137,6 +143,9 @@ const Index = ({
     if (text) {
       data["text"] = text;
     }
+    if (sharedContact) {
+      data["text"] = createSharedContactMessage(sharedContact.id);
+    }
     const selectedFiles = [...(images || []), ...(files || [])];
 
     if (selectedFiles.length) {
@@ -147,6 +156,7 @@ const Index = ({
     onTyping("");
     setImages([]);
     setFiles([]);
+    setSharedContact(null);
     setSelectionError("");
     setemojiPicker(false);
     onSend(data);
@@ -159,15 +169,36 @@ const Index = ({
   };
 
   const [isShareContactOpen, setIsShareContactOpen] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const nativeCameraInputRef = useRef<HTMLInputElement | null>(null);
   const appendText = (value: string) => {
     const nextText = [text?.trim(), value].filter(Boolean).join("\n");
     setText(nextText);
     onTyping(nextText);
   };
   const onShareContact = (contact: any) => {
-    appendText(`Contact: ${contact.username}\nEmail: ${contact.email}`);
+    setText("");
+    onTyping("");
+    setSharedContact(contact);
     setIsShareContactOpen(false);
     setIsOpen(false);
+  };
+  const onOpenCamera = () => {
+    setIsOpen(false);
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      nativeCameraInputRef.current?.click();
+      return;
+    }
+    setIsCameraOpen(true);
+  };
+  const onNativeCameraCapture = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) {
+      onSelectImages([file]);
+    }
   };
   const onShareLocation = () => {
     if (!navigator.geolocation) {
@@ -256,11 +287,23 @@ const Index = ({
         </Alert>
       )}
 
+      {sharedContact && (
+        <Alert
+          color="secondary"
+          className="font-size-12 mt-2 mb-0 d-flex align-items-center"
+          toggle={() => setSharedContact(null)}
+        >
+          <i className="bx bx-user me-2" aria-hidden="true"></i>
+          Sharing contact: <strong className="ms-1">{sharedContact.username}</strong>
+        </Alert>
+      )}
+
       <MoreMenu
         isOpen={isOpen}
         onSelectImages={onSelectImages}
         onSelectFiles={onSelectFiles}
         onToggle={onToggle}
+        onOpenCamera={onOpenCamera}
         onShareLocation={onShareLocation}
         onOpenContacts={() => {
           setIsShareContactOpen(true);
@@ -272,6 +315,20 @@ const Index = ({
         isOpen={isShareContactOpen}
         onClose={() => setIsShareContactOpen(false)}
         onShare={onShareContact}
+      />
+
+      <CameraCaptureModal
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+        onCapture={file => onSelectImages([file])}
+      />
+      <Input
+        innerRef={nativeCameraInputRef}
+        type="file"
+        className="d-none"
+        accept="image/*"
+        capture="environment"
+        onChange={onNativeCameraCapture}
       />
 
       <Reply

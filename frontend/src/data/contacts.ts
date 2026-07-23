@@ -19,6 +19,9 @@ import { MediaTypes, AttachedfileTypes } from "./myProfile";
 import { STATUS_TYPES } from "../constants";
 export interface ContactTypes {
   id: string | number;
+  uid?: string | number;
+  username?: string;
+  role?: "admin" | "user";
   firstName: string;
   lastName: string;
   profileImage?: any;

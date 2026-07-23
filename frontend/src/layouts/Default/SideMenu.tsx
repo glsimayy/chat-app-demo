@@ -4,10 +4,6 @@ import { Link } from "react-router-dom";
 import {
   Nav,
   NavItem,
-  Dropdown,
-  DropdownItem,
-  DropdownToggle,
-  DropdownMenu,
   NavLink,
   UncontrolledTooltip,
 } from "reactstrap";
@@ -117,7 +113,7 @@ const MenuNavItem = ({ item, selectedTab, onChangeTab }: MenuNavItemProps) => {
   );
 };
 
-interface ProfileDropdownMenuProps {
+interface ProfileMenuButtonProps {
   onChangeTab: (
     id:
       | TABS.BOOKMARK
@@ -126,13 +122,22 @@ interface ProfileDropdownMenuProps {
       | TABS.CONTACTS
       | TABS.SUPPORT
       | TABS.SETTINGS
-      | TABS.USERS,
+    | TABS.USERS,
   ) => void;
+  selectedTab:
+    | TABS.BOOKMARK
+    | TABS.CALLS
+    | TABS.CHAT
+    | TABS.CONTACTS
+    | TABS.SUPPORT
+    | TABS.SETTINGS
+    | TABS.USERS;
 }
-const ProfileDropdownMenu = ({ onChangeTab }: ProfileDropdownMenuProps) => {
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+const ProfileMenuButton = ({
+  onChangeTab,
+  selectedTab,
+}: ProfileMenuButtonProps) => {
   const [profile, setProfile] = useState(() => getCurrentAuthUser());
-  const toggle = () => setDropdownOpen(!dropdownOpen);
 
   useEffect(() => {
     const refreshProfile = () => setProfile(getCurrentAuthUser());
@@ -144,16 +149,14 @@ const ProfileDropdownMenu = ({ onChangeTab }: ProfileDropdownMenuProps) => {
   const initials = (profile?.username || "U").slice(0, 2).toUpperCase();
 
   return (
-    <Dropdown
-      nav
-      isOpen={dropdownOpen}
-      className="profile-user-dropdown"
-      toggle={toggle}
-    >
-      <DropdownToggle
-        nav
+    <NavItem className="profile-user-menu" id="profile-user-menu">
+      <button
+        type="button"
         aria-label="Open profile menu"
-        className="bg-transparent"
+        className={`nav-link bg-transparent ${
+          selectedTab === TABS.USERS ? "active" : ""
+        }`}
+        onClick={() => onChangeTab(TABS.USERS)}
       >
         {profile?.profileImage ? (
           <img
@@ -166,37 +169,11 @@ const ProfileDropdownMenu = ({ onChangeTab }: ProfileDropdownMenuProps) => {
             {initials}
           </span>
         )}
-      </DropdownToggle>
-      <DropdownMenu>
-        <DropdownItem
-          className="d-flex align-items-center justify-content-between"
-          onClick={() => onChangeTab(TABS.USERS)}
-        >
-          Profile <i className="bx bx-user-circle text-muted ms-1"></i>
-        </DropdownItem>
-        <DropdownItem
-          className="d-flex align-items-center justify-content-between"
-          onClick={() => onChangeTab(TABS.SETTINGS)}
-        >
-          Setting <i className="bx bx-cog text-muted ms-1"></i>
-        </DropdownItem>
-        <DropdownItem
-          className="d-flex align-items-center justify-content-between"
-          href="/auth-changepassword"
-        >
-          Change Password <i className="bx bx-lock-open text-muted ms-1"></i>
-        </DropdownItem>
-
-        <DropdownItem />
-        <DropdownItem
-          className="d-flex align-items-center justify-content-between"
-          tag={Link}
-          to="/logout"
-        >
-          Log out <i className="bx bx-log-out-circle text-muted ms-1"></i>
-        </DropdownItem>
-      </DropdownMenu>
-    </Dropdown>
+      </button>
+      <UncontrolledTooltip target="profile-user-menu" placement="right">
+        My profile
+      </UncontrolledTooltip>
+    </NavItem>
   );
 };
 
@@ -278,7 +255,10 @@ const SideMenu = ({ onChangeLayoutMode }: any) => {
           />
 
           {/* profile menu dropdown */}
-          <ProfileDropdownMenu onChangeTab={onChangeTab} />
+          <ProfileMenuButton
+            onChangeTab={onChangeTab}
+            selectedTab={selectedTab}
+          />
         </Nav>
       </div>
       {/* end side-menu nav */}

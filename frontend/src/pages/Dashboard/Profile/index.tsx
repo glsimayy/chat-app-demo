@@ -1,4 +1,6 @@
 import React, { useEffect } from "react";
+import { Link } from "react-router-dom";
+import { Button } from "reactstrap";
 
 // hooks
 import { useRedux } from "../../../hooks/index";
@@ -12,7 +14,8 @@ import Media from "../../../components/Media";
 import AttachedFiles from "../../../components/AttachedFiles";
 
 // actions
-import { getProfileDetails } from "../../../redux/actions";
+import { changeTab, getProfileDetails } from "../../../redux/actions";
+import { TABS } from "../../../constants";
 
 const Index = () => {
   // global store
@@ -44,6 +47,36 @@ const Index = () => {
 
       {profileDetails.basicDetails && (
         <AppSimpleBar className="p-4 profile-desc">
+          <div className="profile-account-actions">
+            <small className="text-muted d-block mb-2">Account</small>
+            <Button
+              type="button"
+              color="light"
+              className="w-100 d-flex align-items-center text-start mb-2"
+              onClick={() => dispatch(changeTab(TABS.SETTINGS))}
+            >
+              <i className="bx bx-cog font-size-18 me-3"></i>
+              <span className="flex-grow-1">Profile settings</span>
+              <i className="bx bx-chevron-right"></i>
+            </Button>
+            <Link
+              to="/auth-changepassword"
+              className="btn btn-light w-100 d-flex align-items-center text-start mb-2"
+            >
+              <i className="bx bx-lock-open font-size-18 me-3"></i>
+              <span className="flex-grow-1">Change password</span>
+              <i className="bx bx-chevron-right"></i>
+            </Link>
+            <Link
+              to="/logout"
+              className="btn btn-light text-danger w-100 d-flex align-items-center text-start"
+            >
+              <i className="bx bx-log-out-circle font-size-18 me-3"></i>
+              <span className="flex-grow-1">Log out</span>
+              <i className="bx bx-chevron-right"></i>
+            </Link>
+          </div>
+          <hr className="my-4" />
           <UserDescription basicDetails={profileDetails.basicDetails} />
           {profileDetails.media?.total > 0 && (
             <>

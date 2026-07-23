@@ -7,6 +7,7 @@ interface MoreMenuProps {
   onSelectImages: (images: Array<any>) => void;
   onToggle: () => any;
   onSelectFiles: (files: Array<any>) => void;
+  onOpenCamera: () => void;
   onShareLocation: () => void;
   onOpenContacts: () => void;
 }
@@ -15,6 +16,7 @@ const MoreMenu = ({
   onSelectImages,
   onToggle,
   onSelectFiles,
+  onOpenCamera,
   onShareLocation,
   onOpenContacts,
 }: MoreMenuProps) => {
@@ -75,25 +77,19 @@ const MoreMenu = ({
             {/* Camera */}
             <div className="flex-shrink-0" style={{ width: 88 }}>
               <div className="text-center px-2 position-relative">
-                <div>
-                  <Input
-                    id="camera-image-input"
-                    type="file"
-                    className="d-none"
-                    accept="image/jpeg,image/png,image/webp"
-                    capture="environment"
-                    onChange={(e: any) => onSelect(e)}
-                  />
-                  <Label
-                    htmlFor="camera-image-input"
-                    className="avatar-sm mx-auto stretched-link cursor-pointer"
-                  >
-                    <span className="avatar-title font-size-18 bg-soft-primary text-primary rounded-circle">
-                      <i className="bx bxs-camera"></i>
-                    </span>
-                  </Label>
-                </div>
-                <h5 className="font-size-11 text-uppercase mt-2 mb-0 text-body text-truncate">
+                <Button
+                  type="button"
+                  color="link"
+                  className="avatar-sm mx-auto p-0 stretched-link"
+                  title="Open camera"
+                  aria-label="Open camera"
+                  onClick={onOpenCamera}
+                >
+                  <span className="avatar-title font-size-18 bg-soft-primary text-primary rounded-circle">
+                    <i className="bx bxs-camera"></i>
+                  </span>
+                </Button>
+                <h5 className="font-size-11 text-uppercase mt-3 mb-0 text-body text-truncate">
                   Camera
                 </h5>
               </div>

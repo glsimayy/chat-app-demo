@@ -30,6 +30,9 @@ const inviteContact = async (data: { email: string; message?: string }) => {
   return "Invitation sent";
 };
 
+const getUserProfile = (userId: string) =>
+  api.get(`/users/${userId}`).then(mapContact);
+
 const getContactInvitations = () =>
   api.get("/contact-invitations").then((invitations: any) =>
     (Array.isArray(invitations) ? invitations : []).map(invitation => ({
@@ -46,6 +49,7 @@ const respondToContactInvitation = (
 
 export {
   getContacts,
+  getUserProfile,
   getContactInvitations,
   inviteContact,
   respondToContactInvitation,
