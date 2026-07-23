@@ -467,9 +467,9 @@ const Message = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const hasImages = message.image && message.image.length;
-  const hasAttachments = message.attachments && message.attachments.length;
-  const hasText = message.text;
+  const hasImages = Boolean(message.image?.length);
+  const hasAttachments = Boolean(message.attachments?.length);
+  const hasText = Boolean(message.text);
   const isTyping = false;
 
   const chatUserFullName = chatUserDetails.firstName

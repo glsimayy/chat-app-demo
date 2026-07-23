@@ -79,11 +79,18 @@ Local adresler:
 Development modunda `DEMO_USERS_ENABLED=true` ise backend her acildiginda su
 demo hesaplari hazirlanir:
 
-| Rol   | Kullanici adi | E-posta            | Sifre       |
-| ----- | ------------- | ------------------ | ----------- |
-| Admin | `admin`       | `admin@ello.local` | `Admin123!` |
-| User  | `user1`       | `user1@ello.local` | `User123!`  |
-| User  | `user2`       | `user2@ello.local` | `User123!`  |
+| Bot ID | Rol   | Kullanici adi  | E-posta                 | Sifre    |
+| ------ | ----- | -------------- | ----------------------- | -------- |
+| `1`    | Admin | `emiradmin`    | `emiradmin@ello.com`     | `123456` |
+| `2`    | User  | `emiruser`     | `emiruser@ello.com`      | `123456` |
+| `3`    | Admin | `aslıadmin`    | `asliadmin@ello.com`     | `123456` |
+| `4`    | User  | `aslıuser`     | `asliuser@ello.com`      | `123456` |
+| `5`    | Admin | `gülsimaadmin` | `gulsimaadmin@ello.com`  | `123456` |
+| `6`    | User  | `gülsimauser`  | `gulsimauser@ello.com`   | `123456` |
+
+Bot endpointlerindeki `participantIds`, `managerIds`, `ownerId` ve URL'deki
+`userId` alanlari built-in hesaplar icin UUID yerine bu kisa Bot ID degerlerini
+kabul eder.
 
 ### Kontrol
 

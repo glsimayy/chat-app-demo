@@ -7,9 +7,6 @@ export type { ApiErrorDetails } from "./apiErrors";
 // default
 axios.defaults.baseURL = config.API_URL;
 
-// content type
-axios.defaults.headers.post["Content-Type"] = "application/json";
-
 axios.interceptors.request.use((request: any) => {
   const rawUser = localStorage.getItem("authUser");
 
@@ -156,9 +153,7 @@ class APIClient {
         formData.append(k, value);
       }
     }
-    return axios.post(url, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    return axios.post(url, formData);
   };
 }
 

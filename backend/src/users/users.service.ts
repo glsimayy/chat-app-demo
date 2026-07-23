@@ -14,6 +14,8 @@ import { PublicUser, UserRecord } from "./user.types";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
 
 interface CreateUserInput {
+  id?: string;
+  automationId?: number;
   username: string;
   email: string;
   passwordHash: string;
@@ -22,21 +24,51 @@ interface CreateUserInput {
 
 const DEVELOPMENT_USERS = [
   {
-    username: "admin",
-    email: "admin@ello.local",
-    password: "Admin123!",
+    id: "00000000-0000-4000-8000-000000000001",
+    automationId: 1,
+    username: "emiradmin",
+    email: "emiradmin@ello.com",
+    password: "123456",
     role: UserRole.Admin,
   },
   {
-    username: "user1",
-    email: "user1@ello.local",
-    password: "User123!",
+    id: "00000000-0000-4000-8000-000000000002",
+    automationId: 2,
+    username: "emiruser",
+    email: "emiruser@ello.com",
+    password: "123456",
     role: UserRole.User,
   },
   {
-    username: "user2",
-    email: "user2@ello.local",
-    password: "User123!",
+    id: "00000000-0000-4000-8000-000000000003",
+    automationId: 3,
+    username: "aslıadmin",
+    email: "asliadmin@ello.com",
+    password: "123456",
+    role: UserRole.Admin,
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000004",
+    automationId: 4,
+    username: "aslıuser",
+    email: "asliuser@ello.com",
+    password: "123456",
+    role: UserRole.User,
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000005",
+    automationId: 5,
+    username: "gülsimaadmin",
+    email: "gulsimaadmin@ello.com",
+    password: "123456",
+    role: UserRole.Admin,
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000006",
+    automationId: 6,
+    username: "gülsimauser",
+    email: "gulsimauser@ello.com",
+    password: "123456",
     role: UserRole.User,
   },
 ] as const;
@@ -87,6 +119,8 @@ export class UsersService implements OnModuleInit {
 
       const passwordHash = await bcrypt.hash(demoUser.password, 10);
       await this.create({
+        id: demoUser.id,
+        automationId: demoUser.automationId,
         username: demoUser.username,
         email: demoUser.email,
         passwordHash,
@@ -110,7 +144,8 @@ export class UsersService implements OnModuleInit {
     }
 
     const user: UserRecord = {
-      id: crypto.randomUUID(),
+      id: input.id ?? crypto.randomUUID(),
+      automationId: input.automationId ?? null,
       username,
       email,
       passwordHash: input.passwordHash,
@@ -155,6 +190,32 @@ export class UsersService implements OnModuleInit {
 
   async findRecordById(id: string): Promise<UserRecord | undefined> {
     return this.users.get(id);
+  }
+
+  async resolveUserReference(reference: string): Promise<string> {
+    const normalizedReference = reference.trim();
+    const directMatch = this.users.get(normalizedReference);
+    if (directMatch) {
+      return directMatch.id;
+    }
+
+    if (/^[1-9]\d*$/.test(normalizedReference)) {
+      const automationId = Number(normalizedReference);
+      const automationMatch = Array.from(this.users.values()).find(
+        (user) => user.automationId === automationId,
+      );
+      if (automationMatch) {
+        return automationMatch.id;
+      }
+    }
+
+    return normalizedReference;
+  }
+
+  async resolveUserReferences(references: string[]): Promise<string[]> {
+    return Promise.all(
+      references.map((reference) => this.resolveUserReference(reference)),
+    );
   }
 
   async updatePasswordHash(id: string, passwordHash: string) {
@@ -311,6 +372,7 @@ export class UsersService implements OnModuleInit {
 
   private toUserRecord(user: {
     id: string;
+    automationId: number | null;
     username: string;
     email: string;
     passwordHash: string;
@@ -322,6 +384,7 @@ export class UsersService implements OnModuleInit {
   }): UserRecord {
     return {
       id: user.id,
+      automationId: user.automationId,
       username: user.username,
       email: user.email,
       passwordHash: user.passwordHash,

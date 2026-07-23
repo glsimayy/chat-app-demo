@@ -113,13 +113,17 @@ export class BotController {
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @ApiOperation({ summary: "Promote or demote an automation group manager" })
   @ApiParam({ name: "conversationId", format: "uuid" })
-  @ApiParam({ name: "userId", format: "uuid" })
+  @ApiParam({
+    name: "userId",
+    description: "User UUID or built-in automation ID",
+    example: "1",
+  })
   @ApiSuccessResponse(ConversationResponseDto, {
     description: "Automation group participant role updated",
   })
   updateParticipantRole(
     @Param("conversationId", new ParseUUIDPipe()) conversationId: string,
-    @Param("userId", new ParseUUIDPipe()) userId: string,
+    @Param("userId") userId: string,
     @Body() dto: UpdateParticipantRoleDto,
   ) {
     return this.botService.updateParticipantRole(conversationId, userId, dto);

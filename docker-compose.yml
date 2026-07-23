@@ -32,16 +32,13 @@ services:
         condition: service_healthy
     restart: "no"
 
-  admin-bootstrap:
+  built-in-users-bootstrap:
     build:
       context: ./backend
       target: migration
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/chat_app_demo}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
-      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Change-This-Admin-Password!42}
-    command: ["npm", "run", "db:bootstrap-admin"]
+    command: ["npm", "run", "db:bootstrap-built-in-users"]
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -72,7 +69,7 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      admin-bootstrap:
+      built-in-users-bootstrap:
         condition: service_completed_successfully
     healthcheck:
       test:

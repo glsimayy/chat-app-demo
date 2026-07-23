@@ -224,6 +224,11 @@ export class ConversationsController {
     "image/webp",
     "application/pdf",
     "text/plain",
+    "audio/mpeg",
+    "audio/wav",
+    "audio/ogg",
+    "audio/webm",
+    "audio/mp4",
   )
   @ApiOkResponse({
     description: "Attachment content",

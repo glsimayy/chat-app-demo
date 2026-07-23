@@ -7,6 +7,7 @@ import InputSection from "./InputSection";
 import EndButtons from "./EndButtons";
 import MoreMenu from "./MoreMenu";
 import Reply from "./Reply";
+import ShareContactModal from "./ShareContactModal";
 
 // interface
 import { MessagesTypes } from "../../../../data/messages";
@@ -20,6 +21,11 @@ const ALLOWED_ATTACHMENT_TYPES = new Set([
   "image/webp",
   "application/pdf",
   "text/plain",
+  "audio/mpeg",
+  "audio/wav",
+  "audio/ogg",
+  "audio/webm",
+  "audio/mp4",
 ]);
 
 interface IndexProps {
@@ -66,13 +72,13 @@ const Index = ({
   /*
   images
   */
-  const [images, setImages] = useState<Array<any> | null | undefined>();
+  const [images, setImages] = useState<File[]>([]);
   const [selectionError, setSelectionError] = useState("");
 
   /*
   files
   */
-  const [files, setFiles] = useState<Array<any> | null | undefined>();
+  const [files, setFiles] = useState<File[]>([]);
   const applySelection = (nextImages: File[], nextFiles: File[]) => {
     const selected = [...nextImages, ...nextFiles];
 
@@ -104,13 +110,13 @@ const Index = ({
     setFiles(nextFiles);
   };
   const onSelectImages = (selectedImages: File[]) => {
-    applySelection(selectedImages, (files || []) as File[]);
+    applySelection(selectedImages, files);
   };
   const onSelectFiles = (selectedFiles: File[]) => {
-    applySelection((images || []) as File[], selectedFiles);
+    applySelection(images, selectedFiles);
   };
   useEffect(() => {
-    if (text || images || files) {
+    if (text || images.length || files.length) {
       setDisabled(false);
     } else {
       setDisabled(true);
@@ -139,17 +145,49 @@ const Index = ({
 
     setText("");
     onTyping("");
-    setImages(null);
-    setFiles(null);
+    setImages([]);
+    setFiles([]);
     setSelectionError("");
     setemojiPicker(false);
     onSend(data);
   };
 
   const onClearMedia = () => {
-    setImages(null);
-    setFiles(null);
+    setImages([]);
+    setFiles([]);
     setSelectionError("");
+  };
+
+  const [isShareContactOpen, setIsShareContactOpen] = useState(false);
+  const appendText = (value: string) => {
+    const nextText = [text?.trim(), value].filter(Boolean).join("\n");
+    setText(nextText);
+    onTyping(nextText);
+  };
+  const onShareContact = (contact: any) => {
+    appendText(`Contact: ${contact.username}\nEmail: ${contact.email}`);
+    setIsShareContactOpen(false);
+    setIsOpen(false);
+  };
+  const onShareLocation = () => {
+    if (!navigator.geolocation) {
+      setSelectionError("Location sharing is not supported by this browser.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        const latitude = position.coords.latitude.toFixed(6);
+        const longitude = position.coords.longitude.toFixed(6);
+        appendText(
+          `Location: https://www.google.com/maps?q=${latitude},${longitude}`,
+        );
+        setSelectionError("");
+        setIsOpen(false);
+      },
+      () => setSelectionError("Location permission was denied or unavailable."),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
   };
 
   if (!canSend) {
@@ -189,7 +227,7 @@ const Index = ({
           </div>
         </div>
       </Form>
-      {(images && images.length) || (files && files.length) ? (
+      {images.length || files.length ? (
         <Alert
           isOpen={true}
           toggle={onClearMedia}
@@ -199,10 +237,14 @@ const Index = ({
           closeClassName="selected-media-close"
         >
           <p className="me-2 mb-0">
-            {images && !files && ` You have selected ${images.length} images`}
-            {files && !images && ` You have selected ${files.length} files`}
-            {files &&
-              images &&
+            {images.length > 0 &&
+              files.length === 0 &&
+              ` You have selected ${images.length} images`}
+            {files.length > 0 &&
+              images.length === 0 &&
+              ` You have selected ${files.length} files`}
+            {files.length > 0 &&
+              images.length > 0 &&
               ` You have selected ${files.length} files & ${images.length} images.`}
           </p>
         </Alert>
@@ -219,6 +261,17 @@ const Index = ({
         onSelectImages={onSelectImages}
         onSelectFiles={onSelectFiles}
         onToggle={onToggle}
+        onShareLocation={onShareLocation}
+        onOpenContacts={() => {
+          setIsShareContactOpen(true);
+          setIsOpen(false);
+        }}
+      />
+
+      <ShareContactModal
+        isOpen={isShareContactOpen}
+        onClose={() => setIsShareContactOpen(false)}
+        onShare={onShareContact}
       />
 
       <Reply

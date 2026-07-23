@@ -32,9 +32,9 @@ docker compose ps
 `migrate` servisi migration ve database audit islemlerini tamamlayip basariyla
 kapanir. Diger servislerin `healthy` olmasi beklenir.
 
-`admin-bootstrap` servisi ilk production ADMIN hesabini `.env` degerleriyle
-backend baslamadan once otomatik olarak hazirlar. Boylece backend kullanici
-verisini yuklediginde ADMIN hesabi kullanima hazirdir.
+`built-in-users-bootstrap` servisi alti yerel test hesabini sabit Bot ID ve
+parolalarla backend baslamadan once otomatik olarak hazirlar. Islem idempotenttir;
+stack yeniden baslatildiginda ayni hesaplar tekrar kullanilir.
 
 Adresler:
 

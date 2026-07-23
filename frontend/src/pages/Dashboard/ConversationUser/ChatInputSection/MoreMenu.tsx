@@ -1,19 +1,22 @@
 import React from "react";
-import { Link } from "react-router-dom";
 
-import { Collapse, Card, CardBody, Input, Label } from "reactstrap";
+import { Button, Collapse, Card, CardBody, Input, Label } from "reactstrap";
 
 interface MoreMenuProps {
   isOpen: boolean;
   onSelectImages: (images: Array<any>) => void;
   onToggle: () => any;
   onSelectFiles: (files: Array<any>) => void;
+  onShareLocation: () => void;
+  onOpenContacts: () => void;
 }
 const MoreMenu = ({
   isOpen,
   onSelectImages,
   onToggle,
   onSelectFiles,
+  onShareLocation,
+  onOpenContacts,
 }: MoreMenuProps) => {
   const onSelect = (e: any) => {
     const files = [...e.target.files];
@@ -71,16 +74,27 @@ const MoreMenu = ({
 
             {/* Camera */}
             <div className="flex-shrink-0" style={{ width: 88 }}>
-              <div className="text-center px-2">
-                <div className="avatar-sm mx-auto">
-                  <div className="avatar-title font-size-18 bg-soft-primary text-primary rounded-circle">
-                    <i className="bx bxs-camera"></i>
-                  </div>
+              <div className="text-center px-2 position-relative">
+                <div>
+                  <Input
+                    id="camera-image-input"
+                    type="file"
+                    className="d-none"
+                    accept="image/jpeg,image/png,image/webp"
+                    capture="environment"
+                    onChange={(e: any) => onSelect(e)}
+                  />
+                  <Label
+                    htmlFor="camera-image-input"
+                    className="avatar-sm mx-auto stretched-link cursor-pointer"
+                  >
+                    <span className="avatar-title font-size-18 bg-soft-primary text-primary rounded-circle">
+                      <i className="bx bxs-camera"></i>
+                    </span>
+                  </Label>
                 </div>
-                <h5 className="font-size-11 text-uppercase mt-3 mb-0 text-body text-truncate">
-                  <Link to="#" className="text-body stretched-link">
-                    Camera
-                  </Link>
+                <h5 className="font-size-11 text-uppercase mt-2 mb-0 text-body text-truncate">
+                  Camera
                 </h5>
               </div>
             </div>
@@ -114,53 +128,67 @@ const MoreMenu = ({
             {/* Audio */}
 
             <div className="flex-shrink-0" style={{ width: 88 }}>
-              <div className="text-center px-2">
-                <div className="avatar-sm mx-auto">
-                  <div className="avatar-title font-size-18 bg-soft-primary text-primary rounded-circle">
-                    <i className="bx bx-headphone"></i>
-                  </div>
+              <div className="text-center px-2 position-relative">
+                <div>
+                  <Input
+                    id="audio-file-input"
+                    type="file"
+                    className="d-none"
+                    accept="audio/mpeg,audio/wav,audio/ogg,audio/webm,audio/mp4"
+                    onChange={(e: any) => onSelectF(e)}
+                  />
+                  <Label
+                    htmlFor="audio-file-input"
+                    className="avatar-sm mx-auto stretched-link cursor-pointer"
+                  >
+                    <span className="avatar-title font-size-18 bg-soft-primary text-primary rounded-circle">
+                      <i className="bx bx-headphone"></i>
+                    </span>
+                  </Label>
                 </div>
-
-                <h5 className="font-size-11 text-uppercase mt-3 mb-0 text-body text-truncate">
-                  <Link to="#" className="text-body stretched-link">
-                    Audio
-                  </Link>
+                <h5 className="font-size-11 text-uppercase mt-2 mb-0 text-body text-truncate">
+                  Audio
                 </h5>
               </div>
             </div>
             {/* Location */}
             <div className="flex-shrink-0" style={{ width: 88 }}>
-              <div className="text-center px-2">
-                <div className="avatar-sm mx-auto">
-                  <div className="avatar-title font-size-18 bg-soft-primary text-primary rounded-circle">
+              <div className="text-center px-2 position-relative">
+                <Button
+                  type="button"
+                  color="link"
+                  className="avatar-sm mx-auto p-0 stretched-link"
+                  title="Share location"
+                  aria-label="Share location"
+                  onClick={onShareLocation}
+                >
+                  <span className="avatar-title font-size-18 bg-soft-primary text-primary rounded-circle">
                     <i className="bx bx-current-location"></i>
-                  </div>
-                </div>
+                  </span>
+                </Button>
                 <h5 className="font-size-11 text-uppercase mt-3 mb-0 text-body text-truncate">
-                  <Link to="#" className="text-body stretched-link">
-                    Location
-                  </Link>
+                  Location
                 </h5>
               </div>
             </div>
 
             {/* Contacts */}
             <div className="flex-shrink-0" style={{ width: 88 }}>
-              <div className="text-center px-2">
-                <div className="avatar-sm mx-auto">
-                  <div className="avatar-title font-size-18 bg-soft-primary text-primary rounded-circle">
+              <div className="text-center px-2 position-relative">
+                <Button
+                  type="button"
+                  color="link"
+                  className="avatar-sm mx-auto p-0 stretched-link"
+                  title="Share contact"
+                  aria-label="Share contact"
+                  onClick={onOpenContacts}
+                >
+                  <span className="avatar-title font-size-18 bg-soft-primary text-primary rounded-circle">
                     <i className="bx bxs-user-circle"></i>
-                  </div>
-                </div>
+                  </span>
+                </Button>
                 <h5 className="font-size-11 text-uppercase mt-3 mb-0 text-body text-truncate">
-                  <Link
-                    to="#"
-                    className="text-body stretched-link"
-                    data-bs-toggle="modal"
-                    data-bs-target=".contactModal"
-                  >
-                    Contacts
-                  </Link>
+                  Contacts
                 </h5>
               </div>
             </div>

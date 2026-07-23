@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { AuthModule } from "./auth/auth.module";
 import { BotModule } from "./bot/bot.module";
 import { ChatModule } from "./chat/chat.module";
+import { ContactInvitationsModule } from "./contact-invitations/contact-invitations.module";
 import { RequestLoggerMiddleware } from "./common/middleware/request-logger.middleware";
 import { validateEnv } from "./config/env.validation";
 import { ConversationsModule } from "./conversations/conversations.module";
@@ -38,6 +39,7 @@ import { UsersModule } from "./users/users.module";
     AuthModule,
     ConversationsModule,
     ChatModule,
+    ContactInvitationsModule,
     BotModule,
     TicketsModule,
     DevModule,

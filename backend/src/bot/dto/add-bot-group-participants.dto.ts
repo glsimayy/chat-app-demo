@@ -5,32 +5,31 @@ import {
   ArrayUnique,
   IsArray,
   IsOptional,
-  IsUUID,
+  IsString,
 } from "class-validator";
 
 export class AddBotGroupParticipantsDto {
   @ApiProperty({
-    description: "Users to add or reactivate in the automation group",
-    example: [
-      "0b991e0b-814d-4ab4-a918-cfdc1ea19a7a",
-      "f0adce02-7452-44c5-9a94-60e7b27ae4f0",
-    ],
+    description:
+      "User UUIDs or built-in automation IDs to add or reactivate",
+    example: ["2", "4"],
   })
   @IsArray()
   @ArrayNotEmpty()
   @ArrayUnique()
   @ArrayMaxSize(50)
-  @IsUUID("4", { each: true })
+  @IsString({ each: true })
   participantIds!: string[];
 
   @ApiPropertyOptional({
-    description: "Added users who should become group managers",
-    example: ["0b991e0b-814d-4ab4-a918-cfdc1ea19a7a"],
+    description:
+      "Added user UUIDs or built-in automation IDs that should become managers",
+    example: ["1"],
   })
   @IsOptional()
   @IsArray()
   @ArrayUnique()
   @ArrayMaxSize(50)
-  @IsUUID("4", { each: true })
+  @IsString({ each: true })
   managerIds?: string[];
 }

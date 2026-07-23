@@ -1,10 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { EventEmitter } from "node:events";
 import { ConversationRecord, MessageRecord } from "./conversation.types";
+import { ContactInvitationView } from "../contact-invitations/contact-invitation.types";
 
 const REALTIME_EVENT = "conversation.realtime";
 
 export type ConversationRealtimeEvent =
+  | { type: "contact.invitation.created"; data: ContactInvitationView }
+  | { type: "contact.invitation.updated"; data: ContactInvitationView }
   | { type: "conversation.created"; data: ConversationRecord }
   | { type: "conversation.updated"; data: ConversationRecord }
   | { type: "message.created"; data: MessageRecord }

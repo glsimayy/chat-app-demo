@@ -563,6 +563,17 @@ export class ChatGateway
 
   private broadcastRealtimeEvent(event: ConversationRealtimeEvent) {
     switch (event.type) {
+      case "contact.invitation.created":
+        this.server
+          .to(this.userRoom(event.data.recipientId))
+          .emit("contact:invitation:new", event.data);
+        return;
+      case "contact.invitation.updated":
+        this.server
+          .to(this.userRoom(event.data.senderId))
+          .to(this.userRoom(event.data.recipientId))
+          .emit("contact:invitation:updated", event.data);
+        return;
       case "conversation.created":
         this.emitToConversationAudience(
           event.data.id,
