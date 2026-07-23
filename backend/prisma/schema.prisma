@@ -35,6 +35,12 @@ enum MessageType {
   system
 }
 
+enum ContactInvitationStatus {
+  pending
+  accepted
+  declined
+}
+
 enum SupportTicketPriority {
   low
   medium
@@ -59,25 +65,45 @@ enum SupportTicketActivityAction {
 }
 
 model User {
-  id                      String                    @id @default(uuid()) @db.Uuid
-  email                   String                    @unique
-  username                String                    @unique
-  passwordHash            String
-  role                    UserRole                  @default(user)
-  about                   String?
-  location                String?
-  profileImage            String?                   @db.Text
-  createdAt               DateTime                  @default(now())
-  updatedAt               DateTime                  @updatedAt
-  conversationsCreated    Conversation[]            @relation("ConversationCreator")
-  messages                Message[]
-  participants            ConversationParticipant[]
-  supportTicketsRequested SupportTicket[]           @relation("SupportTicketRequester")
-  supportTicketsAssigned  SupportTicket[]           @relation("SupportTicketAssignee")
-  supportTicketActivities SupportTicketActivity[]   @relation("SupportTicketActivityActor")
+  id                         String                    @id @default(uuid()) @db.Uuid
+  automationId               Int?                      @unique
+  email                      String                    @unique
+  username                   String                    @unique
+  passwordHash               String
+  role                       UserRole                  @default(user)
+  about                      String?
+  location                   String?
+  profileImage               String?                   @db.Text
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
+  conversationsCreated       Conversation[]            @relation("ConversationCreator")
+  messages                   Message[]
+  participants               ConversationParticipant[]
+  supportTicketsRequested    SupportTicket[]           @relation("SupportTicketRequester")
+  supportTicketsAssigned     SupportTicket[]           @relation("SupportTicketAssignee")
+  supportTicketActivities    SupportTicketActivity[]   @relation("SupportTicketActivityActor")
+  sentContactInvitations     ContactInvitation[]       @relation("ContactInvitationSender")
+  receivedContactInvitations ContactInvitation[]       @relation("ContactInvitationRecipient")
 
   @@index([role])
   @@map("users")
+}
+
+model ContactInvitation {
+  id          String                  @id @default(uuid()) @db.Uuid
+  senderId    String                  @db.Uuid
+  recipientId String                  @db.Uuid
+  message     String?
+  status      ContactInvitationStatus @default(pending)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  respondedAt DateTime?
+  sender      User                    @relation("ContactInvitationSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient   User                    @relation("ContactInvitationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, status, createdAt])
+  @@index([senderId, status, createdAt])
+  @@map("contact_invitations")
 }
 
 model SupportTicket {

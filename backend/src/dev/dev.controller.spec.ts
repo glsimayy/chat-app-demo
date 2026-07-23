@@ -1,5 +1,6 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { ContactInvitationsService } from "../contact-invitations/contact-invitations.service";
 import { ConversationsService } from "../conversations/conversations.service";
 import { TicketsService } from "../tickets/tickets.service";
 import { UsersService } from "../users/users.service";
@@ -9,6 +10,9 @@ function createController(config: Record<string, string | undefined>) {
   const configService = {
     get: jest.fn((key: string, fallback?: string) => config[key] ?? fallback),
   } as unknown as ConfigService;
+  const contactInvitationsService = {
+    clearAll: jest.fn().mockResolvedValue({ deletedContactInvitations: 1 }),
+  } as unknown as ContactInvitationsService;
   const conversationsService = {
     clearAll: jest.fn().mockResolvedValue({ deletedConversations: 2 }),
   } as unknown as ConversationsService;
@@ -22,10 +26,12 @@ function createController(config: Record<string, string | undefined>) {
   return {
     controller: new DevController(
       configService,
+      contactInvitationsService,
       conversationsService,
       ticketsService,
       usersService,
     ),
+    contactInvitationsService,
     conversationsService,
     ticketsService,
     usersService,
@@ -56,19 +62,26 @@ describe("DevController", () => {
   });
 
   it("clears conversations and users with the configured secret", async () => {
-    const { controller, conversationsService, ticketsService, usersService } =
-      createController({
+    const {
+      controller,
+      contactInvitationsService,
+      conversationsService,
+      ticketsService,
+      usersService,
+    } = createController({
         DEV_ROUTES_ENABLED: "true",
         DEV_RESET_SECRET: "reset-secret",
       });
 
     await expect(controller.resetInMemoryData("reset-secret")).resolves.toEqual(
       {
+        contactInvitations: { deletedContactInvitations: 1 },
         conversations: { deletedConversations: 2 },
         tickets: { deletedTickets: 1 },
         users: { deletedUsers: 3 },
       },
     );
+    expect(contactInvitationsService.clearAll).toHaveBeenCalledTimes(1);
     expect(conversationsService.clearAll).toHaveBeenCalledTimes(1);
     expect(ticketsService.clearAll).toHaveBeenCalledTimes(1);
     expect(usersService.clearAll).toHaveBeenCalledTimes(1);

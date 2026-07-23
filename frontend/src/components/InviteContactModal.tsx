@@ -11,9 +11,8 @@ import {
 } from "reactstrap";
 
 interface DataTypes {
-  email: string | null;
-  name: string | null;
-  message: string | null;
+  email: string;
+  message: string;
 }
 interface InviteContactModalProps {
   isOpen: boolean;
@@ -29,45 +28,26 @@ const InviteContactModal = ({
   data input handeling
   */
   const [data, setData] = useState<DataTypes>({
-    email: null,
-    name: null,
-    message: null,
+    email: "",
+    message: "",
   });
   useEffect(() => {
     setData({
-      email: null,
-      name: null,
-      message: null,
+      email: "",
+      message: "",
     });
-  }, []);
+  }, [isOpen]);
 
-  const onChangeData = (field: "email" | "name" | "message", value: string) => {
-    let modifiedData: DataTypes = { ...data };
-    if (value === "") {
-      modifiedData[field] = null;
-    } else {
-      modifiedData[field] = value;
-    }
-    setData(modifiedData);
+  const onChangeData = (field: keyof DataTypes, value: string) => {
+    setData(current => ({ ...current, [field]: value }));
   };
-
-  /*
-  validation
-  */
-  // const [valid, setValid] = useState<boolean>(false);
-  // useEffect(() => {
-  //   if (data.email !== null && data.message !== null && data.name !== null) {
-  //     setValid(true);
-  //   } else {
-  //     setValid(false);
-  //   }
-  // }, [data]);
+  const valid = /^\S+@\S+\.\S+$/.test(data.email.trim());
   return (
-    <Modal isOpen={isOpen} toggle={onClose} tabIndex={-1} centered scrollable >
-      <ModalHeader  toggle={onClose} className="bg-primary">
-      <div className="modal-title-custom text-white font-size-16 ">
-      Create Contact
-      </div>
+    <Modal isOpen={isOpen} toggle={onClose} tabIndex={-1} centered scrollable>
+      <ModalHeader toggle={onClose} className="bg-primary">
+        <div className="modal-title-custom text-white font-size-16">
+          Invite contact
+        </div>
       </ModalHeader>
       <ModalBody className="p-4">
         <Form>
@@ -80,24 +60,9 @@ const InviteContactModal = ({
               className="form-control"
               id="AddContactModalemail-input"
               placeholder="Enter Email"
-              value={data["email"] || ""}
+              value={data.email}
               onChange={(e: any) => {
                 onChangeData("email", e.target.value);
-              }}
-            />
-          </div>
-          <div className="mb-3">
-            <Label htmlFor="AddContactModalname-input" className="form-label">
-              Name
-            </Label>
-            <Input
-              type="text"
-              className="form-control"
-              id="AddContactModalname-input"
-              placeholder="Enter Name"
-              value={data["name"] || ""}
-              onChange={(e: any) => {
-                onChangeData("name", e.target.value);
               }}
             />
           </div>
@@ -106,17 +71,18 @@ const InviteContactModal = ({
               htmlFor="AddContactModal-invitemessage-input"
               className="form-label"
             >
-              Invatation Message
+              Invitation message
             </Label>
             <textarea
-              value={data["message"] || ""}
+              value={data.message}
               onChange={(e: any) => {
                 onChangeData("message", e.target.value);
               }}
               className="form-control"
               id="AddContactModal-invitemessage-input"
               rows={3}
-              placeholder="Enter Message"
+              maxLength={300}
+              placeholder="Add an optional message"
             ></textarea>
           </div>
         </Form>
@@ -128,8 +94,13 @@ const InviteContactModal = ({
         <Button
           type="button"
           color="primary"
-          // disabled={!valid}
-          onClick={() => onInvite(data)}
+          disabled={!valid}
+          onClick={() =>
+            onInvite({
+              email: data.email.trim(),
+              message: data.message.trim() || undefined,
+            })
+          }
         >
           Invite
         </Button>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { createSelector } from "reselect";
 import { Button, Form, Input, UncontrolledTooltip } from "reactstrap";
 import { Link } from "react-router-dom";
@@ -19,6 +19,7 @@ import {
   getChatUserConversations,
   getChannelDetails,
   getArchiveContact,
+  getContacts,
   readConversation,
 } from "../../../redux/actions";
 
@@ -31,6 +32,7 @@ import AddGroupModal from "../../../components/AddGroupModal";
 import InviteContactModal from "../../../components/InviteContactModal";
 import AddButton from "../../../components/AddButton";
 import ContactModal from "../../../components/ContactModal";
+import ContactInvitationsModal from "../../../components/ContactInvitationsModal";
 
 import Favourites from "./Favourites";
 import DirectMessages from "./DirectMessages";
@@ -38,6 +40,16 @@ import Chanels from "./Chanels";
 import Archive from "./Archive";
 import { CHATS_TABS } from "../../../constants";
 import { getCurrentAuthUser } from "../../../api/backendAdapters";
+import {
+  ContactInvitation,
+  getContactInvitations,
+  respondToContactInvitation,
+} from "../../../api/contacts";
+import { getChatSocket } from "../../../api/realtime";
+import {
+  showErrorNotification,
+  showSuccessNotification,
+} from "../../../helpers/notifications";
 
 interface IndexProps {}
 const Index = (props: IndexProps) => {
@@ -77,6 +89,69 @@ const Index = (props: IndexProps) => {
     chatUserDetails,
   } = useAppSelector(errorData);
   const canCreateChannel = getCurrentAuthUser()?.role === "admin";
+  const [invitations, setInvitations] = useState<ContactInvitation[]>([]);
+  const [isInvitationsOpen, setIsInvitationsOpen] = useState(false);
+  const [processingInvitationId, setProcessingInvitationId] = useState<
+    string | null
+  >(null);
+
+  const refreshInvitations = useCallback(async () => {
+    try {
+      setInvitations(await getContactInvitations());
+    } catch (error: any) {
+      showErrorNotification(String(error || "Invitations could not be loaded"));
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshInvitations();
+    const socket = getChatSocket();
+
+    if (!socket) {
+      return;
+    }
+
+    const handleNewInvitation = (invitation: any) => {
+      refreshInvitations();
+      showSuccessNotification(
+        `${invitation?.sender?.username || "A user"} sent you a contact invitation`,
+      );
+    };
+    const handleUpdatedInvitation = () => refreshInvitations();
+
+    socket.on("contact:invitation:new", handleNewInvitation);
+    socket.on("contact:invitation:updated", handleUpdatedInvitation);
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    return () => {
+      socket.off("contact:invitation:new", handleNewInvitation);
+      socket.off("contact:invitation:updated", handleUpdatedInvitation);
+    };
+  }, [refreshInvitations]);
+
+  const respondToInvitation = async (
+    invitationId: string,
+    status: "accepted" | "declined",
+  ) => {
+    try {
+      setProcessingInvitationId(invitationId);
+      await respondToContactInvitation(invitationId, status);
+      setInvitations(current =>
+        current.filter(invitation => invitation.id !== invitationId),
+      );
+      dispatch(getContacts());
+      dispatch(getDirectMessages());
+      showSuccessNotification(
+        status === "accepted" ? "Invitation accepted" : "Invitation declined",
+      );
+    } catch (error: any) {
+      showErrorNotification(String(error || "Invitation could not be updated"));
+    } finally {
+      setProcessingInvitationId(null);
+    }
+  };
 
   // get data
 
@@ -227,7 +302,29 @@ const Index = (props: IndexProps) => {
             <div className="flex-grow-1">
               <h4 className="mb-4">Chats</h4>
             </div>
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 d-flex align-items-center gap-2">
+              <div id="contact-invitations" className="position-relative">
+                <Button
+                  type="button"
+                  color="light"
+                  className="btn-sm"
+                  aria-label="Open contact invitations"
+                  onClick={() => setIsInvitationsOpen(true)}
+                >
+                  <i className="bx bx-envelope font-size-16"></i>
+                </Button>
+                {invitations.length > 0 && (
+                  <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    {invitations.length}
+                  </span>
+                )}
+              </div>
+              <UncontrolledTooltip
+                target="contact-invitations"
+                placement="bottom"
+              >
+                Contact invitations
+              </UncontrolledTooltip>
               <div id="add-contact">
                 {/* Button trigger modal */}
                 <AddButton ariaLabel="Add contact" onClick={openModal} />
@@ -345,6 +442,14 @@ const Index = (props: IndexProps) => {
           onAddContact={onAddContact}
         />
       )}
+
+      <ContactInvitationsModal
+        isOpen={isInvitationsOpen}
+        invitations={invitations}
+        processingId={processingInvitationId}
+        onClose={() => setIsInvitationsOpen(false)}
+        onRespond={respondToInvitation}
+      />
     </>
   );
 };

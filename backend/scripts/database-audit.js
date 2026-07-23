@@ -3,6 +3,9 @@ require("dotenv").config({ quiet: true });
 const { PrismaClient } = require("@prisma/client");
 
 const EXPECTED_INDEXES = [
+  "contact_invitations_pkey",
+  "contact_invitations_recipientId_status_createdAt_idx",
+  "contact_invitations_senderId_status_createdAt_idx",
   "conversation_participants_leftAt_idx",
   "conversation_participants_pkey",
   "conversation_participants_role_idx",
@@ -30,12 +33,15 @@ const EXPECTED_INDEXES = [
   "support_ticket_activities_actorId_idx",
   "support_ticket_activities_ticketId_createdAt_idx",
   "users_email_key",
+  "users_automationId_key",
   "users_pkey",
   "users_role_idx",
   "users_username_key",
 ];
 
 const EXPECTED_FOREIGN_KEYS = new Map([
+  ["contact_invitations_recipientId_fkey", "CASCADE"],
+  ["contact_invitations_senderId_fkey", "CASCADE"],
   ["conversations_createdBy_fkey", "RESTRICT"],
   ["conversations_parentConversationId_fkey", "CASCADE"],
   ["conversation_participants_conversationId_fkey", "CASCADE"],

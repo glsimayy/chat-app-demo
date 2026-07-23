@@ -7,10 +7,18 @@ import { ConversationStatus } from "../../conversations/conversation-status.enum
 import { SupportTicketPriority } from "../../tickets/support-ticket-priority.enum";
 import { SupportTicketStatus } from "../../tickets/support-ticket-status.enum";
 import { SupportTicketActivityAction } from "../../tickets/support-ticket-activity-action.enum";
+import { ContactInvitationStatus } from "../../contact-invitations/contact-invitation-status.enum";
 
 export class UserResponseDto {
   @ApiProperty({ format: "uuid" })
   id!: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: "Short user reference accepted by the bot API",
+    example: 1,
+  })
+  automationId!: number | null;
 
   @ApiProperty({ example: "emir" })
   username!: string;
@@ -35,6 +43,46 @@ export class UserResponseDto {
 
   @ApiProperty({ format: "date-time" })
   createdAt!: string;
+}
+
+export class ContactInvitationResponseDto {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty({ format: "uuid" })
+  senderId!: string;
+
+  @ApiProperty({ format: "uuid" })
+  recipientId!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  message!: string | null;
+
+  @ApiProperty({ enum: ContactInvitationStatus })
+  status!: ContactInvitationStatus;
+
+  @ApiProperty({ format: "date-time" })
+  createdAt!: string;
+
+  @ApiProperty({ format: "date-time" })
+  updatedAt!: string;
+
+  @ApiPropertyOptional({ format: "date-time", nullable: true })
+  respondedAt!: string | null;
+
+  @ApiProperty({ type: UserResponseDto })
+  sender!: UserResponseDto;
+
+  @ApiProperty({ type: UserResponseDto })
+  recipient!: UserResponseDto;
+}
+
+export class ContactInvitationActionResponseDto {
+  @ApiProperty({ type: ContactInvitationResponseDto })
+  invitation!: ContactInvitationResponseDto;
+
+  @ApiPropertyOptional({ format: "uuid", nullable: true })
+  conversationId!: string | null;
 }
 
 export class AuthResponseDto {
@@ -375,6 +423,9 @@ export class HealthResponseDto {
 }
 
 export class DevResetResponseDto {
+  @ApiProperty({ type: Object })
+  contactInvitations!: Record<string, number>;
+
   @ApiProperty({ type: Object })
   conversations!: Record<string, number>;
 

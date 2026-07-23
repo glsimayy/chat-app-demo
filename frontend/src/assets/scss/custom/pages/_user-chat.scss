@@ -229,6 +229,17 @@
             height: 28px;
             border-radius: 50%;
         }
+
+        .message-avatar-button {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+
+            &:focus-visible {
+                outline: 2px solid rgba(var(--bs-primary-rgb), 1);
+                outline-offset: 2px;
+            }
+        }
     }
 
     .chat-day-title {
@@ -627,4 +638,30 @@ body[data-bs-theme="dark"] {
         color: rgba(255,255,255,.8);
     }
 
+}
+
+.camera-capture-preview {
+    min-height: 260px;
+    aspect-ratio: 4 / 3;
+
+    video {
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .camera-capture-loading {
+        position: absolute;
+        inset: 0;
+    }
+}
+
+.shared-contact-card {
+    min-width: min(280px, 70vw);
+    border: 1px solid var(--#{$prefix}border-color);
+    border-radius: 6px;
+    padding: 12px;
+
+    &:disabled {
+        opacity: 1;
+    }
 }

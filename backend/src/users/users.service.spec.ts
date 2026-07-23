@@ -20,24 +20,33 @@ function createConfigService(nodeEnv: string, demoUsersEnabled?: string) {
 }
 
 describe("UsersService development users", () => {
-  it("seeds one admin and two users in development", async () => {
+  it("seeds six built-in users with stable automation IDs", async () => {
     const service = new UsersService(createConfigService("development"));
 
     await service.onModuleInit();
 
     const users = await service.findAll();
-    expect(users).toHaveLength(3);
-    expect(users.map((user) => [user.email, user.role])).toEqual([
-      ["admin@ello.local", UserRole.Admin],
-      ["user1@ello.local", UserRole.User],
-      ["user2@ello.local", UserRole.User],
+    expect(users).toHaveLength(6);
+    expect(
+      users.map((user) => [user.automationId, user.email, user.role]),
+    ).toEqual([
+      [1, "emiradmin@ello.com", UserRole.Admin],
+      [2, "emiruser@ello.com", UserRole.User],
+      [3, "asliadmin@ello.com", UserRole.Admin],
+      [4, "asliuser@ello.com", UserRole.User],
+      [5, "gulsimaadmin@ello.com", UserRole.Admin],
+      [6, "gulsimauser@ello.com", UserRole.User],
     ]);
 
-    const admin = await service.findByEmail("admin@ello.local");
+    const admin = await service.findByEmail("emiradmin@ello.com");
     expect(admin).toBeDefined();
     await expect(
-      bcrypt.compare("Admin123!", admin?.passwordHash ?? ""),
+      bcrypt.compare("123456", admin?.passwordHash ?? ""),
     ).resolves.toBe(true);
+    await expect(service.resolveUserReference("1")).resolves.toBe(admin?.id);
+    await expect(service.resolveUserReference(admin!.id)).resolves.toBe(
+      admin?.id,
+    );
   });
 
   it("does not seed users outside development", async () => {
@@ -61,7 +70,7 @@ describe("UsersService development users", () => {
   it("updates a user's public profile", async () => {
     const service = new UsersService(createConfigService("development"));
     await service.onModuleInit();
-    const admin = await service.findByEmail("admin@ello.local");
+    const admin = await service.findByEmail("emiradmin@ello.com");
 
     const updated = await service.updateProfile(admin!.id, {
       username: "admin_updated",

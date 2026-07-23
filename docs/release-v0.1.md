@@ -44,8 +44,8 @@ Java webhook environment degerleri `java-webhook/README.md` ile ayni tutulur.
 2. `docker compose up -d --build` ile final stack'i baslat.
 3. `migrate` servisinin `0` koduyla kapandigini dogrula.
 4. PostgreSQL, backend, Java webhook ve frontend healthcheck'lerini dogrula.
-5. `admin-bootstrap` servisinin `0` koduyla kapandigini ve backend'den once
-   tamamlandigini dogrula.
+5. `built-in-users-bootstrap` servisinin `0` koduyla kapandigini ve backend'den
+   once tamamlandigini dogrula.
 
 Detayli akis: `docs/full-stack-docker.md`
 

@@ -16,14 +16,17 @@ export class BotService {
 
   async createGroup(dto: CreateBotGroupDto) {
     const bot = await this.usersService.ensureAutomationBot();
+    const requestedManagerIds = await this.usersService.resolveUserReferences([
+      ...(dto.managerIds ?? []),
+      ...(dto.ownerId ? [dto.ownerId] : []),
+    ]);
     const managerIds = Array.from(
-      new Set([
-        ...(dto.managerIds ?? []),
-        ...(dto.ownerId ? [dto.ownerId] : []),
-      ]),
+      new Set(requestedManagerIds),
     );
+    const requestedParticipantIds =
+      await this.usersService.resolveUserReferences(dto.participantIds);
     const participantIds = Array.from(
-      new Set([...dto.participantIds, ...managerIds, bot.id]),
+      new Set([...requestedParticipantIds, ...managerIds, bot.id]),
     );
 
     return this.conversationsService.createExternalGroupConversation(
@@ -47,12 +50,18 @@ export class BotService {
     dto: AddBotGroupParticipantsDto,
   ) {
     const bot = await this.usersService.ensureAutomationBot();
+    const participantIds = await this.usersService.resolveUserReferences(
+      dto.participantIds,
+    );
+    const managerIds = await this.usersService.resolveUserReferences(
+      dto.managerIds ?? [],
+    );
 
     return this.conversationsService.addExternalParticipants(
       conversationId,
       bot.id,
-      dto.participantIds,
-      dto.managerIds,
+      participantIds,
+      managerIds,
     );
   }
 
@@ -81,10 +90,11 @@ export class BotService {
     dto: UpdateParticipantRoleDto,
   ) {
     const bot = await this.usersService.ensureAutomationBot();
+    const resolvedUserId = await this.usersService.resolveUserReference(userId);
     return this.conversationsService.updateExternalParticipantRole(
       conversationId,
       bot.id,
-      userId,
+      resolvedUserId,
       dto,
     );
   }

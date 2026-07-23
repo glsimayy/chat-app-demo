@@ -2,6 +2,7 @@ import { UserRole } from "./user-role.enum";
 
 export interface UserRecord {
   id: string;
+  automationId: number | null;
   username: string;
   email: string;
   passwordHash: string;

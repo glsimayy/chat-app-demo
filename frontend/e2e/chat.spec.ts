@@ -12,18 +12,18 @@ import AxeBuilder from "@axe-core/playwright";
 const apiUrl = "http://127.0.0.1:3000/api";
 const accounts = {
   admin: {
-    email: "admin@ello.local",
-    password: "Admin123!",
+    email: "emiradmin@ello.com",
+    password: "123456",
     role: "admin",
   },
   user1: {
-    email: "user1@ello.local",
-    password: "User123!",
+    email: "emiruser@ello.com",
+    password: "123456",
     role: "user",
   },
   user2: {
-    email: "user2@ello.local",
-    password: "User123!",
+    email: "asliuser@ello.com",
+    password: "123456",
     role: "user",
   },
 } as const;
@@ -368,6 +368,53 @@ test("contacts open or create a direct conversation", async ({
   }
 });
 
+test("contact invitations persist and create a chat when accepted", async ({
+  browser,
+  request,
+}) => {
+  const suffix = Date.now();
+  const email = `invitee-${suffix}@ello.local`;
+  const registration = await request.post(`${apiUrl}/auth/register`, {
+    data: {
+      email,
+      username: `invitee_${suffix}`,
+      password: "Invitee123!",
+    },
+  });
+  expect(registration.ok(), await registration.text()).toBeTruthy();
+  const inviteeSession = (await registration.json()).data as AuthSession;
+  const invitee = await createAuthenticatedPage(browser, inviteeSession);
+
+  try {
+    const invitation = await request.post(`${apiUrl}/contact-invitations`, {
+      headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+      data: { email, message: "Join me on ellO." },
+    });
+    expect(invitation.ok(), await invitation.text()).toBeTruthy();
+
+    await invitee.page.reload();
+    await expect(
+      invitee.page.getByRole("heading", { name: "Chats" }),
+    ).toBeVisible();
+    await invitee.page
+      .getByRole("button", { name: "Open contact invitations" })
+      .click();
+    await expect(invitee.page.getByText("Join me on ellO.")).toBeVisible();
+    await invitee.page
+      .getByRole("button", { name: "Accept invitation from emiruser" })
+      .click();
+
+    await expect(
+      invitee.page
+        .locator(".chat-user-list li")
+        .filter({ hasText: "emiruser" })
+        .first(),
+    ).toBeVisible();
+  } finally {
+    await invitee.context.close();
+  }
+});
+
 test("logout clears the session and protects the dashboard", async ({
   browser,
 }) => {
@@ -378,7 +425,15 @@ test("logout clears the session and protects the dashboard", async ({
 
   try {
     await page.getByLabel("Open profile menu").click();
-    await page.getByText("Log out", { exact: true }).click();
+    await page.evaluate(() => {
+      const logoutLink = document.querySelector<HTMLAnchorElement>(
+        'a[href="/logout"]',
+      );
+      if (!logoutLink) {
+        throw new Error("Logout link is missing from the profile panel");
+      }
+      logoutLink.click();
+    });
 
     await expect(page).toHaveURL(/\/logout$/);
     await expect(
@@ -405,7 +460,16 @@ test("profile details and image are saved through settings", async ({
 
   try {
     await user.page.getByLabel("Open profile menu").click();
-    await user.page.getByText("Setting", { exact: true }).click();
+    await user.page.evaluate(() => {
+      const settingsButton =
+        document.querySelector<HTMLButtonElement>(
+          ".profile-account-actions button",
+        );
+      if (!settingsButton) {
+        throw new Error("Profile settings button is missing");
+      }
+      settingsButton.click();
+    });
     await expect(
       user.page.getByRole("heading", { name: "Profile settings" }),
     ).toBeVisible();
@@ -430,7 +494,6 @@ test("profile details and image are saved through settings", async ({
     ).toHaveAttribute("src", /^data:image\/jpeg;base64,/);
 
     await user.page.getByLabel("Open profile menu").click();
-    await user.page.getByText("Profile", { exact: true }).click();
     const profilePanel = user.page.locator(".profile-desc");
     await expect(profilePanel.getByText(about, { exact: true })).toBeVisible();
     await expect(profilePanel.getByText(location, { exact: true })).toBeVisible();
@@ -457,8 +520,8 @@ test("direct messages arrive in the other user's open conversation", async ({
     await createUserPages(browser);
 
   try {
-    await openConversation(user1Page, "user2");
-    await openConversation(user2Page, "user1");
+    await openConversation(user1Page, "aslıuser");
+    await openConversation(user2Page, "emiruser");
 
     const message = `direct-e2e-${Date.now()}`;
     await user1Page.locator("#chat-input").fill(message);
@@ -472,7 +535,7 @@ test("direct messages arrive in the other user's open conversation", async ({
       .locator(".incoming-message-toast")
       .filter({ hasText: message });
     await expect(incomingToast).toBeVisible();
-    await expect(incomingToast).toContainText("user1 in user1");
+    await expect(incomingToast).toContainText("emiruser in emiruser");
 
     const reply = `direct-reply-e2e-${Date.now()}`;
     await user2Page.locator("#chat-input").fill(reply);
@@ -487,6 +550,164 @@ test("direct messages arrive in the other user's open conversation", async ({
   }
 });
 
+test("image attachments upload and render from the chat composer", async ({
+  browser,
+  request,
+}) => {
+  const response = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+    data: { participantId: sessions.user2.user.id },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+
+  const user = await createAuthenticatedPage(browser, sessions.user1);
+  const fileName = `chat-image-${Date.now()}.png`;
+
+  try {
+    await openConversation(user.page, "aslıuser");
+    await user.page
+      .getByRole("button", { name: "More message options" })
+      .click();
+    await user.page.locator("#attached-image-input").setInputFiles({
+      name: fileName,
+      mimeType: "image/png",
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nXQAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    });
+
+    const uploadResponse = user.page.waitForResponse(
+      apiResponse =>
+        apiResponse.request().method() === "POST" &&
+        apiResponse.url().includes("/messages/attachments"),
+    );
+    await user.page.getByRole("button", { name: "Send message" }).click();
+    expect((await uploadResponse).status()).toBe(201);
+
+    const image = user.page.locator(`img[alt="${fileName}"]`);
+    await expect(image).toBeVisible();
+    await expect(image).toHaveAttribute("src", /^blob:/);
+  } finally {
+    await user.context.close();
+  }
+});
+
+test("composer actions work and empty media counts do not render as zero", async ({
+  browser,
+  request,
+}) => {
+  const response = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+    data: { participantId: sessions.user2.user.id },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+
+  const user = await createAuthenticatedPage(browser, sessions.user1, {
+    permissions: ["geolocation"],
+    geolocation: { latitude: 41.0082, longitude: 28.9784 },
+  });
+
+  try {
+    await openConversation(user.page, "aslıuser");
+    const textMessage = `zero-regression-${Date.now()}`;
+    await user.page.locator("#chat-input").fill(textMessage);
+    await user.page.locator("#chat-input").press("Enter");
+    const messageItem = user.page
+      .locator("li.chat-list")
+      .filter({ hasText: textMessage })
+      .last();
+    await expect(messageItem).toBeVisible();
+    const zeroTextNodes = await messageItem.evaluate(root => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let count = 0;
+      while (walker.nextNode()) {
+        if (walker.currentNode.textContent?.trim() === "0") {
+          count += 1;
+        }
+      }
+      return count;
+    });
+    expect(zeroTextNodes).toBe(0);
+
+    await user.page
+      .getByRole("button", { name: "More message options" })
+      .click();
+    await user.page.getByRole("button", { name: "Open camera" }).click();
+    const cameraDialog = user.page.getByRole("dialog");
+    await expect(
+      cameraDialog.getByRole("heading", { name: "Camera", exact: true }),
+    ).toBeVisible();
+    await expect(
+      cameraDialog.locator('input[type="file"][accept="image/*"]'),
+    ).toHaveAttribute("capture", "environment");
+    await user.page.keyboard.press("Escape");
+
+    await user.page
+      .getByRole("button", { name: "More message options" })
+      .click();
+    await user.page.getByRole("button", { name: "Share location" }).click();
+    await expect(user.page.locator("#chat-input")).toHaveValue(
+      /41\.008200,28\.978400/,
+    );
+    await user.page.locator("#chat-input").fill("");
+
+    await user.page
+      .getByRole("button", { name: "More message options" })
+      .click();
+    await user.page.getByRole("button", { name: "Share contact" }).click();
+    await expect(
+      user.page.getByRole("heading", { name: "Share contact" }),
+    ).toBeVisible();
+    const sharedContact = user.page
+      .locator(".list-group-item.list-group-item-action")
+      .first();
+    const sharedUsername = (
+      (await sharedContact.locator("strong").textContent()) || ""
+    ).trim();
+    await sharedContact.click();
+    await expect(
+      user.page.getByText(`Sharing contact: ${sharedUsername}`, {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await user.page.getByRole("button", { name: "Send message" }).click();
+    const sharedContactCard = user.page.getByRole("button", {
+      name: `Open ${sharedUsername} profile`,
+    });
+    await expect(sharedContactCard).toBeVisible();
+    await sharedContactCard.click();
+    await expect(
+      user.page.getByRole("heading", { name: "User profile" }),
+    ).toBeVisible();
+    const userProfileDialog = user.page.getByRole("dialog");
+    await expect(
+      userProfileDialog.getByRole("button", { name: "Add contact" }),
+    ).toBeVisible();
+    await user.page.keyboard.press("Escape");
+
+    const audioName = `audio-${Date.now()}.mp3`;
+    await user.page
+      .getByRole("button", { name: "More message options" })
+      .click();
+    await user.page.locator("#audio-file-input").setInputFiles({
+      name: audioName,
+      mimeType: "audio/mpeg",
+      buffer: Buffer.concat([Buffer.from("ID3"), Buffer.alloc(64)]),
+    });
+    const uploadResponse = user.page.waitForResponse(
+      apiResponse =>
+        apiResponse.request().method() === "POST" &&
+        apiResponse.url().includes("/messages/attachments"),
+    );
+    await user.page.getByRole("button", { name: "Send message" }).click();
+    expect((await uploadResponse).status()).toBe(201);
+    await expect(user.page.getByText(audioName, { exact: true })).toBeVisible();
+  } finally {
+    await user.context.close();
+  }
+});
+
 test("an open conversation reconnects after a temporary network outage", async ({
   browser,
 }) => {
@@ -494,7 +715,7 @@ test("an open conversation reconnects after a temporary network outage", async (
   const user = await createAuthenticatedPage(browser, sessions.user1);
 
   try {
-    await openConversation(user.page, "user2");
+    await openConversation(user.page, "aslıuser");
     await user.context.setOffline(true);
     await expect(
       user.page.getByText("REST fallback active", { exact: true }),
@@ -525,7 +746,7 @@ test("the core chat flow fits a mobile viewport without horizontal overflow", as
     await expect(
       user.page.getByRole("heading", { name: "Chats" }),
     ).toBeVisible();
-    await openConversation(user.page, "user2");
+    await openConversation(user.page, "aslıuser");
     await expect(user.page.locator("#chat-input")).toBeVisible();
 
     const layout = await user.page.evaluate(() => ({
@@ -636,8 +857,8 @@ test("message owners can edit and delete for both open clients", async ({
     await createUserPages(browser);
 
   try {
-    await openConversation(user1Page, "user2");
-    await openConversation(user2Page, "user1");
+    await openConversation(user1Page, "aslıuser");
+    await openConversation(user2Page, "emiruser");
 
     const originalMessage = `message-actions-${Date.now()}`;
     const editedMessage = `${originalMessage}-edited`;
@@ -811,6 +1032,25 @@ test("group messages arrive in the other participant's open conversation", async
     await expect(user2Page.getByText(message, { exact: true })).toBeVisible();
     await expect(user1Page.getByText(message, { exact: true })).toHaveCount(1);
     await expect(user2Page.getByText(message, { exact: true })).toHaveCount(1);
+    const incomingMessage = user2Page
+      .locator("li.chat-list")
+      .filter({ hasText: message })
+      .last();
+    await incomingMessage
+      .getByRole("button", { name: "Open emiruser profile" })
+      .click();
+    await expect(
+      user2Page.getByRole("heading", { name: "User profile" }),
+    ).toBeVisible();
+    const addContactButton = user2Page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Add contact" });
+    await expect(addContactButton).toBeVisible();
+    await addContactButton.click();
+    await expect(
+      user2Page.getByText("Contact invitation sent.", { exact: true }),
+    ).toBeVisible();
+    await user2Page.keyboard.press("Escape");
 
     const reply = `group-reply-e2e-${Date.now()}`;
     await user2Page.locator("#chat-input").fill(reply);
@@ -870,9 +1110,9 @@ test("group management actions are visible, authorized, and realtime", async ({
     ).toBeDisabled();
 
     await admin.page.getByLabel("Members can message").uncheck();
-    await admin.page
-      .getByRole("button", { name: "Save policies", exact: true })
-      .click();
+    await expect(
+      admin.page.getByText("Member messaging disabled", { exact: true }),
+    ).toBeVisible();
     await expect(
       user2Page.getByText(
         "Members cannot send messages in this group. Only group management can send.",
@@ -882,10 +1122,16 @@ test("group management actions are visible, authorized, and realtime", async ({
     await expect(user2Page.locator("#chat-input")).toHaveCount(0);
 
     await admin.page.getByLabel("Members can message").check();
-    await admin.page
-      .getByRole("button", { name: "Save policies", exact: true })
-      .click();
+    await expect(
+      admin.page.getByText("Members can now send messages", { exact: true }),
+    ).toBeVisible();
     await expect(user2Page.locator("#chat-input")).toBeVisible();
+    const policyEnabledMessage = `policy-enabled-${Date.now()}`;
+    await user2Page.locator("#chat-input").fill(policyEnabledMessage);
+    await user2Page.locator("#chat-input").press("Enter");
+    await expect(
+      admin.page.getByText(policyEnabledMessage, { exact: true }),
+    ).toBeVisible();
 
     await admin.page.locator("#group-name-input").fill(renamedGroup);
     await admin.page

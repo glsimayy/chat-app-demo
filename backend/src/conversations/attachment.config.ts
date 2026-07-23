@@ -8,4 +8,9 @@ export const ALLOWED_MESSAGE_ATTACHMENT_TYPES = new Set([
   "image/webp",
   "application/pdf",
   "text/plain",
+  "audio/mpeg",
+  "audio/wav",
+  "audio/ogg",
+  "audio/webm",
+  "audio/mp4",
 ]);

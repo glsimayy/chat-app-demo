@@ -14,7 +14,43 @@ const getContacts = (filters?: object) => {
   });
 };
 
-const inviteContact = (data: object) => {
-  return Promise.resolve("User list refreshed");
+export interface ContactInvitation {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  message: string | null;
+  status: "pending" | "accepted" | "declined";
+  createdAt: string;
+  sender: ReturnType<typeof mapContact>;
+  recipient: ReturnType<typeof mapContact>;
+}
+
+const inviteContact = async (data: { email: string; message?: string }) => {
+  await api.create("/contact-invitations", data);
+  return "Invitation sent";
 };
-export { getContacts, inviteContact };
+
+const getUserProfile = (userId: string) =>
+  api.get(`/users/${userId}`).then(mapContact);
+
+const getContactInvitations = () =>
+  api.get("/contact-invitations").then((invitations: any) =>
+    (Array.isArray(invitations) ? invitations : []).map(invitation => ({
+      ...invitation,
+      sender: mapContact(invitation.sender),
+      recipient: mapContact(invitation.recipient),
+    })),
+  ) as Promise<ContactInvitation[]>;
+
+const respondToContactInvitation = (
+  invitationId: string,
+  status: "accepted" | "declined",
+) => api.patch(`/contact-invitations/${invitationId}`, { status });
+
+export {
+  getContacts,
+  getUserProfile,
+  getContactInvitations,
+  inviteContact,
+  respondToContactInvitation,
+};

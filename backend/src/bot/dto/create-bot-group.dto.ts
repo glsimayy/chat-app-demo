@@ -6,18 +6,18 @@ import {
   IsBoolean,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
   MinLength,
 } from "class-validator";
 
 export class CreateBotGroupDto {
   @ApiPropertyOptional({
-    description: "Deprecated alias: this user is added as a manager",
-    example: "7d6e9940-e1a4-48e9-90d0-7a624b7c7c75",
+    description:
+      "Deprecated alias: UUID or built-in automation ID; this user is added as a manager",
+    example: "1",
   })
   @IsOptional()
-  @IsUUID("4")
+  @IsString()
   ownerId?: string;
 
   @ApiProperty({ example: "Destek Talebi #4821" })
@@ -27,25 +27,24 @@ export class CreateBotGroupDto {
   name!: string;
 
   @ApiProperty({
-    example: [
-      "0b991e0b-814d-4ab4-a918-cfdc1ea19a7a",
-      "f0adce02-7452-44c5-9a94-60e7b27ae4f0",
-    ],
+    description: "User UUIDs or built-in automation IDs",
+    example: ["2", "4"],
   })
   @IsArray()
   @ArrayNotEmpty()
   @ArrayUnique()
-  @IsUUID("4", { each: true })
+  @IsString({ each: true })
   participantIds!: string[];
 
   @ApiPropertyOptional({
-    description: "Group managers; they are automatically added as members",
-    example: ["7d6e9940-e1a4-48e9-90d0-7a624b7c7c75"],
+    description:
+      "Manager UUIDs or built-in automation IDs; managers are added as members",
+    example: ["1"],
   })
   @IsOptional()
   @IsArray()
   @ArrayUnique()
-  @IsUUID("4", { each: true })
+  @IsString({ each: true })
   managerIds?: string[];
 
   @ApiPropertyOptional({ example: "Customer support coordination" })

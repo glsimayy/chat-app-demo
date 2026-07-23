@@ -494,8 +494,8 @@ Body:
 {
   "name": "Destek Talebi #4821",
   "description": "Musteri destek koordinasyonu",
-  "participantIds": ["user-uuid-1", "user-uuid-2"],
-  "managerIds": ["manager-user-uuid"],
+  "participantIds": ["2", "4"],
+  "managerIds": ["1"],
   "externalRef": "ticket-4821",
   "sourceName": "Destek sistemi",
   "memberCanSendMessages": false,
@@ -507,8 +507,10 @@ Body:
 Alanlar:
 
 - `name`: Grup adi.
-- `participantIds`: Gruba eklenecek diger kullanicilar.
-- `managerIds`: Gruba manager olarak eklenecek kullanicilar.
+- `participantIds`: Gruba eklenecek kullanici UUID'leri veya built-in Bot ID'leri.
+- `managerIds`: Manager yapilacak kullanici UUID'leri veya built-in Bot ID'leri.
+- Built-in hesaplar icin Bot ID degerleri `1` ile `6` arasindadir. Normal
+  kullanicilar UUID ile gonderilir.
 - BOT gruplarinda insan owner bulunmaz. Eski istemcilerden gelen `ownerId`
   alani geriye uyumluluk icin manager olarak yorumlanir.
 - `memberCanSendMessages`: Gonderilmezse `false`.
@@ -549,8 +551,8 @@ Beklenen basarili response:
 
 ```json
 {
-  "participantIds": ["user-uuid-3", "user-uuid-4"],
-  "managerIds": ["user-uuid-3"]
+  "participantIds": ["2", "4"],
+  "managerIds": ["1"]
 }
 ```
 

@@ -210,6 +210,10 @@ export class ConversationsService implements OnModuleInit {
     return conversation;
   }
 
+  hasDirectConversation(currentUserId: string, participantId: string) {
+    return Boolean(this.findDirectConversation(currentUserId, participantId));
+  }
+
   async createGroupConversation(
     currentUserId: string,
     dto: CreateGroupConversationDto,
@@ -2104,6 +2108,33 @@ export class ConversationsService implements OnModuleInit {
         );
       case "text/plain":
         return !data.includes(0);
+      case "audio/mpeg":
+        return (
+          data.subarray(0, 3).toString("ascii") === "ID3" ||
+          (data.length >= 2 &&
+            data[0] === 0xff &&
+            (data[1] & 0xe0) === 0xe0)
+        );
+      case "audio/wav":
+        return (
+          data.length >= 12 &&
+          data.subarray(0, 4).toString("ascii") === "RIFF" &&
+          data.subarray(8, 12).toString("ascii") === "WAVE"
+        );
+      case "audio/ogg":
+        return data.subarray(0, 4).toString("ascii") === "OggS";
+      case "audio/webm":
+        return (
+          data.length >= 4 &&
+          data
+            .subarray(0, 4)
+            .equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))
+        );
+      case "audio/mp4":
+        return (
+          data.length >= 12 &&
+          data.subarray(4, 8).toString("ascii") === "ftyp"
+        );
       default:
         return false;
     }

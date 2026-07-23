@@ -131,6 +131,7 @@ function* onSendMessage({ payload: data }: any) {
       chatsApiResponseSuccess(ChatsActionTypes.ON_SEND_MESSAGE, response)
     );
   } catch (error: any) {
+    yield call(showErrorNotification, error);
     yield put(chatsApiResponseError(ChatsActionTypes.ON_SEND_MESSAGE, error));
   }
 }
