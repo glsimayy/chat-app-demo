@@ -15,6 +15,11 @@ import {
   AudioCallState,
   StartAudioCallInput,
 } from "./types";
+import {
+  CALL_PEER_RECOVERY_MS,
+  CALL_SOCKET_RECOVERY_MS,
+  getPeerConnectionAction,
+} from "./callRecovery";
 
 interface SocketAck<T> {
   success: boolean;
@@ -39,6 +44,15 @@ interface IncomingCallEvent extends ServerCallState {
   };
 }
 
+interface SyncedCallState extends ServerCallState {
+  direction: "incoming" | "outgoing";
+  peer: {
+    id: string;
+    username: string;
+    profileImage?: string | null;
+  };
+}
+
 interface CallSignalEvent {
   callId: string;
   signalType: "offer" | "answer" | "ice-candidate";
@@ -50,6 +64,21 @@ interface CallSignalEvent {
 }
 
 const AudioCallContext = createContext<AudioCallContextValue | null>(null);
+
+const logCallEvent = (
+  type: string,
+  call: AudioCallState | null,
+  detail?: string,
+) => {
+  console.info("[audio-call]", {
+    type,
+    callId: call?.callId ?? null,
+    conversationId: call?.conversationId ?? null,
+    direction: call?.direction ?? null,
+    status: call?.status ?? null,
+    detail: detail ?? null,
+  });
+};
 
 const fallbackIceServers: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
@@ -156,13 +185,32 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const socketRecoveryTimerRef = useRef<number | null>(null);
+  const peerRecoveryTimerRef = useRef<number | null>(null);
+  const terminalCallIdsRef = useRef(new Set<string>());
+  const restartConnectionRef = useRef<() => Promise<void>>(async () => {});
 
   const updateCall = useCallback((next: AudioCallState | null) => {
     callRef.current = next;
     setCall(next);
   }, []);
 
+  const clearSocketRecoveryTimer = useCallback(() => {
+    if (socketRecoveryTimerRef.current !== null) {
+      window.clearTimeout(socketRecoveryTimerRef.current);
+      socketRecoveryTimerRef.current = null;
+    }
+  }, []);
+
+  const clearPeerRecoveryTimer = useCallback(() => {
+    if (peerRecoveryTimerRef.current !== null) {
+      window.clearTimeout(peerRecoveryTimerRef.current);
+      peerRecoveryTimerRef.current = null;
+    }
+  }, []);
+
   const releaseMedia = useCallback(() => {
+    clearPeerRecoveryTimer();
     peerConnectionRef.current?.close();
     peerConnectionRef.current = null;
     localStreamRef.current?.getTracks().forEach(track => track.stop());
@@ -174,29 +222,61 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
     if (remoteAudioRef.current) {
       remoteAudioRef.current.srcObject = null;
     }
-  }, []);
+  }, [clearPeerRecoveryTimer]);
 
-  const failCall = useCallback(
-    (message: string) => {
-      const current = callRef.current;
-      const socket = getChatSocket();
-      if (current?.callId && socket?.connected) {
-        socket.emit("call:end", { callId: current.callId });
+  const emitTerminalEvent = useCallback(
+    (
+      socket: Socket | null,
+      eventName: "call:end" | "call:reject",
+      callId: string,
+      payload: Record<string, unknown>,
+    ) => {
+      if (terminalCallIdsRef.current.has(callId)) {
+        return;
       }
+
+      terminalCallIdsRef.current.add(callId);
+      if (socket?.connected) {
+        socket.emit(eventName, { callId, ...payload });
+      }
+    },
+    [],
+  );
+
+  const finishCallLocally = useCallback(
+    (message: string, status: "ended" | "failed" = "failed") => {
+      const current = callRef.current;
+      clearSocketRecoveryTimer();
       releaseMedia();
 
       if (!current) {
         return;
       }
 
+      if (current.callId) {
+        terminalCallIdsRef.current.add(current.callId);
+      }
+      logCallEvent("call_finished_locally", current, message);
       updateCall({
         ...current,
-        status: "failed",
+        status,
         statusMessage: message,
         isMuted: false,
       });
     },
-    [releaseMedia, updateCall],
+    [clearSocketRecoveryTimer, releaseMedia, updateCall],
+  );
+
+  const failCall = useCallback(
+    (message: string, notifyServer = true) => {
+      const current = callRef.current;
+      const socket = getChatSocket();
+      if (notifyServer && current?.callId) {
+        emitTerminalEvent(socket, "call:end", current.callId, {});
+      }
+      finishCallLocally(message);
+    },
+    [emitTerminalEvent, finishCallLocally],
   );
 
   const getMicrophone = useCallback(async () => {
@@ -223,8 +303,50 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    logCallEvent("call_signal_sent", current, signal.signalType);
     socket.emit("call:signal", { callId: current.callId, ...signal });
   }, []);
+
+  const beginPeerRecovery = useCallback(
+    (peerState: RTCPeerConnectionState) => {
+      const current = callRef.current;
+      if (
+        !current ||
+        current.status === "ended" ||
+        current.status === "failed"
+      ) {
+        return;
+      }
+
+      logCallEvent("peer_recovery_started", current, peerState);
+      updateCall({
+        ...current,
+        status: "reconnecting",
+        statusMessage: "Restoring audio connection...",
+      });
+
+      if (peerRecoveryTimerRef.current === null) {
+        peerRecoveryTimerRef.current = window.setTimeout(() => {
+          peerRecoveryTimerRef.current = null;
+          if (peerConnectionRef.current?.connectionState === "connected") {
+            return;
+          }
+
+          failCall(
+            "The audio connection could not be restored. A TURN server may be required on this network.",
+          );
+        }, CALL_PEER_RECOVERY_MS);
+      }
+
+      const socket = getChatSocket();
+      if (current.direction === "outgoing") {
+        void restartConnectionRef.current();
+      } else if (socket?.connected && current.callId) {
+        socket.emit("call:recover", { callId: current.callId });
+      }
+    },
+    [failCall, updateCall],
+  );
 
   const createPeerConnection = useCallback(() => {
     peerConnectionRef.current?.close();
@@ -269,20 +391,57 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      if (peer.connectionState === "connected") {
+      const action = getPeerConnectionAction(peer.connectionState);
+      logCallEvent("peer_connection_state", current, peer.connectionState);
+
+      if (action === "connected") {
+        clearPeerRecoveryTimer();
         updateCall({
           ...current,
           status: "active",
           statusMessage: undefined,
           connectedAt: current.connectedAt ?? Date.now(),
         });
-      } else if (peer.connectionState === "failed") {
-        failCall("The audio connection failed");
+      } else if (action === "recover") {
+        beginPeerRecovery(peer.connectionState);
       }
     };
 
     return peer;
-  }, [failCall, sendSignal, updateCall]);
+  }, [beginPeerRecovery, clearPeerRecoveryTimer, sendSignal, updateCall]);
+
+  const restartConnection = useCallback(async () => {
+    const current = callRef.current;
+    const socket = getChatSocket();
+    if (
+      !current?.callId ||
+      current.direction !== "outgoing" ||
+      !socket?.connected ||
+      !localStreamRef.current
+    ) {
+      return;
+    }
+
+    try {
+      const existingPeer = peerConnectionRef.current;
+      const peer =
+        existingPeer && existingPeer.connectionState !== "closed"
+          ? existingPeer
+          : createPeerConnection();
+      peer.restartIce();
+      const offer = await peer.createOffer({ iceRestart: true });
+      await peer.setLocalDescription(offer);
+      logCallEvent("peer_recovery_offer_created", current);
+      sendSignal({ signalType: "offer", sdp: offer.sdp });
+    } catch (error) {
+      logCallEvent(
+        "peer_recovery_offer_failed",
+        current,
+        error instanceof Error ? error.message : "Unknown recovery error",
+      );
+    }
+  }, [createPeerConnection, sendSignal]);
+  restartConnectionRef.current = restartConnection;
 
   const startCall = useCallback(
     async (input: StartAudioCallInput) => {
@@ -305,6 +464,7 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
         statusMessage: "Opening microphone...",
       };
       updateCall(initialCall);
+      logCallEvent("call_start_requested", initialCall);
 
       try {
         if (!socket) {
@@ -340,6 +500,10 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
           status: "calling",
           statusMessage: undefined,
         });
+        logCallEvent("call_started", {
+          ...current,
+          callId: session.callId,
+        });
       } catch (error) {
         failCall(microphoneErrorMessage(error));
       }
@@ -363,6 +527,15 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
     try {
       await getMicrophone();
       createPeerConnection();
+    } catch (error) {
+      emitTerminalEvent(socket, "call:reject", current.callId, {
+        reason: "declined",
+      });
+      failCall(microphoneErrorMessage(error), false);
+      return;
+    }
+
+    try {
       await emitWithAck<ServerCallState>(socket, "call:accept", {
         callId: current.callId,
       });
@@ -375,36 +548,40 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
         });
       }
     } catch (error) {
-      socket.emit("call:reject", {
-        callId: current.callId,
-        reason: "declined",
-      });
-      failCall(microphoneErrorMessage(error));
+      emitTerminalEvent(socket, "call:end", current.callId, {});
+      failCall(microphoneErrorMessage(error), false);
     }
-  }, [createPeerConnection, failCall, getMicrophone, updateCall]);
+  }, [
+    createPeerConnection,
+    emitTerminalEvent,
+    failCall,
+    getMicrophone,
+    updateCall,
+  ]);
 
   const rejectCall = useCallback(() => {
     const current = callRef.current;
     const socket = getChatSocket();
     if (current?.callId && socket) {
-      socket.emit("call:reject", {
-        callId: current.callId,
+      emitTerminalEvent(socket, "call:reject", current.callId, {
         reason: "declined",
       });
     }
+    clearSocketRecoveryTimer();
     releaseMedia();
     updateCall(null);
-  }, [releaseMedia, updateCall]);
+  }, [clearSocketRecoveryTimer, emitTerminalEvent, releaseMedia, updateCall]);
 
   const endCall = useCallback(() => {
     const current = callRef.current;
     const socket = getChatSocket();
     if (current?.callId && socket) {
-      socket.emit("call:end", { callId: current.callId });
+      emitTerminalEvent(socket, "call:end", current.callId, {});
     }
+    clearSocketRecoveryTimer();
     releaseMedia();
     updateCall(null);
-  }, [releaseMedia, updateCall]);
+  }, [clearSocketRecoveryTimer, emitTerminalEvent, releaseMedia, updateCall]);
 
   const toggleMute = useCallback(() => {
     const current = callRef.current;
@@ -420,9 +597,131 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
   }, [updateCall]);
 
   const dismissCall = useCallback(() => {
+    clearSocketRecoveryTimer();
     releaseMedia();
     updateCall(null);
-  }, [releaseMedia, updateCall]);
+  }, [clearSocketRecoveryTimer, releaseMedia, updateCall]);
+
+  const beginSocketRecovery = useCallback(() => {
+    const current = callRef.current;
+    if (!current || current.status === "ended" || current.status === "failed") {
+      return;
+    }
+
+    logCallEvent("socket_recovery_started", current);
+    updateCall({
+      ...current,
+      status: "reconnecting",
+      statusMessage: "Reconnecting to the call...",
+    });
+    clearSocketRecoveryTimer();
+    socketRecoveryTimerRef.current = window.setTimeout(() => {
+      socketRecoveryTimerRef.current = null;
+      finishCallLocally(
+        "Realtime connection could not be restored. Check your network and try again.",
+      );
+    }, CALL_SOCKET_RECOVERY_MS);
+  }, [clearSocketRecoveryTimer, finishCallLocally, updateCall]);
+
+  const syncCallState = useCallback(
+    async (socket: Socket) => {
+      const session = await emitWithAck<SyncedCallState | null>(
+        socket,
+        "call:sync",
+        {},
+      );
+      clearSocketRecoveryTimer();
+      const current = callRef.current;
+
+      if (!session) {
+        if (
+          current &&
+          current.status !== "ended" &&
+          current.status !== "failed"
+        ) {
+          finishCallLocally("The call ended while reconnecting.", "ended");
+        }
+        return;
+      }
+
+      if (terminalCallIdsRef.current.has(session.callId)) {
+        socket.emit("call:end", { callId: session.callId });
+        return;
+      }
+
+      if (current?.callId && current.callId !== session.callId) {
+        releaseMedia();
+      }
+
+      const restored: AudioCallState = {
+        callId: session.callId,
+        conversationId: session.conversationId,
+        callerId: session.callerId,
+        recipientId: session.recipientId,
+        direction: session.direction,
+        peer: {
+          id: session.peer.id,
+          displayName: session.peer.username,
+          profileImage: session.peer.profileImage,
+        },
+        status:
+          session.status === "ringing"
+            ? session.direction === "incoming"
+              ? "incoming"
+              : "calling"
+            : peerConnectionRef.current?.connectionState === "connected"
+              ? "active"
+              : "reconnecting",
+        isMuted: current?.isMuted ?? false,
+        connectedAt: current?.connectedAt,
+        statusMessage:
+          session.status === "active" &&
+          peerConnectionRef.current?.connectionState !== "connected"
+            ? "Restoring audio connection..."
+            : undefined,
+      };
+      updateCall(restored);
+      logCallEvent("call_state_synced", restored, session.status);
+
+      try {
+        if (session.direction === "outgoing" && !localStreamRef.current) {
+          await getMicrophone();
+        }
+
+        if (session.status === "active") {
+          if (!localStreamRef.current) {
+            await getMicrophone();
+          }
+          if (!peerConnectionRef.current) {
+            createPeerConnection();
+          }
+          if (
+            session.direction === "outgoing" &&
+            peerConnectionRef.current?.connectionState !== "connected"
+          ) {
+            await restartConnection();
+          } else if (
+            session.direction === "incoming" &&
+            peerConnectionRef.current?.connectionState !== "connected"
+          ) {
+            socket.emit("call:recover", { callId: session.callId });
+          }
+        }
+      } catch (error) {
+        failCall(microphoneErrorMessage(error));
+      }
+    },
+    [
+      clearSocketRecoveryTimer,
+      createPeerConnection,
+      failCall,
+      finishCallLocally,
+      getMicrophone,
+      releaseMedia,
+      restartConnection,
+      updateCall,
+    ],
+  );
 
   useEffect(() => {
     const socket = getChatSocket();
@@ -439,7 +738,7 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      updateCall({
+      const incomingCall: AudioCallState = {
         callId: event.callId,
         conversationId: event.conversationId,
         callerId: event.callerId,
@@ -452,7 +751,9 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
         },
         status: "incoming",
         isMuted: false,
-      });
+      };
+      logCallEvent("call_incoming", incomingCall);
+      updateCall(incomingCall);
     };
     const onAccepted = async (event: ServerCallState) => {
       const current = callRef.current;
@@ -465,6 +766,7 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
       }
 
       try {
+        logCallEvent("call_accepted", current);
         updateCall({
           ...current,
           status: "connecting",
@@ -488,12 +790,28 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      const peer = peerConnectionRef.current;
-      if (!peer) {
-        return;
-      }
-
       try {
+        logCallEvent("call_signal_received", current, event.signalType);
+        let peer = peerConnectionRef.current;
+        if (!peer && event.signalType === "ice-candidate" && event.candidate) {
+          pendingCandidatesRef.current.push({
+            candidate: event.candidate,
+            sdpMid: event.sdpMid,
+            sdpMLineIndex: event.sdpMLineIndex,
+            usernameFragment: event.usernameFragment,
+          });
+          return;
+        }
+        if (!peer && event.signalType === "offer") {
+          if (!localStreamRef.current) {
+            await getMicrophone();
+          }
+          peer = createPeerConnection();
+        }
+        if (!peer) {
+          return;
+        }
+
         if (event.signalType === "offer" && event.sdp) {
           await peer.setRemoteDescription({
             type: "offer",
@@ -539,7 +857,7 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      failCall(
+      finishCallLocally(
         event.reason === "busy"
           ? `${current.peer.displayName} is already in another call`
           : `${current.peer.displayName} declined the call`,
@@ -558,13 +876,7 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
         "peer-disconnected": "The other participant disconnected",
         "caller-unavailable": "The caller is no longer available",
       };
-      releaseMedia();
-      updateCall({
-        ...current,
-        status: "ended",
-        statusMessage: messages[event.reason || ""] || "Call ended",
-        isMuted: false,
-      });
+      finishCallLocally(messages[event.reason || ""] || "Call ended", "ended");
     };
     const onDismissed = (event: { callId: string }) => {
       const current = callRef.current;
@@ -572,14 +884,40 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
+      terminalCallIdsRef.current.add(event.callId);
+      clearSocketRecoveryTimer();
       releaseMedia();
       updateCall(null);
     };
     const onDisconnect = () => {
-      const current = callRef.current;
-      if (current) {
-        failCall("Realtime connection was lost");
+      beginSocketRecovery();
+    };
+    const onConnect = async () => {
+      try {
+        await syncCallState(socket);
+      } catch (error) {
+        const current = callRef.current;
+        logCallEvent(
+          "call_sync_failed",
+          current,
+          error instanceof Error ? error.message : "Unknown sync error",
+        );
+        if (current) {
+          finishCallLocally("The call session could not be restored.");
+        }
       }
+    };
+    const onRecoveryNeeded = (event: ServerCallState) => {
+      const current = callRef.current;
+      if (
+        !current ||
+        current.callId !== event.callId ||
+        current.direction !== "outgoing"
+      ) {
+        return;
+      }
+
+      void restartConnection();
     };
     const onHistoryUpdated = () => {
       window.dispatchEvent(new Event("ello:calls-updated"));
@@ -592,10 +930,14 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
     socket.on("call:ended", onEnded);
     socket.on("call:answered-elsewhere", onDismissed);
     socket.on("call:dismissed", onDismissed);
+    socket.on("call:recovery-needed", onRecoveryNeeded);
     socket.on("call:history-updated", onHistoryUpdated);
     socket.on("disconnect", onDisconnect);
+    socket.on("connect", onConnect);
 
-    if (!socket.connected) {
+    if (socket.connected) {
+      void onConnect();
+    } else {
       socket.connect();
     }
 
@@ -607,11 +949,26 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
       socket.off("call:ended", onEnded);
       socket.off("call:answered-elsewhere", onDismissed);
       socket.off("call:dismissed", onDismissed);
+      socket.off("call:recovery-needed", onRecoveryNeeded);
       socket.off("call:history-updated", onHistoryUpdated);
       socket.off("disconnect", onDisconnect);
+      socket.off("connect", onConnect);
+      clearSocketRecoveryTimer();
       releaseMedia();
     };
-  }, [createPeerConnection, failCall, releaseMedia, sendSignal, updateCall]);
+  }, [
+    beginSocketRecovery,
+    clearSocketRecoveryTimer,
+    createPeerConnection,
+    failCall,
+    finishCallLocally,
+    getMicrophone,
+    releaseMedia,
+    restartConnection,
+    sendSignal,
+    syncCallState,
+    updateCall,
+  ]);
 
   const value: AudioCallContextValue = {
     call,

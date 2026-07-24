@@ -39,6 +39,13 @@ describe("ChatGateway audio calls", () => {
   };
   const conversationsService = {
     findOneForUser: jest.fn(),
+    getActiveConversationIdsForUser: jest.fn(() => []),
+  };
+  const jwtService = {
+    verifyAsync: jest.fn(),
+  };
+  const configService = {
+    get: jest.fn((_key: string, fallback: string) => fallback),
   };
   const usersService = {
     findById: jest.fn((userId: string) =>
@@ -85,6 +92,12 @@ describe("ChatGateway audio calls", () => {
         },
         conversationIds: new Set<string>(),
       },
+      handshake: {
+        auth: { token: "test-token" },
+        headers: {},
+      },
+      join: jest.fn(),
+      disconnect: jest.fn(),
       to: jest.fn(),
       emit: jest.fn(),
     } as any;
@@ -103,12 +116,17 @@ describe("ChatGateway audio calls", () => {
         isBot: false,
       }),
     );
+    jwtService.verifyAsync.mockResolvedValue({
+      sub: callerId,
+      email: "caller@ello.test",
+      role: UserRole.User,
+    });
     server.to.mockReturnValue(server);
 
     gateway = new ChatGateway(
       conversationsService as unknown as ConversationsService,
-      {} as JwtService,
-      {} as ConfigService,
+      jwtService as unknown as JwtService,
+      configService as unknown as ConfigService,
       realtimeEvents as unknown as RealtimeEventsService,
       socketRateLimiter as unknown as SocketRateLimiterService,
       metrics as unknown as MetricsService,
@@ -128,6 +146,7 @@ describe("ChatGateway audio calls", () => {
 
   afterEach(() => {
     gateway.onModuleDestroy();
+    jest.useRealTimers();
   });
 
   it("rings an online participant in an authorized direct conversation", async () => {
@@ -222,5 +241,104 @@ describe("ChatGateway audio calls", () => {
         signalType: "offer",
       }),
     );
+  });
+
+  it("returns the current call with participant context during sync", async () => {
+    const started = (await gateway.startCall(
+      clientFor(callerId, "caller-socket"),
+      { conversationId, targetUserId: recipientId },
+    )) as any;
+    const ack = jest.fn();
+
+    const response = await gateway.syncCall(
+      clientFor(callerId, "caller-socket"),
+      ack,
+    );
+
+    expect(response).toMatchObject({
+      success: true,
+      data: {
+        callId: started.data.callId,
+        direction: "outgoing",
+        peer: {
+          id: recipientId,
+          username: "recipient",
+        },
+      },
+    });
+    expect(ack).toHaveBeenCalledWith(response);
+  });
+
+  it("asks the caller for a fresh offer when the recipient recovers", async () => {
+    const started = (await gateway.startCall(
+      clientFor(callerId, "caller-socket"),
+      { conversationId, targetUserId: recipientId },
+    )) as any;
+    await gateway.acceptCall(clientFor(recipientId, "recipient-socket"), {
+      callId: started.data.callId,
+    });
+    server.emit.mockClear();
+
+    const response = gateway.recoverCall(
+      clientFor(recipientId, "recipient-socket"),
+      { callId: started.data.callId },
+    );
+
+    expect(response).toMatchObject({
+      success: true,
+      data: { callId: started.data.callId, status: "active" },
+    });
+    expect(server.to).toHaveBeenLastCalledWith(`user:${callerId}`);
+    expect(server.emit).toHaveBeenLastCalledWith(
+      "call:recovery-needed",
+      expect.objectContaining({ callId: started.data.callId }),
+    );
+  });
+
+  it("keeps a call alive during the socket reconnect grace period", async () => {
+    jest.useFakeTimers();
+    await gateway.startCall(clientFor(callerId, "caller-socket"), {
+      conversationId,
+      targetUserId: recipientId,
+    });
+
+    await gateway.handleDisconnect(clientFor(callerId, "caller-socket"));
+    await jest.advanceTimersByTimeAsync(14_999);
+
+    expect(callsService.finish).not.toHaveBeenCalled();
+  });
+
+  it("cancels disconnect cleanup when the participant reconnects", async () => {
+    jest.useFakeTimers();
+    const started = (await gateway.startCall(
+      clientFor(callerId, "caller-socket"),
+      { conversationId, targetUserId: recipientId },
+    )) as any;
+    await gateway.handleDisconnect(clientFor(callerId, "caller-socket"));
+
+    await gateway.handleConnection(clientFor(callerId, "caller-reconnected"));
+    await jest.advanceTimersByTimeAsync(15_000);
+
+    expect(callsService.finish).not.toHaveBeenCalled();
+    expect((gateway as any).callSessions.has(started.data.callId)).toBe(true);
+  });
+
+  it("ends a call once when the reconnect grace period expires", async () => {
+    jest.useFakeTimers();
+    const started = (await gateway.startCall(
+      clientFor(callerId, "caller-socket"),
+      { conversationId, targetUserId: recipientId },
+    )) as any;
+    await gateway.handleDisconnect(clientFor(callerId, "caller-socket"));
+
+    await jest.advanceTimersByTimeAsync(15_000);
+
+    expect(callsService.finish).toHaveBeenCalledTimes(1);
+    expect(callsService.finish).toHaveBeenCalledWith(
+      started.data.callId,
+      "peer-disconnected",
+      callerId,
+    );
+    expect((gateway as any).callSessions.has(started.data.callId)).toBe(false);
   });
 });

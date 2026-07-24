@@ -1112,7 +1112,14 @@ test("an open conversation reconnects after a temporary network outage", async (
 
 test("the core chat flow fits a mobile viewport without horizontal overflow", async ({
   browser,
+  request,
 }) => {
+  const response = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+    data: { participantId: sessions.user2.user.id },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+
   const user = await createAuthenticatedPage(browser, sessions.user1, {
     viewport: { width: 390, height: 844 },
   });
@@ -1121,7 +1128,7 @@ test("the core chat flow fits a mobile viewport without horizontal overflow", as
     await expect(
       user.page.getByRole("heading", { name: "Chats", exact: true }),
     ).toBeVisible();
-    await openConversation(user.page, "aslıuser");
+    await openConversation(user.page, sessions.user2.user.username);
     await expect(user.page.locator("#chat-input")).toBeVisible();
 
     const layout = await user.page.evaluate(() => ({
@@ -1555,6 +1562,66 @@ test("users can answer, mute, and end a direct audio call", async ({
       .first();
     await expect(recipientHistory).toContainText("Completed");
   } finally {
+    await closeContexts(caller.context, recipient.context);
+  }
+});
+
+test("a ringing audio call survives a temporary socket outage", async ({
+  browser,
+  request,
+}) => {
+  test.setTimeout(90_000);
+  const response = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+    data: { participantId: sessions.user2.user.id },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+
+  const [caller, recipient] = await Promise.all([
+    createAuthenticatedPage(browser, sessions.user1, {
+      permissions: ["microphone"],
+    }),
+    createAuthenticatedPage(browser, sessions.user2, {
+      permissions: ["microphone"],
+    }),
+  ]);
+
+  try {
+    await openConversation(caller.page, sessions.user2.user.username);
+    await caller.page
+      .getByRole("button", { name: "Conversation details", exact: true })
+      .click();
+    await caller.page
+      .getByRole("button", { name: "Start audio call", exact: true })
+      .click();
+
+    await expect(
+      recipient.page.getByText("Incoming audio call", { exact: true }),
+    ).toBeVisible();
+    await caller.context.setOffline(true);
+    await expect(
+      caller.page.getByText("Reconnecting to the call...", { exact: true }),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      recipient.page.getByText("Incoming audio call", { exact: true }),
+    ).toBeVisible();
+
+    await caller.context.setOffline(false);
+    await expect(
+      caller.page.getByText("Calling...", { exact: true }),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      recipient.page.getByText("Incoming audio call", { exact: true }),
+    ).toBeVisible();
+
+    await recipient.page
+      .getByRole("button", { name: "Decline audio call", exact: true })
+      .click();
+    await expect(
+      caller.page.getByText(/declined the call$/, { exact: false }),
+    ).toBeVisible();
+  } finally {
+    await caller.context.setOffline(false);
     await closeContexts(caller.context, recipient.context);
   }
 });
