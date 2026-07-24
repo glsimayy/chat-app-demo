@@ -22,6 +22,7 @@ import { ConversationType } from "./conversation-type.enum";
 import { ConversationStatus } from "./conversation-status.enum";
 import {
   ConversationRecord,
+  ExternalGroupConversationResult,
   MessageRecord,
   UploadedMessageFile,
 } from "./conversation.types";
@@ -394,7 +395,7 @@ export class ConversationsService implements OnModuleInit {
     externalRef?: string,
     initialMessage?: string,
     sourceName?: string,
-  ) {
+  ): Promise<ExternalGroupConversationResult> {
     const normalizedExternalRef = externalRef?.trim() || null;
 
     if (!normalizedExternalRef) {
@@ -407,7 +408,7 @@ export class ConversationsService implements OnModuleInit {
         sourceName: sourceName ?? null,
       });
       await this.addInitialMessage(conversation.id, initialMessage, botUserId);
-      return conversation;
+      return { ...conversation, created: true, reused: false };
     }
 
     const existingConversation = Array.from(this.conversations.values()).find(
@@ -415,7 +416,7 @@ export class ConversationsService implements OnModuleInit {
     );
 
     if (existingConversation) {
-      return existingConversation;
+      return { ...existingConversation, created: false, reused: true };
     }
 
     const pendingCreation = this.externalGroupCreations.get(
@@ -423,7 +424,8 @@ export class ConversationsService implements OnModuleInit {
     );
 
     if (pendingCreation) {
-      return pendingCreation;
+      const conversation = await pendingCreation;
+      return { ...conversation, created: false, reused: true };
     }
 
     const creation = this.createGroup({
@@ -447,7 +449,8 @@ export class ConversationsService implements OnModuleInit {
       });
 
     this.externalGroupCreations.set(normalizedExternalRef, creation);
-    return creation;
+    const conversation = await creation;
+    return { ...conversation, created: true, reused: false };
   }
 
   async addExternalParticipants(

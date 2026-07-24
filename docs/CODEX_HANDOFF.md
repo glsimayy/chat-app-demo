@@ -85,6 +85,9 @@ Do not touch the untracked output/ directory.
 - Incoming messages no longer create popup notifications. Socket-driven
   in-chat updates, unread state/badges, list refreshes, and hidden-tab title
   notifications remain active.
+- Bot group creation responses expose `created` and `reused` metadata while
+  preserving the existing flat conversation response and retry-safe
+  `externalRef` behavior.
 - Saved Messages menus stay inside the viewport.
 - Opening a bookmarked message scrolls only the conversation container and does
   not move the page or composer.
@@ -94,7 +97,8 @@ Do not touch the untracked output/ directory.
 
 Last complete verification:
 
-- Backend unit tests: `54/54`
+- Backend unit tests: `55/55`
+- Backend E2E tests: `11/11`
 - Frontend unit tests: `18/18`
 - Playwright E2E tests: `29/29`
 - Backend and frontend production builds passed.
@@ -102,39 +106,24 @@ Last complete verification:
 
 ## Open Bugs
 
-### BUG-3: Bot API idempotency response is unclear
-
-Observed:
-
-- `POST /api/bot/groups` intentionally reuses a group when `externalRef` is
-  repeated.
-- Sending a different group payload with the same `externalRef` silently looks
-  like the second group failed to be created.
-
-Expected improvement:
-
-- Clearly return metadata such as `created: false` / `reused: true`, or return
-  an explanatory `409 Conflict` when the same `externalRef` is reused with a
-  materially different payload.
-- Preserve retry-safe idempotency.
-
-Example that reuses the first group:
-
-```json
-{
-  "name": "Arkadaslarla Bot Testi 2",
-  "participantIds": ["2", "1", "3", "5", "4", "6"],
-  "managerIds": ["2", "1"],
-  "memberCanSendMessages": true,
-  "membersCanLeave": true,
-  "externalRef": "friends-test-20260724"
-}
-```
-
-A genuinely new group currently requires a new value such as
-`friends-test-20260724-2`.
+No known open bugs remain from the four-item user test report.
 
 ## Resolved Bugs
+
+### BUG-3: Bot API idempotency response is unclear
+
+Resolved on `codex/bot-group-idempotency`:
+
+- `POST /api/bot/groups` and the legacy `/api/bot/create-group` alias preserve
+  the flat conversation response while adding `created` and `reused` booleans.
+- A new group returns `created: true`, `reused: false`.
+- Any retry with the same normalized `externalRef`, including a materially
+  different payload, returns the original group with `created: false`,
+  `reused: true`.
+- Retry payload changes are not silently applied; callers must use the bot
+  group update endpoints to mutate the existing group.
+- Backend E2E coverage verifies one group and one initial bot message across
+  identical and materially different retries.
 
 ### BUG-1: Duplicate popup notifications
 
@@ -200,11 +189,10 @@ User validation completed:
 
 Recommended priority on the desktop:
 
-1. Improve the API contract and tests for BUG-3.
-2. Run backend tests, frontend tests, production builds, targeted E2E tests,
-   then the full E2E suite.
-3. Commit to a focused `codex/` branch, merge to `main`, and push only after
-   verification.
+1. Optionally validate the BUG-3 response manually through Swagger or Postman.
+2. Review the product backlog and choose the next feature or newly reported
+   defect.
+3. Keep `main` and the four Docker services healthy before starting new work.
 
 ## Test Accounts
 

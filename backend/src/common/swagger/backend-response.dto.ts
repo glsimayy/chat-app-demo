@@ -263,6 +263,19 @@ export class ConversationResponseDto {
   updatedAt!: string;
 }
 
+export class BotGroupCreationResponseDto extends ConversationResponseDto {
+  @ApiProperty({
+    description: "True when this request created the automation group",
+  })
+  created!: boolean;
+
+  @ApiProperty({
+    description:
+      "True when an existing group was returned for the supplied externalRef",
+  })
+  reused!: boolean;
+}
+
 export class ConversationSummaryResponseDto extends ConversationResponseDto {
   @ApiProperty()
   participantCount!: number;

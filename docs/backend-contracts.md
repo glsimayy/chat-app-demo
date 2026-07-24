@@ -577,6 +577,12 @@ Alanlar:
 - `externalRef`: Dis sistem id'si. Ornek: ticket id, meeting id, webhook id.
 - Ayni `externalRef` ile tekrarlanan istek mevcut grubu dondurur; yeni grup veya
   ikinci bir baslangic mesaji olusturmaz.
+- Ilk olusturmada response `created: true`, `reused: false` dondurur. Ayni
+  `externalRef` tekrar kullanildiginda payload ayni veya farkli olsa da response
+  `created: false`, `reused: true` dondurur.
+- Tekrarlanan istekteki farkli grup alanlari mevcut gruba uygulanmaz. Mevcut
+  otomasyon grubunu degistirmek icin ilgili `PATCH /api/bot/groups/{id}`
+  endpoint'i kullanilir.
 - `initialBotMessage`: Grup acildiktan sonra `ellO Automation Bot` adina gonderilir.
 - Eski Java payloadlari icin `initialSystemMessage` alani da desteklenir.
 - Bot servis hesabi gruba otomatik eklenir. Parolasi disariya acilmaz ve normal
@@ -594,6 +600,8 @@ Beklenen basarili response:
     "createdBy": "automation-bot-user-uuid",
     "externalRef": "ticket-4821",
     "isBotManaged": true,
+    "created": true,
+    "reused": false,
     "memberCanSendMessages": false,
     "membersCanLeave": false,
     "participants": [],

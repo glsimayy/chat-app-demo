@@ -454,6 +454,16 @@ describe("App e2e", () => {
       .set("x-bot-secret", secret)
       .send(groupPayload)
       .expect(201);
+    const reusedWithDifferentPayload = await request(app.getHttpServer())
+      .post("/api/bot/groups")
+      .set("x-bot-secret", secret)
+      .send({
+        ...groupPayload,
+        name: "A different group name",
+        participantIds: [laterMember.id],
+        initialBotMessage: "This retry must not create another message.",
+      })
+      .expect(201);
     const users = await request(app.getHttpServer())
       .get("/api/users")
       .set("authorization", `Bearer ${admin.accessToken}`)
@@ -471,11 +481,23 @@ describe("App e2e", () => {
       .set("authorization", `Bearer ${member.accessToken}`)
       .send({ participantId: botUser.id })
       .expect(400);
-    expect(retriedCreate.body.data.id).toBe(created.body.data.id);
     expect(created.body.data).toMatchObject({
       isBotManaged: true,
       memberCanSendMessages: false,
       membersCanLeave: false,
+      created: true,
+      reused: false,
+    });
+    expect(retriedCreate.body.data).toMatchObject({
+      id: created.body.data.id,
+      created: false,
+      reused: true,
+    });
+    expect(reusedWithDifferentPayload.body.data).toMatchObject({
+      id: created.body.data.id,
+      name: groupPayload.name,
+      created: false,
+      reused: true,
     });
     expect(
       created.body.data.participants.some(
@@ -568,6 +590,12 @@ describe("App e2e", () => {
           item.content === groupPayload.initialBotMessage,
       ),
     ).toHaveLength(1);
+    expect(
+      history.body.data.items.filter(
+        (item: { content: string }) =>
+          item.content === "This retry must not create another message.",
+      ),
+    ).toHaveLength(0);
 
     await request(app.getHttpServer())
       .patch(`/api/conversations/${created.body.data.id}/owner`)

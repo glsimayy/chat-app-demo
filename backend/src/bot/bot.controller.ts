@@ -17,6 +17,7 @@ import {
 import { Throttle } from "@nestjs/throttler";
 import { ApiSuccessResponse } from "../common/swagger/api-success-response.decorator";
 import {
+  BotGroupCreationResponseDto,
   ConversationParticipantResponseDto,
   ConversationResponseDto,
   MessageResponseDto,
@@ -43,8 +44,9 @@ export class BotController {
   @Post("groups")
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @ApiOperation({ summary: "Create or return an idempotent automation group" })
-  @ApiSuccessResponse(ConversationResponseDto, {
-    description: "Group conversation created by bot",
+  @ApiSuccessResponse(BotGroupCreationResponseDto, {
+    description:
+      "Automation group created or an existing externalRef group reused",
     status: 201,
   })
   async createGroup(@Body() dto: CreateBotGroupDto) {
@@ -56,8 +58,9 @@ export class BotController {
   @ApiOperation({
     summary: "Legacy alias used by the Java ticket webhook",
   })
-  @ApiSuccessResponse(ConversationResponseDto, {
-    description: "Group conversation created by bot",
+  @ApiSuccessResponse(BotGroupCreationResponseDto, {
+    description:
+      "Automation group created or an existing externalRef group reused",
     status: 201,
   })
   legacyCreateGroup(@Body() dto: CreateBotGroupDto) {

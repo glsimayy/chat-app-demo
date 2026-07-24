@@ -29,6 +29,11 @@ export interface ConversationRecord {
   updatedAt: Date;
 }
 
+export interface ExternalGroupConversationResult extends ConversationRecord {
+  created: boolean;
+  reused: boolean;
+}
+
 export interface MessageRecord {
   id: string;
   clientMessageId: string | null;

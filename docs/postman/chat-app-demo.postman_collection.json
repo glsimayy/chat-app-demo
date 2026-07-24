@@ -322,7 +322,7 @@
             "exec": [
               "const responseData = pm.response.json().data;",
               "pm.collectionVariables.set('botGroupId', responseData.id);",
-              "pm.test('Support group is automation-managed', function () { pm.expect(responseData.externalRef).to.eql('ticket-4821'); pm.expect(responseData.isBotManaged).to.eql(true); pm.expect(responseData.memberCanSendMessages).to.eql(false); pm.expect(responseData.participants.some(function (participant) { return participant.role === 'owner'; })).to.eql(false); pm.expect(responseData.participants.length).to.be.at.least(3); });"
+              "pm.test('Support group is automation-managed', function () { pm.expect(responseData.externalRef).to.eql('ticket-4821'); pm.expect(responseData.isBotManaged).to.eql(true); pm.expect(responseData.memberCanSendMessages).to.eql(false); pm.expect(responseData).to.have.property('created'); pm.expect(responseData).to.have.property('reused'); pm.expect(responseData.reused).to.eql(!responseData.created); pm.expect(responseData.participants.some(function (participant) { return participant.role === 'owner'; })).to.eql(false); pm.expect(responseData.participants.length).to.be.at.least(3); });"
             ]
           }
         }

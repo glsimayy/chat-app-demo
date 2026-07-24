@@ -36,14 +36,14 @@ describe("ConversationsService contacts", () => {
       findByIdSync: jest.fn((id: string) => usersById.get(id)),
     };
     const realtime = { emit: jest.fn() };
-    const metrics = {};
+    const metrics = { recordMessageCreated: jest.fn() };
     const service = new ConversationsService(
       users as any,
       realtime as any,
       metrics as any,
     );
 
-    return { realtime, service };
+    return { metrics, realtime, service };
   };
 
   it("derives one contact from an idempotent direct conversation", async () => {
@@ -70,5 +70,51 @@ describe("ConversationsService contacts", () => {
     await service.deleteConversationForUser(conversation.id, userA.id);
 
     expect(service.findContactsForUser(userA.id)).toEqual([userB]);
+  });
+
+  it("marks concurrent external group retries as reused", async () => {
+    const { metrics, realtime, service } = createService();
+    const payload = {
+      name: "External incident",
+      participantIds: [userA.id, userB.id],
+      managerIds: [],
+      memberCanSendMessages: false,
+      membersCanLeave: false,
+    };
+
+    const firstRequest = service.createExternalGroupConversation(
+      userA.id,
+      payload,
+      "incident-42",
+    );
+    const concurrentRetry = service.createExternalGroupConversation(
+      userA.id,
+      payload,
+      "incident-42",
+    );
+    const [created, reused] = await Promise.all([
+      firstRequest,
+      concurrentRetry,
+    ]);
+    const laterRetry = await service.createExternalGroupConversation(
+      userA.id,
+      { ...payload, name: "Different incident name" },
+      "incident-42",
+    );
+
+    expect(created).toMatchObject({ created: true, reused: false });
+    expect(reused).toMatchObject({
+      id: created.id,
+      created: false,
+      reused: true,
+    });
+    expect(laterRetry).toMatchObject({
+      id: created.id,
+      name: payload.name,
+      created: false,
+      reused: true,
+    });
+    expect(metrics.recordMessageCreated).toHaveBeenCalledTimes(1);
+    expect(realtime.emit).toHaveBeenCalledTimes(3);
   });
 });
