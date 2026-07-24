@@ -157,7 +157,7 @@ Example that reuses the first group:
 A genuinely new group currently requires a new value such as
 `friends-test-20260724-2`.
 
-## Resolved And Pending Manual Confirmation
+## Resolved Bugs
 
 ### BUG-4: Audio call ends before connection
 
@@ -180,11 +180,12 @@ Implemented in `098d07f` and merged into `main`:
 - Structured lifecycle/signaling logs omit SDP and ICE payload contents.
 - Backend unit tests and Playwright now cover the reconnecting ringing call.
 
-Still verify manually:
+User validation completed:
 
-- Repeat the call using two real devices on different networks through HTTPS.
-- If signaling recovers but audio never connects, configure a TURN server in
-  `REACT_APP_WEBRTC_ICE_SERVERS`; public STUN alone cannot traverse every NAT.
+- The call connects successfully and audio is transmitted.
+- BUG-4 is closed. TURN is not required for the tested path; it remains a
+  future compatibility option for network combinations where public STUN
+  cannot establish media.
 
 ## Next Work
 
@@ -193,11 +194,9 @@ Recommended priority on the desktop:
 1. Fix BUG-2 and cover DM-before-contact and group-member-picker scenarios.
 2. Disable the popup layer for BUG-1 without affecting realtime/unread state.
 3. Improve the API contract and tests for BUG-3.
-4. Manually confirm BUG-4 across two real networks and decide whether the
-   deployment needs TURN credentials.
-5. Run backend tests, frontend tests, production builds, targeted E2E tests,
+4. Run backend tests, frontend tests, production builds, targeted E2E tests,
    then the full E2E suite.
-6. Commit to a focused `codex/` branch, merge to `main`, and push only after
+5. Commit to a focused `codex/` branch, merge to `main`, and push only after
    verification.
 
 ## Test Accounts
