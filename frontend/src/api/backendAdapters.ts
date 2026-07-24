@@ -97,6 +97,8 @@ export const mapConversationToListItem = (
       memberCanSendMessages: Boolean(conversation.memberCanSendMessages),
       membersCanLeave: conversation.membersCanLeave !== false,
       status: conversation.status || "active",
+      isBookmarked: Boolean(conversation.isBookmarked),
+      isArchived: Boolean(conversation.isArchived),
       meta: {
         unRead: conversation.unreadCount || 0,
       },
@@ -115,6 +117,8 @@ export const mapConversationToListItem = (
     isBot: Boolean(mappedUser.isBot),
     status: STATUS_TYPES.ACTIVE,
     participantId: otherParticipant?.userId,
+    isBookmarked: Boolean(conversation.isBookmarked),
+    isArchived: Boolean(conversation.isArchived),
     meta: {
       unRead: conversation.unreadCount || 0,
       status: STATUS_TYPES.ACTIVE,
@@ -145,10 +149,11 @@ export const mapConversationDetails = (
   users: Array<any> = [],
 ) => {
   const listItem = mapConversationToListItem(conversation, users);
+  const isChannel = conversation?.type === "group";
 
   return {
     ...listItem,
-    isChannel: conversation?.type === "group",
+    isChannel,
     members: conversation?.participants || [],
     participantCount: conversation?.participantCount,
     automated: Boolean(conversation?.isBotManaged || conversation?.externalRef),
@@ -158,8 +163,12 @@ export const mapConversationDetails = (
     sourceName: conversation?.sourceName || null,
     memberCanSendMessages: Boolean(conversation?.memberCanSendMessages),
     membersCanLeave: conversation?.membersCanLeave !== false,
-    status: conversation?.status || "active",
+    status: isChannel
+      ? conversation?.status || "active"
+      : listItem.status || STATUS_TYPES.ACTIVE,
     parentConversationId: conversation?.parentConversationId || null,
+    isBookmarked: Boolean(conversation?.isBookmarked),
+    isArchived: Boolean(conversation?.isArchived),
   };
 };
 

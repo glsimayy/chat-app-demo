@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ApiHeader, ApiTags } from "@nestjs/swagger";
+import { BookmarksService } from "../bookmarks/bookmarks.service";
 import { ApiSuccessResponse } from "../common/swagger/api-success-response.decorator";
 import { DevResetResponseDto } from "../common/swagger/backend-response.dto";
 import { ConversationsService } from "../conversations/conversations.service";
@@ -19,6 +20,7 @@ import { UsersService } from "../users/users.service";
 export class DevController {
   constructor(
     private readonly configService: ConfigService,
+    private readonly bookmarksService: BookmarksService,
     private readonly contactInvitationsService: ContactInvitationsService,
     private readonly conversationsService: ConversationsService,
     private readonly ticketsService: TicketsService,
@@ -46,11 +48,12 @@ export class DevController {
       throw new ForbiddenException("Invalid or missing dev reset secret");
     }
 
+    const bookmarks = await this.bookmarksService.clearAll();
     const contactInvitations = await this.contactInvitationsService.clearAll();
     const conversations = await this.conversationsService.clearAll();
     const tickets = await this.ticketsService.clearAll();
     const users = await this.usersService.clearAll();
 
-    return { contactInvitations, conversations, tickets, users };
+    return { bookmarks, contactInvitations, conversations, tickets, users };
   }
 }

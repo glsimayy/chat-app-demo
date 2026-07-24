@@ -1,79 +1,57 @@
-import React, { useEffect, useState } from "react";
-
-// hooks
-import { useRedux } from "../../../hooks/index";
+import React, { useEffect } from "react";
 import { createSelector } from "reselect";
-// actions
-import {
-  getBookmarks,
-  deleteBookmark,
-  updateBookmark,
-} from "../../../redux/actions";
 
-// components
-import Loader from "../../../components/Loader";
 import AppSimpleBar from "../../../components/AppSimpleBar";
 import LeftbarTitle from "../../../components/LeftbarTitle";
+import Loader from "../../../components/Loader";
+import { TABS } from "../../../constants";
+import { BookMarkTypes } from "../../../data/bookmarks";
+import { useRedux } from "../../../hooks";
+import {
+  changeSelectedChat,
+  changeTab,
+  deleteBookmark,
+  getBookmarks,
+  getChannelDetails,
+  getChatUserConversations,
+  getChatUserDetails,
+  readConversation,
+  updateBookmark,
+} from "../../../redux/actions";
+import { savePendingMessageFocus } from "../../../utils/messageFocus";
 import BookMark from "./BookMark";
 
-// interface
-import { BookMarkTypes } from "../../../data/bookmarks";
+const bookmarkState = createSelector(
+  (state: any) => state.Bookmarks,
+  state => ({
+    bookmarksList: state.bookmarks,
+    getBookmarksLoading: state.getBookmarksLoading,
+    isBookmarkDeleted: state.isBookmarkDeleted,
+    isBookmarkUpdated: state.isBookmarkUpdated,
+  }),
+);
 
-interface IndexProps {}
-const Index = (props: IndexProps) => {
-  // global store
+const Bookmark = () => {
   const { dispatch, useAppSelector } = useRedux();
+  const {
+    bookmarksList,
+    getBookmarksLoading,
+    isBookmarkDeleted,
+    isBookmarkUpdated,
+  } = useAppSelector(bookmarkState);
 
-  // const {
-  //   bookmarksList,
-  //   getBookmarksLoading,
-  //   isBookmarkDeleted,
-  //   isBookmarkUpdated,
-  // } = useAppSelector(state => ({
-  //   bookmarksList: state.Bookmarks.bookmarks,
-  //   getBookmarksLoading: state.Bookmarks.getBookmarksLoading,
-  //   isBookmarkDeleted: state.Bookmarks.isBookmarkDeleted,
-  //   isBookmarkUpdated: state.Bookmarks.isBookmarkUpdated,
-  // }));
-
-
-  const errorData = createSelector(
-    (state : any) => state.Bookmarks,
-    (state) => ({
-      bookmarksList: state.bookmarks,
-      getBookmarksLoading: state.getBookmarksLoading,
-      isBookmarkDeleted: state.isBookmarkDeleted,
-      isBookmarkUpdated: state.isBookmarkUpdated,
-    })
-  );
-  // Inside your component
-  const { bookmarksList,getBookmarksLoading,isBookmarkDeleted,isBookmarkUpdated} = useAppSelector(errorData);
-
-  /*
-  get bookmarks
-  */
   useEffect(() => {
     dispatch(getBookmarks());
   }, [dispatch]);
 
-  const [bookmarks, setBookmarks] = useState<BookMarkTypes[]>([]);
   useEffect(() => {
-    setBookmarks(bookmarksList);
-  }, [bookmarksList]);
+    const refreshBookmarks = () => dispatch(getBookmarks());
+    window.addEventListener("ello:bookmarks-updated", refreshBookmarks);
 
-  /*
-  update bookmark
-  */
-  const onUpdate = (id: number, data: BookMarkTypes) => {
-    dispatch(updateBookmark(id, data));
-  };
-
-  /*
-  delete bookmark
-  */
-  const onDelete = (id: number) => {
-    dispatch(deleteBookmark(id));
-  };
+    return () => {
+      window.removeEventListener("ello:bookmarks-updated", refreshBookmarks);
+    };
+  }, [dispatch]);
 
   useEffect(() => {
     if (isBookmarkDeleted || isBookmarkUpdated) {
@@ -81,16 +59,60 @@ const Index = (props: IndexProps) => {
     }
   }, [dispatch, isBookmarkDeleted, isBookmarkUpdated]);
 
+  const onUpdate = (messageId: string, data: { title: string | null }) => {
+    dispatch(updateBookmark(messageId, data));
+  };
+
+  const onDelete = (messageId: string) => {
+    dispatch(deleteBookmark(messageId));
+  };
+
+  const onOpen = (bookmark: BookMarkTypes) => {
+    const targetConversationId =
+      bookmark.conversation.type === "management"
+        ? bookmark.conversation.parentConversationId
+        : bookmark.conversation.id;
+
+    if (!targetConversationId) {
+      return;
+    }
+
+    savePendingMessageFocus({
+      conversationId: bookmark.conversation.id,
+      messageId: bookmark.messageId,
+      conversationType: bookmark.conversation.type,
+      parentConversationId: bookmark.conversation.parentConversationId,
+    });
+
+    dispatch(
+      bookmark.conversation.type === "direct"
+        ? getChatUserDetails(targetConversationId)
+        : getChannelDetails(targetConversationId),
+    );
+    dispatch(getChatUserConversations(targetConversationId));
+    dispatch(readConversation(bookmark.conversation.id));
+    dispatch(changeSelectedChat(targetConversationId));
+    dispatch(changeTab(TABS.CHAT));
+  };
+
   return (
     <div className="position-relative">
       {getBookmarksLoading && <Loader />}
-      <LeftbarTitle title="Bookmark" />
+      <LeftbarTitle title="Saved Messages" />
       <AppSimpleBar className="chat-message-list chat-bookmark-list">
-        <ul className="list-unstyled chat-list">
-          {(bookmarks || []).map((bookmark: BookMarkTypes, key: number) => (
+        {!getBookmarksLoading && (bookmarksList || []).length === 0 && (
+          <div className="bookmark-empty-state">
+            <i className="bx bx-bookmark" aria-hidden="true"></i>
+            <strong>No saved messages</strong>
+            <span>Save a message from its actions menu.</span>
+          </div>
+        )}
+        <ul className="list-unstyled chat-list bookmark-message-list">
+          {(bookmarksList || []).map((bookmark: BookMarkTypes) => (
             <BookMark
-              key={key}
+              key={bookmark.id}
               bookmark={bookmark}
+              onOpen={onOpen}
               onUpdate={onUpdate}
               onDelete={onDelete}
             />
@@ -101,4 +123,4 @@ const Index = (props: IndexProps) => {
   );
 };
 
-export default Index;
+export default Bookmark;

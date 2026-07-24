@@ -167,6 +167,49 @@ export class MessageResponseDto {
   attachments!: MessageAttachmentResponseDto[];
 }
 
+export class MessageBookmarkConversationResponseDto {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty({ enum: ConversationType })
+  type!: ConversationType;
+
+  @ApiPropertyOptional({ nullable: true })
+  name!: string | null;
+
+  @ApiPropertyOptional({ format: "uuid", nullable: true })
+  parentConversationId!: string | null;
+}
+
+export class MessageBookmarkResponseDto {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty({ format: "uuid" })
+  userId!: string;
+
+  @ApiProperty({ format: "uuid" })
+  messageId!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  title!: string | null;
+
+  @ApiProperty({ format: "date-time" })
+  createdAt!: string;
+
+  @ApiProperty({ format: "date-time" })
+  updatedAt!: string;
+
+  @ApiProperty({ type: MessageResponseDto })
+  message!: MessageResponseDto;
+
+  @ApiProperty({ type: MessageBookmarkConversationResponseDto })
+  conversation!: MessageBookmarkConversationResponseDto;
+
+  @ApiPropertyOptional({ type: UserResponseDto, nullable: true })
+  sender!: UserResponseDto | null;
+}
+
 export class ConversationResponseDto {
   @ApiProperty({ format: "uuid" })
   id!: string;
@@ -200,6 +243,12 @@ export class ConversationResponseDto {
 
   @ApiProperty({ enum: ConversationStatus })
   status!: ConversationStatus;
+
+  @ApiProperty({ default: false })
+  isBookmarked!: boolean;
+
+  @ApiProperty({ default: false })
+  isArchived!: boolean;
 
   @ApiPropertyOptional({ format: "uuid", nullable: true })
   parentConversationId!: string | null;
@@ -423,6 +472,9 @@ export class HealthResponseDto {
 }
 
 export class DevResetResponseDto {
+  @ApiProperty({ type: Object })
+  bookmarks!: Record<string, number>;
+
   @ApiProperty({ type: Object })
   contactInvitations!: Record<string, number>;
 

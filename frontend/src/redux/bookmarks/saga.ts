@@ -26,11 +26,11 @@ function* getBookmarks() {
   try {
     const response: Promise<any> = yield call(getBookmarksApi);
     yield put(
-      bookmarksApiResponseSuccess(BookmarksActionTypes.GET_BOOKMARKS, response)
+      bookmarksApiResponseSuccess(BookmarksActionTypes.GET_BOOKMARKS, response),
     );
   } catch (error: any) {
     yield put(
-      bookmarksApiResponseError(BookmarksActionTypes.GET_BOOKMARKS, error)
+      bookmarksApiResponseError(BookmarksActionTypes.GET_BOOKMARKS, error),
     );
   }
 }
@@ -41,14 +41,14 @@ function* updateBookmark({ payload: { id, data } }: any) {
     yield put(
       bookmarksApiResponseSuccess(
         BookmarksActionTypes.UPDATE_BOOKMARK,
-        response
-      )
+        response,
+      ),
     );
-    yield call(showSuccessNotification, response + "");
+    yield call(showSuccessNotification, "Saved message updated");
   } catch (error: any) {
     yield call(showErrorNotification, error);
     yield put(
-      bookmarksApiResponseError(BookmarksActionTypes.UPDATE_BOOKMARK, error)
+      bookmarksApiResponseError(BookmarksActionTypes.UPDATE_BOOKMARK, error),
     );
   }
 }
@@ -59,14 +59,14 @@ function* deleteBookmark({ payload: id }: any) {
     yield put(
       bookmarksApiResponseSuccess(
         BookmarksActionTypes.DELETE_BOOKMARK,
-        response
-      )
+        response,
+      ),
     );
-    yield call(showSuccessNotification, response + "");
+    yield call(showSuccessNotification, "Removed from Saved Messages");
   } catch (error: any) {
     yield call(showErrorNotification, error);
     yield put(
-      bookmarksApiResponseError(BookmarksActionTypes.DELETE_BOOKMARK, error)
+      bookmarksApiResponseError(BookmarksActionTypes.DELETE_BOOKMARK, error),
     );
   }
 }

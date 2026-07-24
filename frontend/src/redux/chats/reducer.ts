@@ -24,6 +24,7 @@ const Chats = (state = INIT_STATE, action: any) => {
             favourites: action.payload.data,
             isFavouritesFetched: true,
             getFavouritesLoading: false,
+            isFavouriteContactToggled: false,
           };
         case ChatsActionTypes.GET_DIRECT_MESSAGES:
           return {

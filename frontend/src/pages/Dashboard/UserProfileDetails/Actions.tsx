@@ -6,20 +6,23 @@ import {
   DropdownToggle,
   DropdownItem,
 } from "reactstrap";
-import classnames from "classnames";
 interface AttachedFilesProps {
-  chatUserDetails: any;
   onOpenVideo: () => void;
   onOpenAudio: () => void;
-  onToggleFavourite: () => void;
+  onToggleBookmark: () => void;
   onToggleArchive: () => void;
+  onDelete: () => void;
+  isBookmarked: boolean;
+  isArchived: boolean;
 }
 const AttachedFiles = ({
-  chatUserDetails,
   onOpenVideo,
   onOpenAudio,
-  onToggleFavourite,
+  onToggleBookmark,
   onToggleArchive,
+  onDelete,
+  isBookmarked,
+  isArchived,
 }: AttachedFilesProps) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const toggle = () => setDropdownOpen(!dropdownOpen);
@@ -42,21 +45,19 @@ const AttachedFiles = ({
           <div className="mb-4">
             <Button
               color="none"
-              className={classnames(
-                "btn",
-                "avatar-sm",
-                "p-0",
-                "favourite-btn",
-                { active: chatUserDetails.isFavourite }
-              )}
-              onClick={onToggleFavourite}
+              className="btn avatar-sm p-0"
+              aria-label={
+                isBookmarked ? "Unpin conversation" : "Pin conversation"
+              }
+              aria-pressed={isBookmarked}
+              onClick={onToggleBookmark}
             >
               <span className="avatar-title rounded bg-light text-body">
-                <i className="bx bx-heart"></i>
+                <i className={`bx ${isBookmarked ? "bxs-pin" : "bx-pin"}`}></i>
               </span>
             </Button>
             <h5 className="font-size-11 text-uppercase text-muted mt-2">
-              Favourite
+              {isBookmarked ? "Pinned" : "Pin"}
             </h5>
           </div>
         </div>
@@ -100,6 +101,7 @@ const AttachedFiles = ({
                 color="none"
                 className="btn avatar-sm p-0 dropdown-toggle"
                 type="button"
+                aria-label="More conversation actions"
               >
                 <span className="avatar-title bg-light text-body rounded">
                   <i className="bx bx-dots-horizontal-rounded"></i>
@@ -112,7 +114,7 @@ const AttachedFiles = ({
                   to="#"
                   onClick={onToggleArchive}
                 >
-                  {chatUserDetails.isArchived ? (
+                  {isArchived ? (
                     <>
                       Un-Archive{" "}
                       <i className="bx bx-archive-out text-muted"></i>
@@ -125,13 +127,13 @@ const AttachedFiles = ({
                 </DropdownItem>
                 <DropdownItem
                   className=" d-flex justify-content-between align-items-center"
-                  to="#"
+                  disabled
                 >
                   Muted <i className="bx bx-microphone-off text-muted"></i>
                 </DropdownItem>
                 <DropdownItem
-                  className=" d-flex justify-content-between align-items-center"
-                  to="#"
+                  className="d-flex justify-content-between align-items-center text-danger"
+                  onClick={onDelete}
                 >
                   Delete <i className="bx bx-trash text-muted"></i>
                 </DropdownItem>

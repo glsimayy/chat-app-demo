@@ -44,7 +44,7 @@ const SharedContactCard = ({ userId }: SharedContactCardProps) => {
       <Button
         type="button"
         color="light"
-        className="shared-contact-card d-flex align-items-center text-start w-100"
+        className="shared-contact-card text-start"
         disabled={!user}
         aria-label={
           user ? `Open ${user.username} profile` : "Shared contact unavailable"
@@ -52,25 +52,27 @@ const SharedContactCard = ({ userId }: SharedContactCardProps) => {
         onClick={() => setIsProfileOpen(true)}
       >
         {loading ? (
-          <Spinner size="sm" className="me-3" />
+          <Spinner size="sm" />
         ) : user?.profileImage ? (
           <img
             src={user.profileImage}
             alt=""
-            className="avatar-sm rounded-circle me-3"
+            className="avatar-sm rounded-circle"
           />
         ) : (
-          <span className="avatar-sm rounded-circle avatar-title bg-primary text-white me-3">
+          <span className="avatar-sm rounded-circle avatar-title bg-primary text-white">
             {initials}
           </span>
         )}
-        <span className="flex-grow-1 min-w-0">
+        <span className="shared-contact-copy">
           <strong className="d-block text-truncate">
             {user?.username || "Contact unavailable"}
           </strong>
-          <small className="text-muted">View profile and add contact</small>
+          <small className="d-block text-muted">
+            View profile and add contact
+          </small>
         </span>
-        <i className="bx bx-chevron-right font-size-20 ms-2"></i>
+        <i className="bx bx-chevron-right font-size-20"></i>
       </Button>
       <UserProfileModal
         isOpen={isProfileOpen}

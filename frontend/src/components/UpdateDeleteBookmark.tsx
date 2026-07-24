@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Button,
   Modal,
@@ -47,45 +47,37 @@ const UpdateDeleteBookmark = ({
     setData(modifiedData);
   };
 
-  /*
-    validation
-    */
-  const [valid, setValid] = useState<boolean>(false);
-  useEffect(() => {
-    if (data.bookmarkTitle !== null) {
-      setValid(true);
-    } else {
-      setValid(false);
-    }
-  }, [data]);
-
-  /*
-    submit data
-    */
   const onSubmit = () => {
     onUpdate(data);
   };
   return (
     <Modal isOpen={isOpen} toggle={onClose}>
-      <ModalHeader className="modal-title-custom text-white font-size-16" toggle={onClose}>
-        Update Bookmark
+      <ModalHeader
+        className="modal-title-custom text-white font-size-16"
+        toggle={onClose}
+      >
+        Edit Saved Message
       </ModalHeader>
       <ModalBody>
         <Form>
           <FormGroup>
             <Label htmlFor="update-bookmark" className="mb-2">
-              Bookmark Title
+              Custom Label
             </Label>
             <Input
               type="text"
-              name="email"
+              name="bookmarkTitle"
               id="update-bookmark"
-              placeholder="add bookmark title"
+              maxLength={120}
+              placeholder="Add a label"
               value={data.bookmarkTitle || ""}
               onChange={(e: any) => {
                 onChangeData("bookmarkTitle", e.target.value);
               }}
             />
+            <small className="text-muted">
+              Leave empty to use the message text.
+            </small>
           </FormGroup>
         </Form>
       </ModalBody>
@@ -93,7 +85,7 @@ const UpdateDeleteBookmark = ({
         <Button type="button" color="none" onClick={onClose}>
           Close
         </Button>
-        <Button color="primary" disabled={!valid} onClick={onSubmit}>
+        <Button color="primary" onClick={onSubmit}>
           Update
         </Button>{" "}
       </ModalFooter>

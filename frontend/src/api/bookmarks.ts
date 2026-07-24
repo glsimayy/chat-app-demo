@@ -1,13 +1,16 @@
-const getBookmarks = () => {
-  return Promise.resolve([]);
-};
+import { APIClient } from "./apiCore";
 
-const deleteBookmark = (_id: number) => {
-  return Promise.resolve("Bookmark removed");
-};
+const api = new APIClient();
 
-const updateBookmark = (_id: number, data: object) => {
-  return Promise.resolve(data);
-};
+const getBookmarks = () => api.get("/bookmarks");
 
-export { getBookmarks, deleteBookmark, updateBookmark };
+const createBookmark = (messageId: string, title?: string) =>
+  api.create("/bookmarks", { messageId, title });
+
+const deleteBookmark = (messageId: string) =>
+  api.delete(`/bookmarks/${messageId}`);
+
+const updateBookmark = (messageId: string, data: { title?: string }) =>
+  api.patch(`/bookmarks/${messageId}`, data);
+
+export { createBookmark, deleteBookmark, getBookmarks, updateBookmark };

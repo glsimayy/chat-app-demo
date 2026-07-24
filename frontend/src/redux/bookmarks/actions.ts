@@ -8,7 +8,7 @@ export const bookmarksApiResponseSuccess = (actionType: string, data: any) => ({
 // common error
 export const bookmarksApiResponseError = (
   actionType: string,
-  error: string
+  error: string,
 ) => ({
   type: BookmarksActionTypes.API_RESPONSE_ERROR,
   payload: { actionType, error },
@@ -18,12 +18,12 @@ export const getBookmarks = () => ({
   type: BookmarksActionTypes.GET_BOOKMARKS,
 });
 
-export const updateBookmark = (id: number, data: object) => ({
+export const updateBookmark = (id: string, data: object) => ({
   type: BookmarksActionTypes.UPDATE_BOOKMARK,
   payload: { id, data },
 });
 
-export const deleteBookmark = (id: number) => ({
+export const deleteBookmark = (id: string) => ({
   type: BookmarksActionTypes.DELETE_BOOKMARK,
   payload: id,
 });

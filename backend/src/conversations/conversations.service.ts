@@ -45,11 +45,30 @@ import { MessageType } from "./message-type.enum";
 import { ParticipantRole } from "./participant-role.enum";
 import { RealtimeEventsService } from "./realtime-events.service";
 
+interface ConversationPreferenceRecord {
+  userId: string;
+  conversationId: string;
+  isBookmarked: boolean;
+  isArchived: boolean;
+  isDeleted: boolean;
+}
+
+type ConversationPreferenceUpdates = Partial<
+  Pick<
+    ConversationPreferenceRecord,
+    "isBookmarked" | "isArchived" | "isDeleted"
+  >
+>;
+
 @Injectable()
 export class ConversationsService implements OnModuleInit {
   private readonly conversations = new Map<string, ConversationRecord>();
   private readonly messages = new Map<string, MessageRecord[]>();
   private readonly attachmentData = new Map<string, Buffer>();
+  private readonly conversationPreferences = new Map<
+    string,
+    ConversationPreferenceRecord
+  >();
   private readonly externalGroupCreations = new Map<
     string,
     Promise<ConversationRecord>
@@ -130,6 +149,21 @@ export class ConversationsService implements OnModuleInit {
       this.conversations.set(conversation.id, conversation);
       this.messages.set(conversation.id, messages);
     }
+
+    const preferenceClient = this.prismaService.client.conversationPreference;
+    const persistedPreferences = preferenceClient
+      ? await preferenceClient.findMany()
+      : [];
+
+    for (const preference of persistedPreferences) {
+      this.conversationPreferences.set(
+        this.conversationPreferenceKey(
+          preference.userId,
+          preference.conversationId,
+        ),
+        preference,
+      );
+    }
   }
 
   async createDirectConversation(
@@ -162,7 +196,15 @@ export class ConversationsService implements OnModuleInit {
     );
 
     if (existingConversation) {
-      return existingConversation;
+      await this.setConversationPreference(
+        existingConversation.id,
+        currentUserId,
+        { isDeleted: false },
+      );
+      return this.withConversationPreference(
+        existingConversation,
+        currentUserId,
+      );
     }
 
     const now = new Date();
@@ -517,7 +559,7 @@ export class ConversationsService implements OnModuleInit {
     currentUserRole: UserRole,
     dto: UpdateGroupConversationDto,
   ) {
-    const conversation = await this.findOneForUser(
+    const conversation = this.findConversationRecordForUser(
       conversationId,
       currentUserId,
     );
@@ -633,7 +675,7 @@ export class ConversationsService implements OnModuleInit {
     currentUserRole: UserRole,
     dto: TransferGroupOwnerDto,
   ) {
-    const conversation = await this.findOneForUser(
+    const conversation = this.findConversationRecordForUser(
       conversationId,
       currentUserId,
     );
@@ -708,7 +750,7 @@ export class ConversationsService implements OnModuleInit {
     targetUserId: string,
     dto: UpdateParticipantRoleDto,
   ) {
-    const conversation = await this.findOneForUser(
+    const conversation = this.findConversationRecordForUser(
       conversationId,
       currentUserId,
     );
@@ -766,7 +808,7 @@ export class ConversationsService implements OnModuleInit {
   }
 
   async findManagementConversation(groupId: string, userId: string) {
-    const group = await this.findOneForUser(groupId, userId);
+    const group = this.findConversationRecordForUser(groupId, userId);
     this.ensureGroupConversation(group);
 
     if (!this.canAccessManagementConversation(group, userId)) {
@@ -834,6 +876,7 @@ export class ConversationsService implements OnModuleInit {
     this.conversations.clear();
     this.messages.clear();
     this.attachmentData.clear();
+    this.conversationPreferences.clear();
     this.externalGroupCreations.clear();
 
     return { deletedConversations, deletedMessageGroups };
@@ -848,6 +891,10 @@ export class ConversationsService implements OnModuleInit {
         (conversation) => conversation.type !== ConversationType.Management,
       )
       .filter((conversation) => this.isParticipant(conversation, userId))
+      .filter(
+        (conversation) =>
+          !this.getConversationPreference(conversation.id, userId).isDeleted,
+      )
       .filter((conversation) => {
         if (!query.type) {
           return true;
@@ -879,6 +926,16 @@ export class ConversationsService implements OnModuleInit {
   }
 
   async findOneForUser(conversationId: string, userId: string) {
+    return this.withConversationPreference(
+      this.findConversationRecordForUser(conversationId, userId),
+      userId,
+    );
+  }
+
+  private findConversationRecordForUser(
+    conversationId: string,
+    userId: string,
+  ) {
     const conversation = this.conversations.get(conversationId);
 
     if (!conversation) {
@@ -904,12 +961,60 @@ export class ConversationsService implements OnModuleInit {
     return conversation;
   }
 
+  async toggleConversationBookmark(conversationId: string, userId: string) {
+    const conversation = this.findConversationRecordForUser(
+      conversationId,
+      userId,
+    );
+    const current = this.getConversationPreference(conversationId, userId);
+    await this.setConversationPreference(conversationId, userId, {
+      isBookmarked: !current.isBookmarked,
+      isDeleted: false,
+    });
+
+    return this.withConversationPreference(conversation, userId);
+  }
+
+  async toggleConversationArchive(conversationId: string, userId: string) {
+    const conversation = this.findConversationRecordForUser(
+      conversationId,
+      userId,
+    );
+    const current = this.getConversationPreference(conversationId, userId);
+    await this.setConversationPreference(conversationId, userId, {
+      isArchived: !current.isArchived,
+      isDeleted: false,
+    });
+
+    return this.withConversationPreference(conversation, userId);
+  }
+
+  async deleteConversationForUser(conversationId: string, userId: string) {
+    const conversation = this.findConversationRecordForUser(
+      conversationId,
+      userId,
+    );
+    await this.setConversationPreference(conversationId, userId, {
+      isBookmarked: false,
+      isArchived: false,
+      isDeleted: true,
+    });
+
+    return {
+      id: conversation.id,
+      deleted: true,
+    };
+  }
+
   async createMessage(
     conversationId: string,
     userId: string,
     dto: CreateMessageDto,
   ) {
-    const conversation = await this.findOneForUser(conversationId, userId);
+    const conversation = this.findConversationRecordForUser(
+      conversationId,
+      userId,
+    );
     this.ensureCanSendMessage(conversation, userId);
     const content = dto.content.trim();
 
@@ -948,6 +1053,7 @@ export class ConversationsService implements OnModuleInit {
     };
 
     conversation.updatedAt = message.createdAt;
+    await this.restoreDeletedConversationForParticipants(conversation);
     await this.persistConversationState(conversation, [message]);
     this.messages.get(conversation.id)?.push(message);
     this.metricsService.recordMessageCreated();
@@ -962,7 +1068,10 @@ export class ConversationsService implements OnModuleInit {
     dto: CreateMessageWithAttachmentsDto,
     files: UploadedMessageFile[],
   ) {
-    const conversation = await this.findOneForUser(conversationId, userId);
+    const conversation = this.findConversationRecordForUser(
+      conversationId,
+      userId,
+    );
     this.ensureCanSendMessage(conversation, userId);
     this.validateAttachmentFiles(files);
     const content = dto.content?.trim() ?? "";
@@ -1010,6 +1119,7 @@ export class ConversationsService implements OnModuleInit {
     };
 
     conversation.updatedAt = createdAt;
+    await this.restoreDeletedConversationForParticipants(conversation);
     await this.persistMessageWithAttachments(conversation, message, files);
 
     if (!this.prismaService?.enabled) {
@@ -1033,7 +1143,7 @@ export class ConversationsService implements OnModuleInit {
     attachmentId: string,
     userId: string,
   ) {
-    await this.findOneForUser(conversationId, userId);
+    this.findConversationRecordForUser(conversationId, userId);
     const message = (this.messages.get(conversationId) ?? []).find(
       (item) =>
         !item.deletedAt &&
@@ -1095,7 +1205,7 @@ export class ConversationsService implements OnModuleInit {
     userId: string,
     query: FindMessagesQueryDto = {},
   ) {
-    await this.findOneForUser(conversationId, userId);
+    this.findConversationRecordForUser(conversationId, userId);
     const limit = query.limit ?? 50;
     const before = query.before ? new Date(query.before) : null;
     const messages = this.messages.get(conversationId) ?? [];
@@ -1124,7 +1234,7 @@ export class ConversationsService implements OnModuleInit {
     userId: string,
     query: SearchMessagesQueryDto,
   ) {
-    await this.findOneForUser(conversationId, userId);
+    this.findConversationRecordForUser(conversationId, userId);
     const search = query.q.trim().toLowerCase();
     const limit = query.limit ?? 20;
     const matches = (this.messages.get(conversationId) ?? [])
@@ -1144,8 +1254,34 @@ export class ConversationsService implements OnModuleInit {
     };
   }
 
+  async findMessageForUser(messageId: string, userId: string) {
+    for (const [conversationId, messages] of this.messages.entries()) {
+      const message = messages.find((item) => item.id === messageId);
+
+      if (!message) {
+        continue;
+      }
+
+      const conversation = this.findConversationRecordForUser(
+        conversationId,
+        userId,
+      );
+
+      if (message.deletedAt) {
+        throw new NotFoundException("Message not found");
+      }
+
+      return { conversation, message };
+    }
+
+    throw new NotFoundException("Message not found");
+  }
+
   async markAsRead(conversationId: string, userId: string) {
-    const conversation = await this.findOneForUser(conversationId, userId);
+    const conversation = this.findConversationRecordForUser(
+      conversationId,
+      userId,
+    );
     const participant = conversation.participants.find(
       (item) => item.userId === userId && !item.leftAt,
     );
@@ -1175,7 +1311,10 @@ export class ConversationsService implements OnModuleInit {
     userId: string,
     dto: UpdateMessageDto,
   ) {
-    const conversation = await this.findOneForUser(conversationId, userId);
+    const conversation = this.findConversationRecordForUser(
+      conversationId,
+      userId,
+    );
     const message = this.findMessageOrThrow(conversation.id, messageId);
 
     this.ensureCanSendMessage(conversation, userId);
@@ -1202,7 +1341,10 @@ export class ConversationsService implements OnModuleInit {
     messageId: string,
     userId: string,
   ) {
-    const conversation = await this.findOneForUser(conversationId, userId);
+    const conversation = this.findConversationRecordForUser(
+      conversationId,
+      userId,
+    );
     const message = this.findMessageOrThrow(conversation.id, messageId);
 
     this.ensureMessageCanBeChanged(message, userId);
@@ -1223,14 +1365,20 @@ export class ConversationsService implements OnModuleInit {
   }
 
   async findParticipants(conversationId: string, userId: string) {
-    const conversation = await this.findOneForUser(conversationId, userId);
+    const conversation = this.findConversationRecordForUser(
+      conversationId,
+      userId,
+    );
     return conversation.participants.filter(
       (participant) => !participant.leftAt,
     );
   }
 
   async leaveConversation(conversationId: string, userId: string) {
-    const conversation = await this.findOneForUser(conversationId, userId);
+    const conversation = this.findConversationRecordForUser(
+      conversationId,
+      userId,
+    );
     this.ensureGroupConversation(conversation);
 
     const participant = conversation.participants.find(
@@ -1285,7 +1433,7 @@ export class ConversationsService implements OnModuleInit {
     currentUserRole: UserRole,
     dto: AddParticipantDto,
   ) {
-    const conversation = await this.findOneForUser(
+    const conversation = this.findConversationRecordForUser(
       conversationId,
       currentUserId,
     );
@@ -1363,7 +1511,7 @@ export class ConversationsService implements OnModuleInit {
     currentUserRole: UserRole,
     targetUserId: string,
   ) {
-    const conversation = await this.findOneForUser(
+    const conversation = this.findConversationRecordForUser(
       conversationId,
       currentUserId,
     );
@@ -2111,9 +2259,7 @@ export class ConversationsService implements OnModuleInit {
       case "audio/mpeg":
         return (
           data.subarray(0, 3).toString("ascii") === "ID3" ||
-          (data.length >= 2 &&
-            data[0] === 0xff &&
-            (data[1] & 0xe0) === 0xe0)
+          (data.length >= 2 && data[0] === 0xff && (data[1] & 0xe0) === 0xe0)
         );
       case "audio/wav":
         return (
@@ -2126,14 +2272,11 @@ export class ConversationsService implements OnModuleInit {
       case "audio/webm":
         return (
           data.length >= 4 &&
-          data
-            .subarray(0, 4)
-            .equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))
+          data.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))
         );
       case "audio/mp4":
         return (
-          data.length >= 12 &&
-          data.subarray(4, 8).toString("ascii") === "ftyp"
+          data.length >= 12 && data.subarray(4, 8).toString("ascii") === "ftyp"
         );
       default:
         return false;
@@ -2191,6 +2334,94 @@ export class ConversationsService implements OnModuleInit {
     }
   }
 
+  private conversationPreferenceKey(userId: string, conversationId: string) {
+    return `${userId}:${conversationId}`;
+  }
+
+  private getConversationPreference(
+    conversationId: string,
+    userId: string,
+  ): ConversationPreferenceRecord {
+    return (
+      this.conversationPreferences.get(
+        this.conversationPreferenceKey(userId, conversationId),
+      ) ?? {
+        userId,
+        conversationId,
+        isBookmarked: false,
+        isArchived: false,
+        isDeleted: false,
+      }
+    );
+  }
+
+  private withConversationPreference(
+    conversation: ConversationRecord,
+    userId: string,
+  ) {
+    const preference = this.getConversationPreference(conversation.id, userId);
+
+    return {
+      ...conversation,
+      isBookmarked: preference.isBookmarked,
+      isArchived: preference.isArchived,
+    };
+  }
+
+  private async setConversationPreference(
+    conversationId: string,
+    userId: string,
+    updates: ConversationPreferenceUpdates,
+  ) {
+    const current = this.getConversationPreference(conversationId, userId);
+    const preference = {
+      ...current,
+      ...updates,
+    };
+
+    if (
+      this.prismaService?.enabled &&
+      this.prismaService.client.conversationPreference
+    ) {
+      await this.prismaService.client.conversationPreference.upsert({
+        where: {
+          userId_conversationId: {
+            userId,
+            conversationId,
+          },
+        },
+        create: preference,
+        update: updates,
+      });
+    }
+
+    this.conversationPreferences.set(
+      this.conversationPreferenceKey(userId, conversationId),
+      preference,
+    );
+
+    return preference;
+  }
+
+  private async restoreDeletedConversationForParticipants(
+    conversation: ConversationRecord,
+  ) {
+    const deletedParticipants = conversation.participants.filter(
+      (participant) =>
+        !participant.leftAt &&
+        this.getConversationPreference(conversation.id, participant.userId)
+          .isDeleted,
+    );
+
+    await Promise.all(
+      deletedParticipants.map((participant) =>
+        this.setConversationPreference(conversation.id, participant.userId, {
+          isDeleted: false,
+        }),
+      ),
+    );
+  }
+
   private toConversationSummary(
     conversation: ConversationRecord,
     userId: string,
@@ -2214,7 +2445,7 @@ export class ConversationsService implements OnModuleInit {
     }).length;
 
     return {
-      ...conversation,
+      ...this.withConversationPreference(conversation, userId),
       participantCount: conversation.participants.filter((item) => !item.leftAt)
         .length,
       lastMessage,

@@ -192,6 +192,8 @@ message akislarini gercek frontend, backend ve Socket.IO uzerinde kontrol eder.
 - Active, closed and archived group states
 - Message create/update/delete
 - Message pagination
+- Conversation icinde mesaj arama
+- Kullaniciya ozel kalici mesaj bookmark'lari
 - Read tracking
 - Participant add/remove
 - Socket.IO realtime messaging

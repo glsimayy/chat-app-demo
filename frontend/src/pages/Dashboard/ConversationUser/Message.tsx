@@ -3,7 +3,7 @@ import {
   DropdownToggle,
   DropdownMenu,
   DropdownItem,
-  UncontrolledDropdown,
+  Dropdown,
   Button,
   Input,
   Modal,
@@ -41,21 +41,33 @@ import { parseSharedContactMessage } from "../../../utils/sharedContact";
 
 interface MenuProps {
   canModify: boolean;
+  isBookmarked: boolean;
+  bookmarkLoading: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onReply: () => any;
   onForward: () => void;
+  onToggleBookmark: () => void;
 }
 
 const Menu = ({
   canModify,
+  isBookmarked,
+  bookmarkLoading,
   onEdit,
   onDelete,
   onReply,
   onForward,
+  onToggleBookmark,
 }: MenuProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <UncontrolledDropdown className="align-self-start message-box-drop">
+    <Dropdown
+      isOpen={isOpen}
+      toggle={() => setIsOpen(current => !current)}
+      className="align-self-start message-box-drop"
+    >
       <DropdownToggle
         aria-label="Message actions"
         className="btn btn-toggle"
@@ -64,7 +76,11 @@ const Menu = ({
       >
         <i className="ri-more-2-fill"></i>
       </DropdownToggle>
-      <DropdownMenu>
+      <DropdownMenu
+        className="message-actions-menu"
+        container="body"
+        strategy="fixed"
+      >
         <DropdownItem
           className="d-flex align-items-center justify-content-between"
           to="#"
@@ -96,8 +112,15 @@ const Menu = ({
         <DropdownItem
           className="d-flex align-items-center justify-content-between"
           to="#"
+          disabled={bookmarkLoading}
+          onClick={onToggleBookmark}
         >
-          Bookmark <i className="bx bx-bookmarks text-muted ms-2"></i>
+          {isBookmarked ? "Remove from saved" : "Save message"}
+          <i
+            className={`bx ${
+              isBookmarked ? "bxs-bookmark" : "bx-bookmark"
+            } text-muted ms-2`}
+          ></i>
         </DropdownItem>
         <DropdownItem
           className="d-flex align-items-center justify-content-between"
@@ -114,33 +137,47 @@ const Menu = ({
           </DropdownItem>
         )}
       </DropdownMenu>
-    </UncontrolledDropdown>
+    </Dropdown>
   );
 };
 interface ImageMoreMenuProps {
   imagelink: any;
   canModify: boolean;
+  isBookmarked: boolean;
+  bookmarkLoading: boolean;
   onReply: () => any;
   onDelete: () => void;
+  onToggleBookmark: () => void;
 }
 const ImageMoreMenu = ({
   imagelink,
   canModify,
+  isBookmarked,
+  bookmarkLoading,
   onReply,
   onDelete,
+  onToggleBookmark,
 }: ImageMoreMenuProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
     <div className="message-img-link">
       <ul className="list-inline mb-0">
-        <UncontrolledDropdown
+        <Dropdown
           tag="li"
+          isOpen={isOpen}
+          toggle={() => setIsOpen(current => !current)}
           color="none"
           className="list-inline-item dropdown"
         >
-          <DropdownToggle tag="a" role="button" className="btn btn-toggle">
+          <DropdownToggle tag="button" type="button" className="btn btn-toggle">
             <i className="bx bx-dots-horizontal-rounded"></i>
           </DropdownToggle>
-          <DropdownMenu>
+          <DropdownMenu
+            className="message-actions-menu"
+            container="body"
+            strategy="fixed"
+          >
             <DropdownItem
               className="dropdown-item d-flex align-items-center justify-content-between"
               href={imagelink}
@@ -169,8 +206,15 @@ const ImageMoreMenu = ({
               tag="a"
               className=" d-flex align-items-center justify-content-between"
               href="#"
+              disabled={bookmarkLoading}
+              onClick={onToggleBookmark}
             >
-              Bookmark <i className="bx bx-bookmarks text-muted ms-2"></i>
+              {isBookmarked ? "Remove from saved" : "Save message"}
+              <i
+                className={`bx ${
+                  isBookmarked ? "bxs-bookmark" : "bx-bookmark"
+                } text-muted ms-2`}
+              ></i>
             </DropdownItem>
             {canModify && (
               <DropdownItem
@@ -183,7 +227,7 @@ const ImageMoreMenu = ({
               </DropdownItem>
             )}
           </DropdownMenu>
-        </UncontrolledDropdown>
+        </Dropdown>
       </ul>
     </div>
   );
@@ -197,6 +241,9 @@ interface ImageProps {
   index: number;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   onDeleteImg: (imageId: string | number) => void;
+  isBookmarked: boolean;
+  bookmarkLoading: boolean;
+  onToggleBookmark: () => void;
 }
 const Image = ({
   message,
@@ -206,6 +253,9 @@ const Image = ({
   index,
   onSetReplyData,
   onDeleteImg,
+  isBookmarked,
+  bookmarkLoading,
+  onToggleBookmark,
 }: ImageProps) => {
   const onDelete = () => {
     onDeleteImg(image.id);
@@ -247,8 +297,11 @@ const Image = ({
           <ImageMoreMenu
             imagelink={image.downloadLink}
             canModify={canModify}
+            isBookmarked={isBookmarked}
+            bookmarkLoading={bookmarkLoading}
             onReply={onClickReply}
             onDelete={onDelete}
+            onToggleBookmark={onToggleBookmark}
           />
         )}
       </div>
@@ -261,6 +314,9 @@ interface ImagesProps {
   canModify: boolean;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   onDeleteImg: (imageId: string | number) => void;
+  isBookmarked: boolean;
+  bookmarkLoading: boolean;
+  onToggleBookmark: () => void;
 }
 const Images = ({
   message,
@@ -268,6 +324,9 @@ const Images = ({
   canModify,
   onSetReplyData,
   onDeleteImg,
+  isBookmarked,
+  bookmarkLoading,
+  onToggleBookmark,
 }: ImagesProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selected, setSelected] = useState(0);
@@ -331,6 +390,9 @@ const Images = ({
             onImageClick={onImageClick}
             onSetReplyData={onSetReplyData}
             onDeleteImg={onDeleteImg}
+            isBookmarked={isBookmarked}
+            bookmarkLoading={bookmarkLoading}
+            onToggleBookmark={onToggleBookmark}
           />
         ))}
       </div>
@@ -453,6 +515,9 @@ interface MessageProps {
   isFromMe: boolean;
   onOpenForward: (message: MessagesTypes) => void;
   isChannel: boolean;
+  isBookmarked: boolean;
+  isHighlighted: boolean;
+  onToggleBookmark: (messageId: string | number) => Promise<void>;
 }
 const Message = ({
   message,
@@ -463,6 +528,9 @@ const Message = ({
   isFromMe,
   onOpenForward,
   isChannel,
+  isBookmarked,
+  isHighlighted,
+  onToggleBookmark,
 }: MessageProps) => {
   const { userProfile } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
@@ -470,6 +538,7 @@ const Message = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isBookmarkSaving, setIsBookmarkSaving] = useState(false);
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const hasImages = Boolean(message.image?.length);
   const hasAttachments = Boolean(message.attachments?.length);
@@ -565,6 +634,14 @@ const Message = ({
       setIsDeleteConfirmOpen(true);
     }
   };
+  const toggleBookmark = async () => {
+    try {
+      setIsBookmarkSaving(true);
+      await onToggleBookmark(message.mId);
+    } finally {
+      setIsBookmarkSaving(false);
+    }
+  };
   return (
     <li
       data-message-id={String(message.mId)}
@@ -572,6 +649,7 @@ const Message = ({
         "chat-list",
         { right: isFromMe },
         { reply: isRepliedMessage },
+        { "message-search-highlight": isHighlighted },
       )}
     >
       <div className="conversation-list">
@@ -641,6 +719,9 @@ const Message = ({
                   canModify={canModify}
                   onSetReplyData={onSetReplyData}
                   onDeleteImg={onDeleteImg}
+                  isBookmarked={isBookmarked}
+                  bookmarkLoading={isBookmarkSaving}
+                  onToggleBookmark={() => void toggleBookmark()}
                 />
               </>
             ) : (
@@ -720,6 +801,9 @@ const Message = ({
                   onForward={onForwardMessage}
                   onDelete={() => setIsDeleteConfirmOpen(true)}
                   onReply={onClickReply}
+                  isBookmarked={isBookmarked}
+                  bookmarkLoading={isBookmarkSaving}
+                  onToggleBookmark={() => void toggleBookmark()}
                 />
               </>
             )}

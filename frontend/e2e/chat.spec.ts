@@ -3,6 +3,7 @@ import {
   Browser,
   BrowserContext,
   BrowserContextOptions,
+  Locator,
   Page,
   expect,
   test,
@@ -81,7 +82,9 @@ async function loginThroughUi(
   await page.getByRole("button", { name: "Log In" }).click();
 
   await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole("heading", { name: "Chats" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Chats", exact: true }),
+  ).toBeVisible();
 }
 
 async function openConversation(page: Page, label: string) {
@@ -96,6 +99,35 @@ async function openConversation(page: Page, label: string) {
   await expect(
     page.getByText("Realtime connected", { exact: true }),
   ).toBeVisible();
+}
+
+async function expectMessageMenuWithinViewport(
+  page: Page,
+  messageRow: Locator,
+) {
+  await messageRow.scrollIntoViewIfNeeded();
+  await messageRow.hover();
+  await messageRow.getByLabel("Message actions").click();
+
+  const menu = page.locator(".message-actions-menu.show");
+  await expect(menu).toBeVisible();
+  const bounds = await menu.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    return {
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      left: rect.left,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    };
+  });
+
+  expect(bounds.top).toBeGreaterThanOrEqual(0);
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(bounds.viewportWidth);
+  expect(bounds.bottom).toBeLessThanOrEqual(bounds.viewportHeight);
+  await page.keyboard.press("Escape");
 }
 
 async function openGroupInfo(page: Page) {
@@ -119,7 +151,9 @@ async function createAuthenticatedPage(
     window.localStorage.setItem("authUser", JSON.stringify(authUser));
   }, toFrontendAuthUser(session));
   await page.goto("/dashboard");
-  await expect(page.getByRole("heading", { name: "Chats" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Chats", exact: true }),
+  ).toBeVisible();
 
   return { context, page };
 }
@@ -394,7 +428,7 @@ test("contact invitations persist and create a chat when accepted", async ({
 
     await invitee.page.reload();
     await expect(
-      invitee.page.getByRole("heading", { name: "Chats" }),
+      invitee.page.getByRole("heading", { name: "Chats", exact: true }),
     ).toBeVisible();
     await invitee.page
       .getByRole("button", { name: "Open contact invitations" })
@@ -426,9 +460,8 @@ test("logout clears the session and protects the dashboard", async ({
   try {
     await page.getByLabel("Open profile menu").click();
     await page.evaluate(() => {
-      const logoutLink = document.querySelector<HTMLAnchorElement>(
-        'a[href="/logout"]',
-      );
+      const logoutLink =
+        document.querySelector<HTMLAnchorElement>('a[href="/logout"]');
       if (!logoutLink) {
         throw new Error("Logout link is missing from the profile panel");
       }
@@ -461,10 +494,9 @@ test("profile details and image are saved through settings", async ({
   try {
     await user.page.getByLabel("Open profile menu").click();
     await user.page.evaluate(() => {
-      const settingsButton =
-        document.querySelector<HTMLButtonElement>(
-          ".profile-account-actions button",
-        );
+      const settingsButton = document.querySelector<HTMLButtonElement>(
+        ".profile-account-actions button",
+      );
       if (!settingsButton) {
         throw new Error("Profile settings button is missing");
       }
@@ -496,7 +528,9 @@ test("profile details and image are saved through settings", async ({
     await user.page.getByLabel("Open profile menu").click();
     const profilePanel = user.page.locator(".profile-desc");
     await expect(profilePanel.getByText(about, { exact: true })).toBeVisible();
-    await expect(profilePanel.getByText(location, { exact: true })).toBeVisible();
+    await expect(
+      profilePanel.getByText(location, { exact: true }),
+    ).toBeVisible();
   } finally {
     await request.patch(`${apiUrl}/users/me`, {
       headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
@@ -547,6 +581,279 @@ test("direct messages arrive in the other user's open conversation", async ({
     await expect(user2Page.getByText(reply, { exact: true })).toHaveCount(1);
   } finally {
     await closeContexts(user1Context, user2Context);
+  }
+});
+
+test("direct profile supports presence, bookmark, archive, and delete", async ({
+  browser,
+  request,
+}) => {
+  const response = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+    data: { participantId: sessions.user2.user.id },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+  const conversation = (await response.json()).data;
+  const conversationId = conversation.id;
+  const authHeaders = {
+    Authorization: `Bearer ${sessions.user1.accessToken}`,
+  };
+
+  if (conversation.isBookmarked) {
+    await request.patch(`${apiUrl}/conversations/${conversationId}/bookmark`, {
+      headers: authHeaders,
+    });
+  }
+  if (conversation.isArchived) {
+    await request.patch(`${apiUrl}/conversations/${conversationId}/archive`, {
+      headers: authHeaders,
+    });
+  }
+
+  const user = await createAuthenticatedPage(browser, sessions.user1);
+
+  try {
+    await openConversation(user.page, sessions.user2.user.username);
+    await user.page
+      .getByRole("button", { name: "Conversation details", exact: true })
+      .click();
+    const profileStatus = user.page
+      .locator(".user-profile-sidebar")
+      .getByText("Active", { exact: true });
+    await expect(profileStatus).toBeVisible();
+    await expect(profileStatus.locator("i")).toHaveClass(/text-success/);
+
+    const bookmarkResponsePromise = user.page.waitForResponse(
+      apiResponse =>
+        apiResponse.request().method() === "PATCH" &&
+        apiResponse
+          .url()
+          .endsWith(`/api/conversations/${conversationId}/bookmark`),
+    );
+    await user.page
+      .getByRole("button", { name: "Pin conversation", exact: true })
+      .click();
+    expect((await bookmarkResponsePromise).status()).toBe(200);
+    await expect(
+      user.page.getByRole("button", {
+        name: "Unpin conversation",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      user.page
+        .locator(".chat-room-list")
+        .getByRole("heading", { name: "Pinned Chats", exact: true }),
+    ).toBeVisible();
+
+    const removeBookmarkResponsePromise = user.page.waitForResponse(
+      apiResponse =>
+        apiResponse.request().method() === "PATCH" &&
+        apiResponse
+          .url()
+          .endsWith(`/api/conversations/${conversationId}/bookmark`),
+    );
+    await user.page
+      .getByRole("button", {
+        name: "Unpin conversation",
+        exact: true,
+      })
+      .click();
+    expect((await removeBookmarkResponsePromise).status()).toBe(200);
+
+    await user.page
+      .getByRole("button", { name: "More conversation actions" })
+      .click();
+    const [archiveResponse] = await Promise.all([
+      user.page.waitForResponse(
+        apiResponse =>
+          apiResponse.request().method() === "PATCH" &&
+          apiResponse
+            .url()
+            .endsWith(`/api/conversations/${conversationId}/archive`),
+      ),
+      user.page
+        .locator(".user-profile-sidebar .dropdown-menu.show")
+        .getByText("Archive", { exact: true })
+        .click(),
+    ]);
+    expect(archiveResponse.status()).toBe(200);
+    await user.page.getByText("Archived Contacts", { exact: false }).click();
+    await openConversation(user.page, sessions.user2.user.username);
+    await user.page
+      .getByRole("button", { name: "Conversation details", exact: true })
+      .click();
+    await user.page
+      .getByRole("button", { name: "More conversation actions" })
+      .click();
+    const [restoreResponse] = await Promise.all([
+      user.page.waitForResponse(
+        apiResponse =>
+          apiResponse.request().method() === "PATCH" &&
+          apiResponse
+            .url()
+            .endsWith(`/api/conversations/${conversationId}/archive`),
+      ),
+      user.page
+        .locator(".user-profile-sidebar .dropdown-menu.show")
+        .getByText("Un-Archive", { exact: true })
+        .click(),
+    ]);
+    expect(restoreResponse.status()).toBe(200);
+
+    await user.page
+      .locator(".chat-room-list")
+      .getByRole("link", { name: /^Chats/ })
+      .click();
+    await openConversation(user.page, sessions.user2.user.username);
+    await user.page
+      .getByRole("button", { name: "Conversation details", exact: true })
+      .click();
+    await user.page
+      .getByRole("button", { name: "More conversation actions" })
+      .click();
+    await user.page
+      .locator(".user-profile-sidebar .dropdown-menu.show")
+      .getByText("Delete", { exact: true })
+      .click();
+    await expect(
+      user.page.getByRole("heading", {
+        name: "Delete conversation?",
+        exact: true,
+      }),
+    ).toBeVisible();
+    const [deleteResponse] = await Promise.all([
+      user.page.waitForResponse(
+        apiResponse =>
+          apiResponse.request().method() === "DELETE" &&
+          apiResponse.url().endsWith(`/api/conversations/${conversationId}`),
+      ),
+      user.page
+        .getByRole("dialog")
+        .getByRole("button", { name: "Delete", exact: true })
+        .click(),
+    ]);
+    expect(deleteResponse.status()).toBe(200);
+    await expect(user.page.locator("#chat-input")).not.toBeVisible();
+  } finally {
+    await request.post(`${apiUrl}/conversations/direct`, {
+      headers: authHeaders,
+      data: { participantId: sessions.user2.user.id },
+    });
+    const detailResponse = await request.get(
+      `${apiUrl}/conversations/${conversationId}`,
+      { headers: authHeaders },
+    );
+    if (detailResponse.ok()) {
+      const detail = (await detailResponse.json()).data;
+      if (detail.isBookmarked) {
+        await request.patch(
+          `${apiUrl}/conversations/${conversationId}/bookmark`,
+          { headers: authHeaders },
+        );
+      }
+      if (detail.isArchived) {
+        await request.patch(
+          `${apiUrl}/conversations/${conversationId}/archive`,
+          { headers: authHeaders },
+        );
+      }
+    }
+    await user.context.close();
+  }
+});
+
+test("messages can be searched, bookmarked, reopened, and removed", async ({
+  browser,
+  request,
+}) => {
+  const response = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+    data: { participantId: sessions.user2.user.id },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+
+  const user = await createAuthenticatedPage(browser, sessions.user1);
+  const message = `search-bookmark-e2e-${Date.now()}`;
+
+  try {
+    await openConversation(user.page, sessions.user2.user.username);
+    await user.page.locator("#chat-input").fill(message);
+    await user.page.locator("#chat-input").press("Enter");
+
+    const messageItem = user.page
+      .locator("li.chat-list")
+      .filter({ hasText: message })
+      .last();
+    await expect(messageItem).toBeVisible();
+
+    await user.page.getByRole("button", { name: "Search messages" }).click();
+    const searchInput = user.page.getByLabel(
+      "Search messages in this conversation",
+    );
+    await searchInput.fill(message);
+    const searchResult = user.page
+      .locator(".message-search-result")
+      .filter({ hasText: message });
+    await expect(searchResult).toBeVisible();
+    await searchResult.click();
+    await expect(messageItem).toHaveClass(/message-search-highlight/);
+
+    await messageItem.hover();
+    await messageItem.getByRole("button", { name: "Message actions" }).click();
+    const createResponsePromise = user.page.waitForResponse(
+      apiResponse =>
+        apiResponse.request().method() === "POST" &&
+        apiResponse.url().endsWith("/api/bookmarks"),
+    );
+    await user.page
+      .locator(".message-actions-menu.show")
+      .getByText("Save message", { exact: true })
+      .click();
+    expect((await createResponsePromise).status()).toBe(201);
+
+    await user.page.locator("#pills-bookmark-tab").click();
+    await expect(
+      user.page.getByRole("heading", { name: "Saved Messages", exact: true }),
+    ).toBeVisible();
+    const bookmarkItem = user.page
+      .locator(".bookmark-message-item")
+      .filter({ hasText: message });
+    await expect(bookmarkItem).toBeVisible();
+    await bookmarkItem
+      .getByRole("button", {
+        name: `Go to saved message: ${message}`,
+        exact: true,
+      })
+      .click();
+
+    await expect(messageItem).toBeVisible();
+    await expect(messageItem).toHaveClass(/message-search-highlight/);
+    await messageItem.hover();
+    await messageItem.getByRole("button", { name: "Message actions" }).click();
+    const deleteResponsePromise = user.page.waitForResponse(
+      apiResponse =>
+        apiResponse.request().method() === "DELETE" &&
+        apiResponse.url().includes("/api/bookmarks/"),
+    );
+    await user.page
+      .locator(".message-actions-menu.show")
+      .getByText("Remove from saved", { exact: true })
+      .click();
+    expect((await deleteResponsePromise).status()).toBe(200);
+
+    const bookmarksResponse = await request.get(`${apiUrl}/bookmarks`, {
+      headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+    });
+    expect(bookmarksResponse.ok(), await bookmarksResponse.text()).toBeTruthy();
+    const bookmarkBody = await bookmarksResponse.json();
+    expect(
+      bookmarkBody.data.some(
+        (bookmark: any) => bookmark.message?.content === message,
+      ),
+    ).toBeFalsy();
+  } finally {
+    await user.context.close();
   }
 });
 
@@ -672,9 +979,11 @@ test("composer actions work and empty media counts do not render as zero", async
       }),
     ).toBeVisible();
     await user.page.getByRole("button", { name: "Send message" }).click();
-    const sharedContactCard = user.page.getByRole("button", {
-      name: `Open ${sharedUsername} profile`,
-    });
+    const sharedContactCard = user.page
+      .getByRole("button", {
+        name: `Open ${sharedUsername} profile`,
+      })
+      .last();
     await expect(sharedContactCard).toBeVisible();
     await sharedContactCard.click();
     await expect(
@@ -744,7 +1053,7 @@ test("the core chat flow fits a mobile viewport without horizontal overflow", as
 
   try {
     await expect(
-      user.page.getByRole("heading", { name: "Chats" }),
+      user.page.getByRole("heading", { name: "Chats", exact: true }),
     ).toBeVisible();
     await openConversation(user.page, "aslıuser");
     await expect(user.page.locator("#chat-input")).toBeVisible();
@@ -829,7 +1138,9 @@ test("login and dashboard have no serious accessibility violations", async ({
       window.localStorage.setItem("authUser", JSON.stringify(authUser));
     }, toFrontendAuthUser(sessions.user1));
     await page.goto("/dashboard");
-    await expect(page.getByRole("heading", { name: "Chats" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Chats", exact: true }),
+    ).toBeVisible();
     const dashboardResults = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa"])
       .analyze();
@@ -886,18 +1197,29 @@ test("message owners can edit and delete for both open clients", async ({
       `li.chat-list[data-message-id="${messageId}"]`,
     );
 
+    const senderActionRows = user1Page
+      .locator("li.chat-list[data-message-id]")
+      .filter({ has: user1Page.getByLabel("Message actions") });
+    await expectMessageMenuWithinViewport(user1Page, senderActionRows.first());
+    await expectMessageMenuWithinViewport(user1Page, senderActionRows.last());
+
     await recipientMessage.hover();
     await recipientMessage.getByLabel("Message actions").click();
+    const recipientActions = user2Page.locator(".message-actions-menu.show");
     await expect(
-      recipientMessage.getByText("Edit", { exact: true }),
+      recipientActions.getByText("Edit", { exact: true }),
     ).toHaveCount(0);
     await expect(
-      recipientMessage.getByText("Delete", { exact: true }),
+      recipientActions.getByText("Delete", { exact: true }),
     ).toHaveCount(0);
+    await user2Page.keyboard.press("Escape");
 
     await senderMessage.hover();
     await senderMessage.getByLabel("Message actions").click();
-    await senderMessage.getByText("Edit", { exact: true }).click();
+    await user1Page
+      .locator(".message-actions-menu.show")
+      .getByText("Edit", { exact: true })
+      .click();
     await senderMessage.getByLabel("Edit message").fill(editedMessage);
     await senderMessage.getByLabel("Save message edit").click();
 
@@ -913,7 +1235,10 @@ test("message owners can edit and delete for both open clients", async ({
 
     await senderMessage.hover();
     await senderMessage.getByLabel("Message actions").click();
-    await senderMessage.getByText("Delete", { exact: true }).click();
+    await user1Page
+      .locator(".message-actions-menu.show")
+      .getByText("Delete", { exact: true })
+      .click();
     await user1Page
       .getByRole("button", { name: "Delete message", exact: true })
       .click();
@@ -927,7 +1252,9 @@ test("message owners can edit and delete for both open clients", async ({
     await senderMessage.hover();
     await senderMessage.getByLabel("Message actions").click();
     await expect(
-      senderMessage.getByText("Delete", { exact: true }),
+      user1Page
+        .locator(".message-actions-menu.show")
+        .getByText("Delete", { exact: true }),
     ).toHaveCount(0);
   } finally {
     await closeContexts(user1Context, user2Context);
@@ -1048,7 +1375,9 @@ test("group messages arrive in the other participant's open conversation", async
     await expect(addContactButton).toBeVisible();
     await addContactButton.click();
     await expect(
-      user2Page.getByText("Contact invitation sent.", { exact: true }),
+      user2Page.getByText(
+        /^(Contact invitation sent\.|A direct conversation already exists)$/,
+      ),
     ).toBeVisible();
     await user2Page.keyboard.press("Escape");
 

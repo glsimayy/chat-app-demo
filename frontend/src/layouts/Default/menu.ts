@@ -42,7 +42,7 @@ const MENU_ITEMS: MenuItemType[] = [
     id: 4,
     key: "pills-bookmark-tab",
     icon: "bx bx-bookmarks",
-    tooltipTitle: "Bookmark",
+    tooltipTitle: "Saved Messages",
     tabId: TABS.BOOKMARK,
   },
   {

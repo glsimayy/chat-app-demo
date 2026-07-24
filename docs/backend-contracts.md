@@ -207,6 +207,25 @@ Konusma listesini `updatedAt` alanina gore yeniden eskiye sirali dondurur. Her i
 
 `GET /api/conversations/{conversationId}`
 
+Conversation listesi ve detay cevabi mevcut JWT kullanicisina ozel
+`isBookmarked` ve `isArchived` alanlarini icerir.
+
+`PATCH /api/conversations/{conversationId}/bookmark`
+
+Mevcut kullanici icin conversation bookmark durumunu degistirir. Bu tercih
+diger katilimcilarin listesine yansimaz ve PostgreSQL restartinda korunur.
+
+`PATCH /api/conversations/{conversationId}/archive`
+
+Mevcut kullanici icin archive durumunu degistirir. Arsivleme sohbeti veya diger
+katilimcilarin erisimini silmez.
+
+`DELETE /api/conversations/{conversationId}`
+
+Sohbeti yalnizca mevcut kullanicinin listesinden kaldirir. Karsi tarafin kopyasi
+korunur. Ayni kisiyle direct conversation tekrar acilirsa mevcut sohbet geri
+getirilir; duplicate conversation olusturulmaz.
+
 `PATCH /api/conversations/{conversationId}`
 
 Manager grup adi ve aciklamasini degistirebilir. Mesaj, ayrilma ve durum
@@ -328,6 +347,41 @@ Ornek:
 ```http
 GET /api/conversations/{conversationId}/messages/search?q=merhaba&limit=10
 ```
+
+### Message Bookmarks
+
+Bookmark kayitlari JWT kullanicisina ozeldir. Kullanici yalnizca erisebildigi
+bir konusmadaki mesaji bookmark olarak kaydedebilir.
+
+`GET /api/bookmarks`
+
+Mevcut kullanicinin bookmark kayitlarini en yeniden eskiye dondurur. Her kayit
+mesaj, gonderici ve konusma ozetini icerir.
+
+`POST /api/bookmarks`
+
+```json
+{
+  "messageId": "message-uuid",
+  "title": "Takip edilecek mesaj"
+}
+```
+
+`title` opsiyoneldir ve en fazla 120 karakterdir. Ayni mesaj tekrar
+gonderildiginde mevcut bookmark dondurulur.
+
+`PATCH /api/bookmarks/{messageId}`
+
+```json
+{
+  "title": "Yeni bookmark basligi"
+}
+```
+
+`DELETE /api/bookmarks/{messageId}`
+
+Bookmark silinir; asil mesaja dokunulmaz. Kayitlar PostgreSQL aktifken backend
+restartindan sonra korunur.
 
 `PATCH /api/conversations/{conversationId}/messages/{messageId}`
 

@@ -111,6 +111,45 @@ export class ConversationsController {
     return this.conversationsService.findOneForUser(conversationId, user.id);
   }
 
+  @Patch(":conversationId/bookmark")
+  @ApiSuccessResponse(ConversationResponseDto, {
+    description: "Conversation bookmark toggled for the current user",
+  })
+  toggleBookmark(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("conversationId") conversationId: string,
+  ) {
+    return this.conversationsService.toggleConversationBookmark(
+      conversationId,
+      user.id,
+    );
+  }
+
+  @Patch(":conversationId/archive")
+  @ApiSuccessResponse(ConversationResponseDto, {
+    description: "Conversation archive state toggled for the current user",
+  })
+  toggleArchive(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("conversationId") conversationId: string,
+  ) {
+    return this.conversationsService.toggleConversationArchive(
+      conversationId,
+      user.id,
+    );
+  }
+
+  @Delete(":conversationId")
+  deleteConversationForCurrentUser(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("conversationId") conversationId: string,
+  ) {
+    return this.conversationsService.deleteConversationForUser(
+      conversationId,
+      user.id,
+    );
+  }
+
   @Get(":conversationId/management")
   @ApiSuccessResponse(ConversationResponseDto, {
     description: "Private management conversation for authorized group roles",

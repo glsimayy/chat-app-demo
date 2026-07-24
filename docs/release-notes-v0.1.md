@@ -18,7 +18,8 @@ servisi tek urun akisi icinde calisacak sekilde tasarlanmistir.
 - Owner, manager ve gruptaki global adminlere ozel yonetici sohbeti
 - Grup aciklamasi, ayrilma politikasi ve active/closed/archived durumlari
 - Contacts listesinden direct conversation bulma veya otomatik olusturma
-- Mesaj sayfalama, arama ve `clientMessageId` ile tekrar gonderim korumasi
+- Mesaj sayfalama, arama, kalici bookmark ve `clientMessageId` ile tekrar
+  gonderim korumasi
 - Owner gerektirmeyen BOT gruplari, BOT mesaji ve dis API ile manager/politika atama
 - PostgreSQL kaliciligi ve Prisma migration altyapisi
 - Admin runtime metrikleri, health endpointi ve yapilandirilmis loglar
@@ -41,6 +42,8 @@ servisi tek urun akisi icinde calisacak sekilde tasarlanmistir.
 - Iki bagimsiz browser oturumunda direct/group mesajlar yenilemesiz iletildi.
 - Mesaj duzenleme/silme islemleri iki acik istemciye gercek zamanli yansidi.
 - PostgreSQL migration bos veritabaninda uygulandi ve restart kaliciligi dogrulandi.
+- Mesaj arama ve bookmark ekleme/acma/silme Playwright akisi gecti; bookmark
+  backend restartindan sonra PostgreSQL'den geri yuklendi.
 - Java webhook testleri production Docker build icinde 20/20 gecti.
 - PostgreSQL custom-format backup temiz test database'ine restore edildi; ADMIN,
   grup ve mesaj verileri uygulama tarafindan yeniden okundu.

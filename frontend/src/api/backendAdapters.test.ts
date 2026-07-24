@@ -1,5 +1,6 @@
 import {
   isBotDirectConversation,
+  mapConversationDetails,
   mapConversationToListItem,
   mapMessage,
 } from "./backendAdapters";
@@ -71,5 +72,28 @@ describe("backend adapters for automation", () => {
         { id: "bot-user", isBot: true },
       ]),
     ).toBe(true);
+  });
+
+  it("keeps the user presence status in direct conversation details", () => {
+    const details = mapConversationDetails(
+      {
+        id: "direct-conversation",
+        type: "direct",
+        status: "active",
+        participants: [
+          { userId: "current-user", leftAt: null },
+          { userId: "other-user", leftAt: null },
+        ],
+      },
+      [
+        {
+          id: "other-user",
+          username: "otheruser",
+          email: "other@ello.com",
+        },
+      ],
+    );
+
+    expect(details.status).toBe("Active");
   });
 });

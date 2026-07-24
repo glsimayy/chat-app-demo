@@ -1,6 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import classnames from "classnames";
 import { createSelector } from "reselect";
+import {
+  Button,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  Spinner,
+} from "reactstrap";
 // hooks
 import { useRedux } from "../../../hooks/index";
 
@@ -10,12 +18,21 @@ import {
   getChannels,
   getDirectMessages,
   toggleUserDetailsTab,
-  toggleFavouriteContact,
   getChatUserDetails,
   getChatUserConversations,
+  getFavourites,
+  getArchiveContact,
+  toggleFavouriteContact,
   toggleArchiveContact,
 } from "../../../redux/actions";
-import { createDirectConversation } from "../../../api/chats";
+import {
+  createDirectConversation,
+  deleteUserMessages as deleteConversation,
+} from "../../../api/chats";
+import {
+  showErrorNotification,
+  showSuccessNotification,
+} from "../../../helpers/notifications";
 
 // components
 import AudioCallModal from "../../../components/AudioCallModal";
@@ -45,22 +62,10 @@ const Index = ({ isChannel }: IndexProps) => {
       chatUserDetails: state.chatUserDetails,
       getUserDetailsLoading: state.getUserDetailsLoading,
       isOpenUserDetails: state.isOpenUserDetails,
-      isFavouriteContactToggled: state.isFavouriteContactToggled,
     }),
   );
-  // Inside your component
-  const {
-    chatUserDetails,
-    getUserDetailsLoading,
-    isOpenUserDetails,
-    isFavouriteContactToggled,
-  } = useAppSelector(errorData);
-
-  useEffect(() => {
-    if (isFavouriteContactToggled) {
-      dispatch(getChatUserDetails(chatUserDetails.id));
-    }
-  }, [dispatch, isFavouriteContactToggled, chatUserDetails.id]);
+  const { chatUserDetails, getUserDetailsLoading, isOpenUserDetails } =
+    useAppSelector(errorData);
 
   /*
   close tab
@@ -91,10 +96,7 @@ const Index = ({ isChannel }: IndexProps) => {
     setIsOpenAudioModal(false);
   };
 
-  /*
-  favourite
-  */
-  const onToggleFavourite = () => {
+  const onToggleBookmark = () => {
     dispatch(toggleFavouriteContact(chatUserDetails.id));
   };
 
@@ -103,6 +105,31 @@ const Index = ({ isChannel }: IndexProps) => {
   */
   const onToggleArchive = () => {
     dispatch(toggleArchiveContact(chatUserDetails.id));
+    dispatch(toggleUserDetailsTab(false));
+    dispatch(changeSelectedChat(null));
+  };
+
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const onDeleteConversation = async () => {
+    try {
+      setIsDeleting(true);
+      await deleteConversation(chatUserDetails.id);
+      setIsDeleteOpen(false);
+      dispatch(toggleUserDetailsTab(false));
+      dispatch(changeSelectedChat(null));
+      dispatch(getDirectMessages());
+      dispatch(getFavourites());
+      dispatch(getArchiveContact());
+      showSuccessNotification("Conversation deleted");
+    } catch (error) {
+      showErrorNotification(
+        String(error || "Conversation could not be deleted"),
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const participantStateKey = (chatUserDetails.members || [])
@@ -161,11 +188,13 @@ const Index = ({ isChannel }: IndexProps) => {
             {!isChannel ? (
               <>
                 <Actions
-                  chatUserDetails={chatUserDetails}
                   onOpenVideo={onOpenVideo}
                   onOpenAudio={onOpenAudio}
-                  onToggleFavourite={onToggleFavourite}
+                  onToggleBookmark={onToggleBookmark}
                   onToggleArchive={onToggleArchive}
+                  onDelete={() => setIsDeleteOpen(true)}
+                  isBookmarked={Boolean(chatUserDetails.isBookmarked)}
+                  isArchived={Boolean(chatUserDetails.isArchived)}
                 />
                 <Status about={chatUserDetails.about} />
                 <BasicDetails chatUserDetails={chatUserDetails} />
@@ -207,6 +236,38 @@ const Index = ({ isChannel }: IndexProps) => {
               user={chatUserDetails}
             />
           )}
+          <Modal
+            isOpen={isDeleteOpen}
+            toggle={() => !isDeleting && setIsDeleteOpen(false)}
+            centered
+          >
+            <ModalHeader toggle={() => !isDeleting && setIsDeleteOpen(false)}>
+              Delete conversation?
+            </ModalHeader>
+            <ModalBody>
+              This conversation will be removed from your chat list. The other
+              participant will keep their copy.
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                type="button"
+                color="light"
+                disabled={isDeleting}
+                onClick={() => setIsDeleteOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                color="danger"
+                disabled={isDeleting}
+                onClick={onDeleteConversation}
+              >
+                {isDeleting && <Spinner size="sm" className="me-2" />}
+                Delete
+              </Button>
+            </ModalFooter>
+          </Modal>
         </div>
       </div>
     </>

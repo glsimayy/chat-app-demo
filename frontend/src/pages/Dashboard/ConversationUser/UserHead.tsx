@@ -9,12 +9,16 @@ import { changeSelectedChat } from "../../../redux/actions";
 interface UserHeadProps {
   chatUserDetails: any;
   onOpenUserDetails: () => void;
+  onToggleSearch: () => void;
+  isSearchOpen: boolean;
   isChannel: boolean;
 }
 
 const UserHead = ({
   chatUserDetails,
   onOpenUserDetails,
+  onToggleSearch,
+  isSearchOpen,
   isChannel,
 }: UserHeadProps) => {
   const { dispatch } = useRedux();
@@ -48,7 +52,7 @@ const UserHead = ({
   return (
     <div className="p-3 p-lg-4 user-chat-topbar">
       <Row className="align-items-center">
-        <Col className="col-10">
+        <Col className="col-8 col-sm-9">
           <div className="d-flex align-items-center">
             <div className="flex-shrink-0 d-block d-lg-none me-2">
               <Link
@@ -111,7 +115,19 @@ const UserHead = ({
             </div>
           </div>
         </Col>
-        <Col className="col-2 text-end">
+        <Col className="col-4 col-sm-3 text-end">
+          <button
+            onClick={onToggleSearch}
+            type="button"
+            className={classnames("btn nav-btn", {
+              active: isSearchOpen,
+            })}
+            title="Search messages"
+            aria-label="Search messages"
+            aria-pressed={isSearchOpen}
+          >
+            <i className="bx bx-search"></i>
+          </button>
           <button
             onClick={onOpenUserDetails}
             type="button"

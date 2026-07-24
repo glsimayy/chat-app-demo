@@ -58,7 +58,22 @@ const findConversation = async (id: string | number) => {
   return conversations.find((conversation: any) => conversation.id === id);
 };
 
-const getFavourites = () => Promise.resolve([]);
+const getFavourites = async () => {
+  const [users, conversations] = await Promise.all([
+    getUsers(),
+    getConversations(),
+  ]);
+
+  return conversations
+    .filter(
+      (conversation: any) =>
+        conversation.type === "direct" &&
+        conversation.isBookmarked &&
+        !conversation.isArchived &&
+        !isBotDirectConversation(conversation, users),
+    )
+    .map((conversation: any) => mapConversationToListItem(conversation, users));
+};
 
 const getDirectMessages = async () => {
   const [users, conversations] = await Promise.all([
@@ -70,6 +85,7 @@ const getDirectMessages = async () => {
     .filter(
       (conversation: any) =>
         conversation.type === "direct" &&
+        !conversation.isArchived &&
         !isBotDirectConversation(conversation, users),
     )
     .map((conversation: any) => mapConversationToListItem(conversation, users));
@@ -79,7 +95,10 @@ const getChannels = async () => {
   const conversations = await getConversations();
 
   return conversations
-    .filter((conversation: any) => conversation.type === "group")
+    .filter(
+      (conversation: any) =>
+        conversation.type === "group" && !conversation.isArchived,
+    )
     .map((conversation: any) => mapConversationToListItem(conversation));
 };
 
@@ -181,6 +200,21 @@ const getChatUserConversations = async (id: string | number) => {
   };
 };
 
+const searchConversationMessages = async (
+  conversationId: string | number,
+  query: string,
+) => {
+  const [response, users]: [any, Array<any>] = await Promise.all([
+    api.get(`/conversations/${conversationId}/messages/search`, {
+      params: { q: query, limit: 50 },
+    }),
+    getUsers(true),
+  ]);
+  const messages = Array.isArray(response) ? response : response?.items || [];
+
+  return messages.map((message: any) => mapMessage(message, users));
+};
+
 const sendMessage = (data: any) => {
   const conversationId = data?.meta?.receiver;
   const content = data?.text || "";
@@ -245,8 +279,14 @@ const forwardMessage = async (data: any) => {
   return "Message forwarded";
 };
 
-const deleteUserMessages = (_userId?: string | number) =>
-  Promise.resolve("Not supported yet");
+const deleteUserMessages = async (conversationId?: string | number) => {
+  if (!conversationId) {
+    throw new Error("Conversation is required");
+  }
+
+  await api.delete(`/conversations/${conversationId}`);
+  return "Conversation deleted";
+};
 
 const getChannelDetails = async (id: string | number) => {
   const conversation = await findConversation(id);
@@ -256,13 +296,41 @@ const getChannelDetails = async (id: string | number) => {
     : { id, name: "Conversation", isChannel: true, members: [] };
 };
 
-const toggleFavouriteContact = (_id?: string | number) =>
-  Promise.resolve("Updated");
+const toggleFavouriteContact = async (id?: string | number) => {
+  if (!id) {
+    throw new Error("Conversation is required");
+  }
 
-const getArchiveContact = () => Promise.resolve([]);
+  const response: any = await api.patch(`/conversations/${id}/bookmark`);
+  return response?.isBookmarked
+    ? "Conversation bookmarked"
+    : "Conversation bookmark removed";
+};
 
-const toggleArchiveContact = (_id?: string | number) =>
-  Promise.resolve("Updated");
+const getArchiveContact = async () => {
+  const [users, conversations] = await Promise.all([
+    getUsers(),
+    getConversations(),
+  ]);
+
+  return conversations
+    .filter((conversation: any) => conversation.isArchived)
+    .filter(
+      (conversation: any) => !isBotDirectConversation(conversation, users),
+    )
+    .map((conversation: any) => mapConversationToListItem(conversation, users));
+};
+
+const toggleArchiveContact = async (id?: string | number) => {
+  if (!id) {
+    throw new Error("Conversation is required");
+  }
+
+  const response: any = await api.patch(`/conversations/${id}/archive`);
+  return response?.isArchived
+    ? "Conversation archived"
+    : "Conversation restored";
+};
 
 const readConversation = async (id: string | number) => {
   await api.patch(`/conversations/${id}/read`);
@@ -293,6 +361,7 @@ export {
   leaveConversation,
   getChatUserDetails,
   getChatUserConversations,
+  searchConversationMessages,
   sendMessage,
   getAttachmentBlob,
   receiveMessage,

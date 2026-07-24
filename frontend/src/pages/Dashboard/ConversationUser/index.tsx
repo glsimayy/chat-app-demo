@@ -20,6 +20,7 @@ import { useProfile } from "../../../hooks";
 import UserHead from "./UserHead";
 import Conversation from "./Conversation";
 import ChatInputSection from "./ChatInputSection/index";
+import MessageSearchPanel from "./MessageSearchPanel";
 
 // interface
 import { MessagesTypes } from "../../../data/messages";
@@ -32,6 +33,10 @@ import {
 } from "../../../api/chats";
 import { getCurrentAuthUser } from "../../../api/backendAdapters";
 import { createClientMessageId } from "../../../utils/clientMessageId";
+import {
+  clearPendingMessageFocus,
+  readPendingMessageFocus,
+} from "../../../utils/messageFocus";
 
 interface IndexProps {
   isChannel: boolean;
@@ -72,6 +77,7 @@ const Index = ({ isChannel }: IndexProps) => {
   const joinedConversationRef = useRef<string | number | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingActiveRef = useRef(false);
+  const pendingFocusOpeningRef = useRef(false);
   const [socketConnected, setSocketConnected] = useState(false);
   const [realtimeError, setRealtimeError] = useState("");
   const [conversationMode, setConversationMode] = useState<
@@ -81,6 +87,10 @@ const Index = ({ isChannel }: IndexProps) => {
     useState<any>(null);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const [typingUserIds, setTypingUserIds] = useState<Set<string>>(new Set());
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [focusedMessageId, setFocusedMessageId] = useState<
+    string | number | null
+  >(null);
   const activeParticipantIds = new Set(
     (chatUserDetails.members || [])
       .filter((member: any) => !member.leftAt)
@@ -112,7 +122,9 @@ const Index = ({ isChannel }: IndexProps) => {
           members: managementConversation.participants || [],
         }
       : chatUserDetails;
-  const groupIsActive = (chatUserDetails.status || "active") === "active";
+  const groupIsActive =
+    !isChannel ||
+    String(chatUserDetails.status || "active").toLowerCase() === "active";
   const canSendToGroup =
     !isChannel ||
     Boolean(chatUserDetails.memberCanSendMessages) ||
@@ -128,7 +140,18 @@ const Index = ({ isChannel }: IndexProps) => {
   useEffect(() => {
     setConversationMode("group");
     setManagementConversation(null);
+    setIsSearchOpen(false);
+    setFocusedMessageId(null);
   }, [chatUserDetails.id]);
+
+  const focusMessage = useCallback((messageId: string | number) => {
+    setFocusedMessageId(messageId);
+    window.setTimeout(() => {
+      setFocusedMessageId(current =>
+        String(current) === String(messageId) ? null : current,
+      );
+    }, 2400);
+  }, []);
 
   /*
   reply handeling
@@ -481,6 +504,81 @@ const Index = ({ isChannel }: IndexProps) => {
     }
   };
 
+  useEffect(() => {
+    const pending = readPendingMessageFocus();
+
+    if (!pending || !chatUserDetails.id) {
+      return;
+    }
+
+    const rootConversationId =
+      pending.conversationType === "management"
+        ? pending.parentConversationId
+        : pending.conversationId;
+
+    if (String(rootConversationId) !== String(chatUserDetails.id)) {
+      return;
+    }
+
+    const targetMessageIsLoaded =
+      String(chatUserConversations.conversationId) ===
+        String(pending.conversationId) &&
+      (chatUserConversations.messages || []).some(
+        (message: MessagesTypes) =>
+          String(message.mId) === String(pending.messageId),
+      );
+
+    if (pending.conversationType !== "management") {
+      if (!targetMessageIsLoaded) {
+        return;
+      }
+
+      clearPendingMessageFocus();
+      focusMessage(pending.messageId);
+      return;
+    }
+
+    if (
+      String(managementConversation?.id || "") ===
+      String(pending.conversationId)
+    ) {
+      if (targetMessageIsLoaded) {
+        clearPendingMessageFocus();
+        focusMessage(pending.messageId);
+      }
+      return;
+    }
+
+    if (pendingFocusOpeningRef.current) {
+      return;
+    }
+
+    pendingFocusOpeningRef.current = true;
+    getManagementConversation(chatUserDetails.id)
+      .then((management: any) => {
+        if (String(management?.id) !== String(pending.conversationId)) {
+          throw new Error("Management conversation could not be matched");
+        }
+
+        setManagementConversation(management);
+        setConversationMode("management");
+        dispatch(getChatUserConversations(management.id));
+      })
+      .catch((error: any) => {
+        setRealtimeError(String(error || "Saved message could not be opened"));
+      })
+      .finally(() => {
+        pendingFocusOpeningRef.current = false;
+      });
+  }, [
+    chatUserConversations.conversationId,
+    chatUserConversations.messages,
+    chatUserDetails.id,
+    dispatch,
+    focusMessage,
+    managementConversation?.id,
+  ]);
+
   return (
     <div
       className={`conversation-shell ${
@@ -494,8 +592,17 @@ const Index = ({ isChannel }: IndexProps) => {
       <UserHead
         chatUserDetails={chatUserDetails}
         onOpenUserDetails={onOpenUserDetails}
+        onToggleSearch={() => setIsSearchOpen(current => !current)}
+        isSearchOpen={isSearchOpen}
         isChannel={isChannel}
       />
+      {isSearchOpen && activeConversationId && (
+        <MessageSearchPanel
+          conversationId={activeConversationId}
+          onClose={() => setIsSearchOpen(false)}
+          onSelectMessage={focusMessage}
+        />
+      )}
       <div className="border-bottom px-3 py-2 d-flex flex-wrap gap-3 align-items-center font-size-12">
         <span className={socketConnected ? "text-success" : "text-muted"}>
           <i
@@ -571,6 +678,7 @@ const Index = ({ isChannel }: IndexProps) => {
         onDelete={onDeleteMessage}
         onSetReplyData={onSetReplyData}
         isChannel={isChannel}
+        focusedMessageId={focusedMessageId}
       />
       <ChatInputSection
         onSend={onSend}

@@ -1,4 +1,10 @@
-import React, { useEffect, useRef, useCallback, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 // hooks
 import { useRedux } from "../../../hooks/index";
@@ -15,6 +21,16 @@ import Message from "./Message";
 // interface
 import { MessagesTypes } from "../../../data/messages";
 import ForwardModal from "../../../components/ForwardModal";
+import {
+  createBookmark,
+  deleteBookmark as removeMessageBookmark,
+  getBookmarks as getMessageBookmarks,
+} from "../../../api/bookmarks";
+import {
+  showErrorNotification,
+  showSuccessNotification,
+} from "../../../helpers/notifications";
+import { BookMarkTypes } from "../../../data/bookmarks";
 
 // actions
 import { forwardMessage } from "../../../redux/actions";
@@ -25,6 +41,7 @@ interface ConversationProps {
   onDelete: (messageId: string | number) => Promise<void>;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   isChannel: boolean;
+  focusedMessageId: string | number | null;
 }
 const Conversation = ({
   chatUserDetails,
@@ -33,6 +50,7 @@ const Conversation = ({
   onDelete,
   onSetReplyData,
   isChannel,
+  focusedMessageId,
 }: ConversationProps) => {
   // global store
   const { dispatch, useAppSelector } = useRedux();
@@ -50,10 +68,74 @@ const Conversation = ({
   const { getUserConversationsLoading, isMessageForwarded } =
     useAppSelector(errorData);
 
-  const messages =
-    chatUserConversations.messages && chatUserConversations.messages.length
-      ? chatUserConversations.messages
-      : [];
+  const messages = useMemo(
+    () =>
+      chatUserConversations.messages && chatUserConversations.messages.length
+        ? chatUserConversations.messages
+        : [],
+    [chatUserConversations.messages],
+  );
+  const [bookmarkedMessageIds, setBookmarkedMessageIds] = useState<Set<string>>(
+    new Set(),
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    getMessageBookmarks()
+      .then((bookmarks: any) => {
+        if (active) {
+          setBookmarkedMessageIds(
+            new Set(
+              (bookmarks as BookMarkTypes[]).map(bookmark =>
+                String(bookmark.messageId),
+              ),
+            ),
+          );
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setBookmarkedMessageIds(new Set());
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [chatUserConversations.conversationId]);
+
+  const toggleBookmark = async (messageId: string | number) => {
+    const normalizedMessageId = String(messageId);
+    const isBookmarked = bookmarkedMessageIds.has(normalizedMessageId);
+
+    try {
+      if (isBookmarked) {
+        await removeMessageBookmark(normalizedMessageId);
+      } else {
+        await createBookmark(normalizedMessageId);
+      }
+
+      setBookmarkedMessageIds(current => {
+        const next = new Set(current);
+        if (isBookmarked) {
+          next.delete(normalizedMessageId);
+        } else {
+          next.add(normalizedMessageId);
+        }
+        return next;
+      });
+      window.dispatchEvent(new Event("ello:bookmarks-updated"));
+      showSuccessNotification(
+        isBookmarked ? "Removed from Saved Messages" : "Message saved",
+      );
+    } catch (bookmarkError: any) {
+      showErrorNotification(
+        String(bookmarkError || "Saved message could not be updated"),
+      );
+      throw bookmarkError;
+    }
+  };
 
   const ref = useRef<any>();
   const scrollElement = useCallback(() => {
@@ -77,10 +159,25 @@ const Conversation = ({
     }
   }, []);
   useEffect(() => {
-    if (chatUserConversations.messages) {
+    if (chatUserConversations.messages && !focusedMessageId) {
       scrollElement();
     }
-  }, [chatUserConversations.messages, scrollElement]);
+  }, [chatUserConversations.messages, focusedMessageId, scrollElement]);
+
+  useEffect(() => {
+    if (!focusedMessageId) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const messageElement = document.querySelector<HTMLElement>(
+        `[data-message-id="${String(focusedMessageId)}"]`,
+      );
+      messageElement?.scrollIntoView({ behavior: "auto", block: "center" });
+    }, 50);
+
+    return () => window.clearTimeout(timer);
+  }, [focusedMessageId, messages]);
 
   /*
   forward message
@@ -134,6 +231,11 @@ const Conversation = ({
               isFromMe={isFromMe}
               onOpenForward={onOpenForward}
               isChannel={isChannel}
+              isBookmarked={bookmarkedMessageIds.has(String(message.mId))}
+              isHighlighted={
+                String(focusedMessageId || "") === String(message.mId)
+              }
+              onToggleBookmark={toggleBookmark}
             />
           );
         })}

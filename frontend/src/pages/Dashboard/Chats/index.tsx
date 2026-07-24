@@ -164,8 +164,9 @@ const Index = (props: IndexProps) => {
     if (isFavouriteContactToggled) {
       dispatch(getFavourites());
       dispatch(getDirectMessages());
+      dispatch(getChatUserDetails(chatUserDetails.id));
     }
-  }, [dispatch, isFavouriteContactToggled]);
+  }, [dispatch, isFavouriteContactToggled, chatUserDetails.id]);
 
   /*
   invite contact modal handeling
