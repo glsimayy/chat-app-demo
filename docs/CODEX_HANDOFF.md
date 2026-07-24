@@ -12,7 +12,8 @@ and continue from the "Next Work" section.
 
 - Repository: `https://github.com/glsimayy/chat-app-demo.git`
 - Canonical branch: `main`
-- Verified code baseline before this handoff: `4f92a1f`
+- Verified audio-call implementation commit: `098d07f`
+- Verified merge commit on `main`: `94ad86e`
 - Feature backup branch: `codex/webrtc-audio-calls`
 - Feature commit: `2296360`
 - The incorrect standalone presence experiment was reverted before the
@@ -168,7 +169,7 @@ different networks:
 - The UI can show `Call ended` while the incoming-call presentation is still
   visible.
 
-Implemented on `codex/audio-call-stability`:
+Implemented in `098d07f` and merged into `main`:
 
 - A 15-second backend disconnect grace period keeps ringing/active sessions
   alive during transient socket reconnects.
