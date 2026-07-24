@@ -476,6 +476,9 @@ export class DevResetResponseDto {
   bookmarks!: Record<string, number>;
 
   @ApiProperty({ type: Object })
+  calls!: Record<string, number>;
+
+  @ApiProperty({ type: Object })
   contactInvitations!: Record<string, number>;
 
   @ApiProperty({ type: Object })

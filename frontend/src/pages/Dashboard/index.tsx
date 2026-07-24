@@ -26,6 +26,8 @@ import { getChatSocket } from "../../api/realtime";
 import { getCurrentAuthUser } from "../../api/backendAdapters";
 import { getUsers } from "../../api/chats";
 import { showIncomingMessageNotification } from "../../helpers/notifications";
+import { AudioCallProvider } from "../../features/audio-call/AudioCallProvider";
+import { PresenceProvider } from "../../features/presence/PresenceProvider";
 
 interface IndexProps {}
 const Index = (props: IndexProps) => {
@@ -107,7 +109,8 @@ const Index = (props: IndexProps) => {
         conversationName,
         content: event?.content || "New message",
         onOpen: conversation
-          ? () => openConversation(String(event.conversationId), Boolean(channel))
+          ? () =>
+              openConversation(String(event.conversationId), Boolean(channel))
           : undefined,
       });
 
@@ -159,8 +162,9 @@ const Index = (props: IndexProps) => {
   const { isChannel } = useConversationUserType();
 
   return (
-    <>
-      <Leftbar />
+    <PresenceProvider>
+      <AudioCallProvider>
+        <Leftbar />
 
       <div
         className={classnames("user-chat", "w-100", "overflow-hidden", {
@@ -190,8 +194,9 @@ const Index = (props: IndexProps) => {
         ) : (
           <Welcome />
         )}
-      </div>
-    </>
+        </div>
+      </AudioCallProvider>
+    </PresenceProvider>
   );
 };
 

@@ -38,7 +38,7 @@ export const mapBackendUser = (user: any) => {
     firstName,
     lastName,
     username,
-    status: STATUS_TYPES.ACTIVE,
+    status: STATUS_TYPES.OFFLINE,
     profileImage: user?.profileImage,
   };
 };
@@ -50,6 +50,7 @@ export const mapAuthResponse = (response: any) => {
 
   return {
     ...mapBackendUser(user),
+    status: STATUS_TYPES.ACTIVE,
     accessToken: token,
     token,
   };
@@ -115,13 +116,13 @@ export const mapConversationToListItem = (
     location: mappedUser.location,
     profileImage: mappedUser.profileImage,
     isBot: Boolean(mappedUser.isBot),
-    status: STATUS_TYPES.ACTIVE,
+    status: STATUS_TYPES.OFFLINE,
     participantId: otherParticipant?.userId,
     isBookmarked: Boolean(conversation.isBookmarked),
     isArchived: Boolean(conversation.isArchived),
     meta: {
       unRead: conversation.unreadCount || 0,
-      status: STATUS_TYPES.ACTIVE,
+      status: STATUS_TYPES.OFFLINE,
     },
   };
 };
@@ -165,7 +166,7 @@ export const mapConversationDetails = (
     membersCanLeave: conversation?.membersCanLeave !== false,
     status: isChannel
       ? conversation?.status || "active"
-      : listItem.status || STATUS_TYPES.ACTIVE,
+      : listItem.status || STATUS_TYPES.OFFLINE,
     parentConversationId: conversation?.parentConversationId || null,
     isBookmarked: Boolean(conversation?.isBookmarked),
     isArchived: Boolean(conversation?.isArchived),

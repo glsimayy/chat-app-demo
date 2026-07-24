@@ -12,11 +12,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}",
-        ]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -103,7 +99,8 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      test:
+        ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
       interval: 10s
       timeout: 3s
       retries: 10
@@ -115,6 +112,7 @@ services:
       args:
         REACT_APP_API_URL: ${FRONTEND_API_URL:-/api}
         REACT_APP_SOCKET_URL: ${FRONTEND_SOCKET_URL:-/chat}
+        REACT_APP_WEBRTC_ICE_SERVERS: '${FRONTEND_WEBRTC_ICE_SERVERS:-[{"urls":"stun:stun.l.google.com:19302"}]}'
     restart: unless-stopped
     ports:
       - "5173:8080"
@@ -124,7 +122,15 @@ services:
       java-webhook:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "-O",
+          "/dev/null",
+          "http://127.0.0.1:8080/healthz",
+        ]
       interval: 10s
       timeout: 3s
       retries: 10

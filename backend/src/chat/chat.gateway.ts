@@ -19,8 +19,11 @@ import {
 } from "@nestjs/websockets";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
+import { randomUUID } from "node:crypto";
 import { Server, Socket } from "socket.io";
 import { AuthenticatedUser } from "../auth/authenticated-user.interface";
+import { CallsService } from "../calls/calls.service";
+import { ConversationType } from "../conversations/conversation-type.enum";
 import { ConversationsService } from "../conversations/conversations.service";
 import { MetricsService } from "../metrics/metrics.service";
 import { CreateMessageDto } from "../conversations/dto/create-message.dto";
@@ -32,9 +35,13 @@ import {
   RealtimeEventsService,
 } from "../conversations/realtime-events.service";
 import {
+  CallEventPayloadDto,
+  CallSignalPayloadDto,
   ConversationEventPayloadDto,
   DeleteMessagePayloadDto,
+  RejectCallPayloadDto,
   SendMessagePayloadDto,
+  StartCallPayloadDto,
   SyncConversationsPayloadDto,
   TransferOwnerPayloadDto,
   UpdateConversationPayloadDto,
@@ -42,6 +49,7 @@ import {
 } from "./dto/socket-event.dto";
 import { SocketExceptionFilter } from "./socket-exception.filter";
 import { SocketRateLimiterService } from "./socket-rate-limiter.service";
+import { UsersService } from "../users/users.service";
 
 interface AuthenticatedSocket extends Socket {
   data: {
@@ -54,6 +62,17 @@ interface JwtPayload {
   sub: string;
   email: string;
   role: AuthenticatedUser["role"];
+}
+
+type CallStatus = "ringing" | "active";
+
+interface CallSession {
+  id: string;
+  conversationId: string;
+  callerId: string;
+  recipientId: string;
+  status: CallStatus;
+  createdAt: Date;
 }
 
 @WebSocketGateway({
@@ -92,6 +111,12 @@ export class ChatGateway
     AuthenticatedSocket
   >();
   private readonly logger = new Logger(ChatGateway.name);
+  private readonly callSessions = new Map<string, CallSession>();
+  private readonly callTimeouts = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+  >();
+  private readonly callRingTimeoutMs = 30_000;
   private removeRealtimeListener?: () => void;
 
   constructor(
@@ -101,6 +126,8 @@ export class ChatGateway
     private readonly realtimeEventsService: RealtimeEventsService,
     private readonly socketRateLimiterService: SocketRateLimiterService,
     private readonly metricsService: MetricsService,
+    private readonly usersService: UsersService,
+    private readonly callsService: CallsService,
   ) {}
 
   onModuleInit() {
@@ -111,6 +138,11 @@ export class ChatGateway
 
   onModuleDestroy() {
     this.removeRealtimeListener?.();
+    for (const timeout of this.callTimeouts.values()) {
+      clearTimeout(timeout);
+    }
+    this.callTimeouts.clear();
+    this.callSessions.clear();
   }
 
   async handleConnection(client: AuthenticatedSocket) {
@@ -146,6 +178,8 @@ export class ChatGateway
           ),
         connectedAt: new Date(),
       });
+      await this.emitPresenceSnapshot(client, payload.sub);
+      await this.emitPresenceChange(payload.sub, true);
     } catch {
       this.metricsService.recordSocketError();
       this.logger.warn(
@@ -164,7 +198,7 @@ export class ChatGateway
     }
   }
 
-  handleDisconnect(client: AuthenticatedSocket) {
+  async handleDisconnect(client: AuthenticatedSocket) {
     this.socketRateLimiterService.clear(client.id);
     const user = client.data.user;
 
@@ -187,6 +221,9 @@ export class ChatGateway
       return;
     }
 
+    await this.finishCallsForUser(user.id, "peer-disconnected");
+    await this.emitPresenceChange(user.id, false);
+
     for (const conversationId of client.data.conversationIds ?? []) {
       this.server
         .to(this.conversationRoom(conversationId))
@@ -195,6 +232,22 @@ export class ChatGateway
           userId: user.id,
         });
     }
+  }
+
+  @SubscribeMessage("presence:sync")
+  async syncPresence(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @Ack() ack?: (response: unknown) => void,
+  ) {
+    this.consumeRateLimit(client, "presence:sync");
+    const user = this.getUser(client);
+    const snapshot = await this.buildPresenceSnapshot(user.id);
+    const response = { success: true, data: snapshot };
+
+    ack?.(response);
+    client.emit("presence:contacts", snapshot);
+
+    return response;
   }
 
   @SubscribeMessage("conversation:join")
@@ -470,6 +523,263 @@ export class ChatGateway
     return response;
   }
 
+  @SubscribeMessage("call:start")
+  async startCall(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: StartCallPayloadDto,
+    @Ack() ack?: (response: unknown) => void,
+  ) {
+    this.consumeRateLimit(client, "call:start");
+    const user = this.getUser(client);
+    const conversation = await this.conversationsService.findOneForUser(
+      payload.conversationId,
+      user.id,
+    );
+
+    if (conversation.type !== ConversationType.Direct) {
+      throw this.callException(
+        "DIRECT_CALLS_ONLY",
+        "Audio calls are only available in direct conversations",
+      );
+    }
+
+    const targetParticipant = conversation.participants.find(
+      (participant) =>
+        participant.userId === payload.targetUserId && !participant.leftAt,
+    );
+
+    if (!targetParticipant || payload.targetUserId === user.id) {
+      throw this.callException(
+        "INVALID_CALL_RECIPIENT",
+        "The selected user is not an active participant",
+      );
+    }
+
+    const [caller, recipient] = await Promise.all([
+      this.usersService.findById(user.id),
+      this.usersService.findById(payload.targetUserId),
+    ]);
+
+    if (!caller || !recipient) {
+      throw this.callException(
+        "CALL_USER_NOT_FOUND",
+        "A call participant could not be found",
+      );
+    }
+
+    if (caller.isBot || recipient.isBot) {
+      throw this.callException(
+        "BOT_CALLS_NOT_SUPPORTED",
+        "Automation bots cannot join audio calls",
+      );
+    }
+
+    if (!this.isUserOnline(recipient.id)) {
+      throw this.callException(
+        "RECIPIENT_OFFLINE",
+        "The user is currently offline",
+      );
+    }
+
+    if (this.findCallForUser(user.id) || this.findCallForUser(recipient.id)) {
+      throw this.callException(
+        "USER_BUSY",
+        "One of the participants is already in a call",
+      );
+    }
+
+    const session: CallSession = {
+      id: randomUUID(),
+      conversationId: conversation.id,
+      callerId: user.id,
+      recipientId: recipient.id,
+      status: "ringing",
+      createdAt: new Date(),
+    };
+    await this.callsService.start({
+      id: session.id,
+      conversationId: session.conversationId,
+      callerId: session.callerId,
+      recipientId: session.recipientId,
+      startedAt: session.createdAt,
+    });
+    this.callSessions.set(session.id, session);
+    this.callTimeouts.set(
+      session.id,
+      setTimeout(
+        () => void this.finishCall(session, "unanswered"),
+        this.callRingTimeoutMs,
+      ),
+    );
+
+    const response = { success: true, data: this.toCallState(session) };
+    ack?.(response);
+    this.emitCallHistoryUpdated(session);
+    this.server.to(this.userRoom(recipient.id)).emit("call:incoming", {
+      ...this.toCallState(session),
+      caller: {
+        id: caller.id,
+        username: caller.username,
+        profileImage: caller.profileImage,
+      },
+    });
+
+    return response;
+  }
+
+  @SubscribeMessage("call:accept")
+  async acceptCall(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: CallEventPayloadDto,
+    @Ack() ack?: (response: unknown) => void,
+  ) {
+    this.consumeRateLimit(client, "call:accept");
+    const user = this.getUser(client);
+    const session = this.getCallForUser(payload.callId, user.id);
+
+    if (session.recipientId !== user.id || session.status !== "ringing") {
+      throw this.callException(
+        "CALL_CANNOT_BE_ACCEPTED",
+        "This call can no longer be accepted",
+      );
+    }
+
+    if (!this.isUserOnline(session.callerId)) {
+      await this.finishCall(session, "caller-unavailable");
+      throw this.callException(
+        "CALLER_OFFLINE",
+        "The caller is no longer available",
+      );
+    }
+
+    session.status = "active";
+    this.clearCallTimeout(session.id);
+    await this.callsService.accept(session.id);
+    this.emitCallHistoryUpdated(session);
+    const response = { success: true, data: this.toCallState(session) };
+    ack?.(response);
+    this.server
+      .to(this.userRoom(session.callerId))
+      .emit("call:accepted", this.toCallState(session));
+    client
+      .to(this.userRoom(session.recipientId))
+      .emit("call:answered-elsewhere", this.toCallState(session));
+
+    return response;
+  }
+
+  @SubscribeMessage("call:reject")
+  async rejectCall(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: RejectCallPayloadDto,
+    @Ack() ack?: (response: unknown) => void,
+  ) {
+    this.consumeRateLimit(client, "call:reject");
+    const user = this.getUser(client);
+    const session = this.getCallForUser(payload.callId, user.id);
+
+    if (session.recipientId !== user.id || session.status !== "ringing") {
+      throw this.callException(
+        "CALL_CANNOT_BE_REJECTED",
+        "This call can no longer be rejected",
+      );
+    }
+
+    const reason = payload.reason ?? "declined";
+    const response = {
+      success: true,
+      data: { ...this.toCallState(session), reason },
+    };
+    ack?.(response);
+    this.server.to(this.userRoom(session.callerId)).emit("call:rejected", {
+      ...this.toCallState(session),
+      reason,
+    });
+    client.to(this.userRoom(session.recipientId)).emit("call:dismissed", {
+      callId: session.id,
+    });
+    await this.callsService.finish(session.id, reason, user.id);
+    this.emitCallHistoryUpdated(session);
+    this.clearCall(session.id);
+
+    return response;
+  }
+
+  @SubscribeMessage("call:signal")
+  signalCall(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: CallSignalPayloadDto,
+    @Ack() ack?: (response: unknown) => void,
+  ) {
+    this.consumeRateLimit(client, "call:signal");
+    const user = this.getUser(client);
+    const session = this.getCallForUser(payload.callId, user.id);
+
+    if (session.status !== "active") {
+      throw this.callException(
+        "CALL_NOT_ACTIVE",
+        "Call signaling is only allowed for active calls",
+      );
+    }
+
+    if (
+      (payload.signalType === "offer" && user.id !== session.callerId) ||
+      (payload.signalType === "answer" && user.id !== session.recipientId)
+    ) {
+      throw this.callException(
+        "INVALID_CALL_SIGNAL",
+        "This participant cannot send the requested signal",
+      );
+    }
+
+    if (
+      (payload.signalType === "ice-candidate" && !payload.candidate) ||
+      (payload.signalType !== "ice-candidate" && !payload.sdp)
+    ) {
+      throw this.callException(
+        "INVALID_CALL_SIGNAL",
+        "The call signal is incomplete",
+      );
+    }
+
+    const targetUserId =
+      user.id === session.callerId ? session.recipientId : session.callerId;
+    const signal = {
+      ...payload,
+      conversationId: session.conversationId,
+      fromUserId: user.id,
+    };
+    this.server.to(this.userRoom(targetUserId)).emit("call:signal", signal);
+
+    const response = {
+      success: true,
+      data: { callId: session.id, signalType: payload.signalType },
+    };
+    ack?.(response);
+
+    return response;
+  }
+
+  @SubscribeMessage("call:end")
+  async endCall(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: CallEventPayloadDto,
+    @Ack() ack?: (response: unknown) => void,
+  ) {
+    this.consumeRateLimit(client, "call:end");
+    const user = this.getUser(client);
+    const session = this.getCallForUser(payload.callId, user.id);
+    const response = {
+      success: true,
+      data: { ...this.toCallState(session), reason: "ended", endedBy: user.id },
+    };
+
+    ack?.(response);
+    await this.finishCall(session, "ended", user.id);
+
+    return response;
+  }
+
   private extractToken(client: Socket) {
     const authToken = client.handshake.auth?.token;
 
@@ -555,6 +865,141 @@ export class ChatGateway
 
   private isUserOnline(userId: string) {
     return this.onlineUserSockets.has(userId);
+  }
+
+  private findCallForUser(userId: string) {
+    return Array.from(this.callSessions.values()).find(
+      (session) =>
+        session.callerId === userId || session.recipientId === userId,
+    );
+  }
+
+  private getCallForUser(callId: string, userId: string) {
+    const session = this.callSessions.get(callId);
+
+    if (
+      !session ||
+      (session.callerId !== userId && session.recipientId !== userId)
+    ) {
+      throw this.callException("CALL_NOT_FOUND", "Call not found");
+    }
+
+    return session;
+  }
+
+  private async finishCallsForUser(userId: string, reason: string) {
+    const calls = Array.from(this.callSessions.values()).filter(
+      (session) =>
+        session.callerId === userId || session.recipientId === userId,
+    );
+
+    for (const session of calls) {
+      await this.finishCall(session, reason, userId);
+    }
+  }
+
+  private async finishCall(
+    session: CallSession,
+    reason: string,
+    endedBy?: string,
+  ) {
+    if (!this.callSessions.has(session.id)) {
+      return;
+    }
+
+    const payload = {
+      ...this.toCallState(session),
+      reason,
+      endedBy: endedBy ?? null,
+    };
+    await this.callsService.finish(session.id, reason, endedBy);
+    this.server
+      .to(this.userRoom(session.callerId))
+      .to(this.userRoom(session.recipientId))
+      .emit("call:ended", payload);
+    this.emitCallHistoryUpdated(session);
+    this.clearCall(session.id);
+  }
+
+  private emitCallHistoryUpdated(session: CallSession) {
+    this.server
+      .to(this.userRoom(session.callerId))
+      .to(this.userRoom(session.recipientId))
+      .emit("call:history-updated", { callId: session.id });
+  }
+
+  private async buildPresenceSnapshot(userId: string) {
+    const peerIds = await this.getPresencePeerIds(userId);
+    return {
+      users: Array.from(peerIds).map(peerId => ({
+        userId: peerId,
+        online: this.isUserOnline(peerId),
+      })),
+    };
+  }
+
+  private async emitPresenceSnapshot(
+    client: AuthenticatedSocket,
+    userId: string,
+  ) {
+    client.emit("presence:contacts", await this.buildPresenceSnapshot(userId));
+  }
+
+  private async emitPresenceChange(userId: string, online: boolean) {
+    const eventName = online ? "presence:online" : "presence:offline";
+    for (const peerId of await this.getPresencePeerIds(userId)) {
+      for (const socketId of this.onlineUserSockets.get(peerId) ?? []) {
+        this.server.to(socketId).emit(eventName, { userId });
+      }
+    }
+  }
+
+  private async getPresencePeerIds(userId: string) {
+    const peerIds = new Set<string>();
+    const conversationIds =
+      this.conversationsService.getActiveConversationIdsForUser(userId);
+
+    for (const conversationId of conversationIds) {
+      const conversation = await this.conversationsService.findOneForUser(
+        conversationId,
+        userId,
+      );
+      for (const participant of conversation.participants) {
+        if (!participant.leftAt && participant.userId !== userId) {
+          peerIds.add(participant.userId);
+        }
+      }
+    }
+
+    return peerIds;
+  }
+
+  private clearCall(callId: string) {
+    this.clearCallTimeout(callId);
+    this.callSessions.delete(callId);
+  }
+
+  private clearCallTimeout(callId: string) {
+    const timeout = this.callTimeouts.get(callId);
+    if (timeout) {
+      clearTimeout(timeout);
+      this.callTimeouts.delete(callId);
+    }
+  }
+
+  private toCallState(session: CallSession) {
+    return {
+      callId: session.id,
+      conversationId: session.conversationId,
+      callerId: session.callerId,
+      recipientId: session.recipientId,
+      status: session.status,
+      createdAt: session.createdAt,
+    };
+  }
+
+  private callException(code: string, message: string) {
+    return new WsException({ code, message });
   }
 
   private conversationRoom(conversationId: string) {

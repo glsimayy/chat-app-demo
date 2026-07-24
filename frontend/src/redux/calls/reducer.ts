@@ -13,6 +13,7 @@ const Calls = (state = INIT_STATE, action: any) => {
           return {
             ...state,
             calls: action.payload.data,
+            error: "",
             isCallsFetched: true,
             getCallsLoading: false,
           };
@@ -27,6 +28,7 @@ const Calls = (state = INIT_STATE, action: any) => {
             ...state,
             isCallsFetched: false,
             getCallsLoading: false,
+            error: String(action.payload.error || "Call history could not load"),
           };
 
         default:
@@ -38,6 +40,7 @@ const Calls = (state = INIT_STATE, action: any) => {
         ...state,
         getCallsLoading: true,
         isCallsFetched: false,
+        error: "",
       };
     }
 

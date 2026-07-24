@@ -94,6 +94,6 @@ describe("backend adapters for automation", () => {
       ],
     );
 
-    expect(details.status).toBe("Active");
+    expect(details.status).toBe("Offline");
   });
 });

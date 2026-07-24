@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 
 // hooks
 import { useRedux } from "../../../hooks/index";
@@ -20,33 +20,25 @@ const Index = (props: IndexProps) => {
   // global store
   const { dispatch, useAppSelector } = useRedux();
 
-  // const { calls, getCallsLoading } = useAppSelector((state: any) => ({
-  //   calls: state.Calls.calls,
-  //   getCallsLoading: state.Calls.getCallsLoading,
-  // }));
-
   const errorData = createSelector(
     (state : any) => state.Calls,
     (state) => ({
       calls: state.calls,
       getCallsLoading: state.getCallsLoading,
+      error: state.error,
     })
   );
-  // Inside your component
-  const { calls,getCallsLoading} = useAppSelector(errorData);
+  const { calls, getCallsLoading, error } = useAppSelector(errorData);
 
-
-
-  // get user calls
   useEffect(() => {
     dispatch(getCalls());
+    const refreshCalls = () => dispatch(getCalls());
+    window.addEventListener("ello:calls-updated", refreshCalls);
+
+    return () => {
+      window.removeEventListener("ello:calls-updated", refreshCalls);
+    };
   }, [dispatch]);
-
-  const [callsList, setCallsList] = useState([]);
-
-  useEffect(() => {
-    setCallsList(calls);
-  }, [calls]);
 
   return (
     <div className="position-relative">
@@ -56,9 +48,29 @@ const Index = (props: IndexProps) => {
 
       {/* Start contact lists */}
       <AppSimpleBar className="chat-message-list chat-call-list">
+        {!getCallsLoading && error && (
+          <div className="call-empty-state text-danger">
+            <i className="bx bx-error-circle" aria-hidden="true"></i>
+            <strong>Call history could not load</strong>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-danger"
+              onClick={() => dispatch(getCalls())}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+        {!getCallsLoading && !error && (calls || []).length === 0 && (
+          <div className="call-empty-state">
+            <i className="bx bx-phone" aria-hidden="true"></i>
+            <strong>No calls yet</strong>
+            <span>Your incoming and outgoing audio calls will appear here.</span>
+          </div>
+        )}
         <ul className="list-unstyled chat-list">
-          {(callsList || []).map((call: CallItem, key: number) => (
-            <Call call={call} key={key} />
+          {(calls || []).map((call: CallItem) => (
+            <Call call={call} key={call.callId} />
           ))}
         </ul>
       </AppSimpleBar>

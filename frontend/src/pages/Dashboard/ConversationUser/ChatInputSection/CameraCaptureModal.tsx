@@ -64,7 +64,17 @@ const CameraCaptureModal = ({
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          void videoRef.current.play();
+          void videoRef.current.play().catch(playError => {
+            if (
+              active &&
+              (!(playError instanceof DOMException) ||
+                playError.name !== "AbortError")
+            ) {
+              setError(
+                "Camera preview could not be started. Use the device camera button.",
+              );
+            }
+          });
         }
       })
       .catch(() => {

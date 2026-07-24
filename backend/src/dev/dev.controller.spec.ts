@@ -1,6 +1,7 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { BookmarksService } from "../bookmarks/bookmarks.service";
+import { CallsService } from "../calls/calls.service";
 import { ContactInvitationsService } from "../contact-invitations/contact-invitations.service";
 import { ConversationsService } from "../conversations/conversations.service";
 import { TicketsService } from "../tickets/tickets.service";
@@ -17,6 +18,9 @@ function createController(config: Record<string, string | undefined>) {
   const contactInvitationsService = {
     clearAll: jest.fn().mockResolvedValue({ deletedContactInvitations: 1 }),
   } as unknown as ContactInvitationsService;
+  const callsService = {
+    clearAll: jest.fn().mockResolvedValue({ deletedCalls: 1 }),
+  } as unknown as CallsService;
   const conversationsService = {
     clearAll: jest.fn().mockResolvedValue({ deletedConversations: 2 }),
   } as unknown as ConversationsService;
@@ -31,12 +35,14 @@ function createController(config: Record<string, string | undefined>) {
     controller: new DevController(
       configService,
       bookmarksService,
+      callsService,
       contactInvitationsService,
       conversationsService,
       ticketsService,
       usersService,
     ),
     bookmarksService,
+    callsService,
     contactInvitationsService,
     conversationsService,
     ticketsService,
@@ -71,6 +77,7 @@ describe("DevController", () => {
     const {
       controller,
       bookmarksService,
+      callsService,
       contactInvitationsService,
       conversationsService,
       ticketsService,
@@ -83,6 +90,7 @@ describe("DevController", () => {
     await expect(controller.resetInMemoryData("reset-secret")).resolves.toEqual(
       {
         bookmarks: { deletedBookmarks: 1 },
+        calls: { deletedCalls: 1 },
         contactInvitations: { deletedContactInvitations: 1 },
         conversations: { deletedConversations: 2 },
         tickets: { deletedTickets: 1 },
@@ -90,6 +98,7 @@ describe("DevController", () => {
       },
     );
     expect(bookmarksService.clearAll).toHaveBeenCalledTimes(1);
+    expect(callsService.clearAll).toHaveBeenCalledTimes(1);
     expect(contactInvitationsService.clearAll).toHaveBeenCalledTimes(1);
     expect(conversationsService.clearAll).toHaveBeenCalledTimes(1);
     expect(ticketsService.clearAll).toHaveBeenCalledTimes(1);

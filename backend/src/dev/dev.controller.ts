@@ -8,6 +8,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { ApiHeader, ApiTags } from "@nestjs/swagger";
 import { BookmarksService } from "../bookmarks/bookmarks.service";
+import { CallsService } from "../calls/calls.service";
 import { ApiSuccessResponse } from "../common/swagger/api-success-response.decorator";
 import { DevResetResponseDto } from "../common/swagger/backend-response.dto";
 import { ConversationsService } from "../conversations/conversations.service";
@@ -21,6 +22,7 @@ export class DevController {
   constructor(
     private readonly configService: ConfigService,
     private readonly bookmarksService: BookmarksService,
+    private readonly callsService: CallsService,
     private readonly contactInvitationsService: ContactInvitationsService,
     private readonly conversationsService: ConversationsService,
     private readonly ticketsService: TicketsService,
@@ -49,11 +51,19 @@ export class DevController {
     }
 
     const bookmarks = await this.bookmarksService.clearAll();
+    const calls = await this.callsService.clearAll();
     const contactInvitations = await this.contactInvitationsService.clearAll();
     const conversations = await this.conversationsService.clearAll();
     const tickets = await this.ticketsService.clearAll();
     const users = await this.usersService.clearAll();
 
-    return { bookmarks, contactInvitations, conversations, tickets, users };
+    return {
+      bookmarks,
+      calls,
+      contactInvitations,
+      conversations,
+      tickets,
+      users,
+    };
   }
 }

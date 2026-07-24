@@ -5,6 +5,7 @@ import { Col, Row } from "reactstrap";
 import { STATUS_TYPES } from "../../../constants";
 import { useRedux } from "../../../hooks";
 import { changeSelectedChat } from "../../../redux/actions";
+import { usePresence } from "../../../features/presence/PresenceProvider";
 
 interface UserHeadProps {
   chatUserDetails: any;
@@ -22,6 +23,7 @@ const UserHead = ({
   isChannel,
 }: UserHeadProps) => {
   const { dispatch } = useRedux();
+  const { isOnline: isUserOnline } = usePresence();
   const colors = [
     "bg-primary",
     "bg-danger",
@@ -44,7 +46,10 @@ const UserHead = ({
     : `${chatUserDetails.firstName?.charAt(0) || "C"}${
         chatUserDetails.lastName?.charAt(0) || ""
       }`;
-  const isOnline = chatUserDetails.status === STATUS_TYPES.ACTIVE;
+  const isOnline = isChannel
+    ? false
+    : isUserOnline(chatUserDetails.participantId) ||
+      chatUserDetails.status === STATUS_TYPES.ACTIVE;
   const memberCount = (chatUserDetails.members || []).filter(
     (member: any) => !member.leftAt,
   ).length;
@@ -104,7 +109,9 @@ const UserHead = ({
                 <small>
                   {isChannel
                     ? `${chatUserDetails.automated ? "BOT | " : ""}${memberCount} members${chatUserDetails.status && chatUserDetails.status !== "active" ? ` | ${chatUserDetails.status}` : ""}`
-                    : chatUserDetails.status || "offline"}
+                    : isOnline
+                      ? "Online"
+                      : "Offline"}
                 </small>
               </p>
               {isChannel && chatUserDetails.description && (

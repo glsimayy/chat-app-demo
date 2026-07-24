@@ -5,6 +5,7 @@ import classnames from "classnames";
 // interface
 import { UserTypes } from "../../../data/chat";
 import { STATUS_TYPES } from "../../../constants";
+import { usePresence } from "../../../features/presence/PresenceProvider";
 
 interface ChatUserProps {
   user: UserTypes;
@@ -12,6 +13,7 @@ interface ChatUserProps {
   onSelectChat: (id: number | string) => void;
 }
 const ChatUser = ({ user, selectedChat, onSelectChat }: ChatUserProps) => {
+  const { isOnline: isUserOnline } = usePresence();
   const fullName = `${user.firstName} ${user.lastName}`;
   const shortName = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`;
 
@@ -25,7 +27,10 @@ const ChatUser = ({ user, selectedChat, onSelectChat }: ChatUserProps) => {
     "bg-purple",
   ];
   const [color] = useState(Math.floor(Math.random() * colors.length));
-  const isOnline = user.status && user.status === STATUS_TYPES.ACTIVE;
+  const participantId = (user as any).participantId;
+  const isOnline =
+    isUserOnline(participantId) ||
+    (!participantId && user.status === STATUS_TYPES.ACTIVE);
   const unRead = user.meta && user.meta.unRead;
   const isBot = Boolean((user as any).isBot);
 

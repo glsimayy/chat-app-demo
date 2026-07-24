@@ -298,6 +298,44 @@ body[data-bs-theme="dark"] .conversation-shell-management {
   }
 }
 
+.call-empty-state {
+  display: grid;
+  gap: 8px;
+  padding: 48px 24px;
+  color: var(--bs-secondary-color);
+  text-align: center;
+
+  i {
+    color: var(--bs-primary);
+    font-size: 30px;
+  }
+
+  strong {
+    color: var(--bs-heading-color);
+  }
+
+  .btn {
+    justify-self: center;
+  }
+}
+
+.call-history-item {
+  .call-again-button {
+    position: relative;
+    z-index: 1;
+  }
+
+  .call-again-button:disabled {
+    color: var(--bs-secondary-color);
+    opacity: 0.55;
+  }
+}
+
+.saved-message-actions-menu {
+  min-width: 170px;
+  z-index: 1080;
+}
+
 .bookmark-message-list .bookmark-message-item {
   padding: 10px 16px;
 }
@@ -869,6 +907,106 @@ body[data-bs-theme="light"] .chat-leftsidebar .text-muted {
   height: 110px;
   justify-content: center;
   width: 150px;
+}
+
+.audio-call-modal {
+  .modal-dialog {
+    width: min(420px, calc(100vw - 24px));
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  .modal-content {
+    overflow: hidden;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+  }
+}
+
+.audio-call-surface {
+  padding: 30px 24px 28px;
+  border-top: 5px solid var(--bs-primary);
+}
+
+.audio-call-status {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  color: var(--bs-secondary-color);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.audio-call-avatar {
+  display: grid;
+  width: 104px;
+  height: 104px;
+  margin-top: 20px;
+  overflow: hidden;
+  border: 4px solid rgba(var(--bs-primary-rgb), 0.18);
+  border-radius: 50%;
+  background-color: var(--bs-tertiary-bg);
+  place-items: center;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  span {
+    color: var(--bs-primary);
+    font-size: 28px;
+    font-weight: 700;
+  }
+}
+
+.audio-call-name {
+  margin: 18px 0 5px;
+  overflow: hidden;
+  color: var(--bs-heading-color);
+  font-size: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audio-call-duration {
+  min-height: 21px;
+  color: var(--bs-secondary-color);
+  font-variant-numeric: tabular-nums;
+}
+
+.audio-call-actions {
+  display: flex;
+  min-height: 82px;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 34px;
+  margin-top: 28px;
+
+  > div {
+    display: grid;
+    gap: 7px;
+    justify-items: center;
+    color: var(--bs-secondary-color);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+}
+
+.audio-call-action {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: 50%;
+  place-items: center;
+
+  i {
+    font-size: 23px;
+  }
 }
 
 @media (max-width: 991.98px) {

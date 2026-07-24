@@ -54,16 +54,13 @@ const Index = (props: IndexProps) => {
   const [contacts, setContacts] = useState<Array<any>>([]);
   const [contactsData, setContactsData] = useState<Array<any>>([]);
   useEffect(() => {
-    if (contactsList.length > 0) {
-      setContacts(contactsList);
-    }
+    setContacts(contactsList || []);
   }, [contactsList]);
 
   useEffect(() => {
-    if (contacts.length > 0) {
-      const formattedContacts = divideByKey("firstName", contacts);
-      setContactsData(formattedContacts);
-    }
+    setContactsData(
+      contacts.length > 0 ? divideByKey("firstName", contacts) : [],
+    );
   }, [contacts]);
 
   /*

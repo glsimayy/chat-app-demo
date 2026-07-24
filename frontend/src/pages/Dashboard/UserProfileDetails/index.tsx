@@ -35,8 +35,6 @@ import {
 } from "../../../helpers/notifications";
 
 // components
-import AudioCallModal from "../../../components/AudioCallModal";
-import VideoCallModal from "../../../components/VideoCallModal";
 import AppSimpleBar from "../../../components/AppSimpleBar";
 import Loader from "../../../components/Loader";
 import ProfileUser from "./ProfileUser";
@@ -47,6 +45,7 @@ import Media from "../../../components/Media";
 import AttachedFiles from "../../../components/AttachedFiles";
 import Status from "./Status";
 import GroupManagement from "../ConversationUser/GroupManagement";
+import { useAudioCall } from "../../../features/audio-call/AudioCallProvider";
 
 interface IndexProps {
   isChannel: boolean;
@@ -54,6 +53,7 @@ interface IndexProps {
 const Index = ({ isChannel }: IndexProps) => {
   // global store
   const { dispatch, useAppSelector } = useRedux();
+  const { startCall } = useAudioCall();
 
   const errorData = createSelector(
     (state: any) => state.Chats,
@@ -74,26 +74,29 @@ const Index = ({ isChannel }: IndexProps) => {
     dispatch(toggleUserDetailsTab(false));
   };
 
-  /*
-    video call modal
-    */
-  const [isOpenVideoModal, setIsOpenVideoModal] = useState<boolean>(false);
   const onOpenVideo = () => {
-    setIsOpenVideoModal(true);
-  };
-  const onCloseVideo = () => {
-    setIsOpenVideoModal(false);
+    showErrorNotification("Video calls are not available in this release");
   };
 
-  /*
-  audio call modal  
-  */
-  const [isOpenAudioModal, setIsOpenAudioModal] = useState<boolean>(false);
   const onOpenAudio = () => {
-    setIsOpenAudioModal(true);
-  };
-  const onCloseAudio = () => {
-    setIsOpenAudioModal(false);
+    const targetUserId = chatUserDetails?.participantId;
+    if (!chatUserDetails?.id || !targetUserId) {
+      showErrorNotification("This user is not available for an audio call");
+      return;
+    }
+
+    const displayName =
+      [chatUserDetails.firstName, chatUserDetails.lastName]
+        .filter(Boolean)
+        .join(" ") ||
+      chatUserDetails.username ||
+      "User";
+    void startCall({
+      conversationId: String(chatUserDetails.id),
+      targetUserId: String(targetUserId),
+      displayName,
+      profileImage: chatUserDetails.profileImage,
+    });
   };
 
   const onToggleBookmark = () => {
@@ -222,20 +225,6 @@ const Index = ({ isChannel }: IndexProps) => {
             )}
           </AppSimpleBar>
           {/* <!-- end user-profile-desc --> */}
-          {isOpenAudioModal && (
-            <AudioCallModal
-              isOpen={isOpenAudioModal}
-              onClose={onCloseAudio}
-              user={chatUserDetails}
-            />
-          )}
-          {isOpenVideoModal && (
-            <VideoCallModal
-              isOpen={isOpenVideoModal}
-              onClose={onCloseVideo}
-              user={chatUserDetails}
-            />
-          )}
           <Modal
             isOpen={isDeleteOpen}
             toggle={() => !isDeleting && setIsDeleteOpen(false)}
