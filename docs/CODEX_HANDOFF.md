@@ -1,0 +1,321 @@
+# ellO Codex Handoff
+
+Last updated: 2026-07-24
+Source setup: laptop
+Target setup: desktop
+
+This file is the persistent source of truth when changing machines, Codex
+threads, or models. On a new setup, pull `main`, ask Codex to read this file,
+and continue from the "Next Work" section.
+
+## Repository State
+
+- Repository: `https://github.com/glsimayy/chat-app-demo.git`
+- Canonical branch: `main`
+- Verified code baseline before this handoff: `4f92a1f`
+- Feature backup branch: `codex/webrtc-audio-calls`
+- Feature commit: `2296360`
+- The incorrect standalone presence experiment was reverted before the
+  verified implementation was merged into `main`.
+- `output/` is user-owned, untracked local output. Never stage, delete, move,
+  or overwrite it unless the user explicitly requests it.
+
+The handoff commit is newer than the code baseline above. After pulling on the
+desktop, `git status` should be clean apart from any machine-local untracked
+files.
+
+## Desktop Bootstrap
+
+Run these commands from the repository root:
+
+```powershell
+git fetch origin
+git switch main
+git pull --ff-only origin main
+git status --short --branch
+git log -1 --oneline
+docker compose up -d --build
+docker compose ps
+```
+
+Expected services:
+
+- Frontend: `http://localhost:5173`
+- Backend health: `http://localhost:3000/api/health`
+- Swagger: `http://localhost:3000/api/docs`
+- Java webhook health: `http://localhost:8080/health`
+- PostgreSQL: port `5432`
+
+All four long-running Docker services should report `healthy`.
+
+To give Codex the context on the desktop, use this exact message:
+
+```text
+SETUP: desktop
+Read docs/CODEX_HANDOFF.md, verify main and Docker, then continue from Next Work.
+Do not touch the untracked output/ directory.
+```
+
+## Implemented And Verified
+
+- NestJS backend, React frontend, PostgreSQL persistence, and Java webhook run
+  together with Docker Compose.
+- Authentication, admin/user authorization, persistent sessions, direct
+  messaging, group messaging, group management, manager chat, automation bot
+  groups, support tickets, attachments, profiles, message search, bookmarks,
+  archive/delete preferences, and contact invitations are integrated.
+- Socket.IO provides realtime messages, edits, deletes, group changes,
+  presence, typing, and WebRTC signaling.
+- Audio calling has a WebRTC UI, signaling, persisted call history, call
+  status/duration, and redial support.
+- Calls page uses real backend data instead of template data.
+- Presence is based on authenticated active sockets and supports multiple tabs.
+- Contacts no longer render every user in PostgreSQL. They are derived from
+  active direct-conversation participants.
+- Saved Messages menus stay inside the viewport.
+- Opening a bookmarked message scrolls only the conversation container and does
+  not move the page or composer.
+- Playwright uses an in-memory backend database and no longer pollutes the local
+  PostgreSQL database.
+
+Last complete verification for the merged implementation:
+
+- Backend unit tests: `46/46`
+- Frontend unit tests: `15/15`
+- Playwright E2E tests: `27/27`
+- Backend and frontend production builds passed.
+- Full Docker Compose build, migration, and health checks passed.
+
+## Open Bugs
+
+### BUG-1: Duplicate popup notifications
+
+Observed:
+
+- Each incoming message can display the same popup notification twice.
+
+Decision:
+
+- Remove/disable these popup message notifications completely.
+- Realtime messages, unread state, badges, and in-chat updates must continue to
+  work.
+
+Do not merely deduplicate the popup unless the user changes this decision.
+
+### BUG-2: Direct message and Contact relationship gap
+
+Observed:
+
+- Starting or accepting a message request/direct conversation does not create
+  the Contact relationship expected by the UI.
+- Once a direct conversation exists, a later Contact invitation can be
+  rejected.
+- The group member picker depends on Contacts, so a person with an existing DM
+  can become impossible to add to a group.
+
+Expected:
+
+- A completed message-request flow should establish the intended Contact
+  relationship.
+- Existing active direct-conversation participants must also be valid group
+  member candidates.
+- Avoid duplicate Contact relationships or duplicate direct conversations.
+
+### BUG-3: Bot API idempotency response is unclear
+
+Observed:
+
+- `POST /api/bot/groups` intentionally reuses a group when `externalRef` is
+  repeated.
+- Sending a different group payload with the same `externalRef` silently looks
+  like the second group failed to be created.
+
+Expected improvement:
+
+- Clearly return metadata such as `created: false` / `reused: true`, or return
+  an explanatory `409 Conflict` when the same `externalRef` is reused with a
+  materially different payload.
+- Preserve retry-safe idempotency.
+
+Example that reuses the first group:
+
+```json
+{
+  "name": "Arkadaslarla Bot Testi 2",
+  "participantIds": ["2", "1", "3", "5", "4", "6"],
+  "managerIds": ["2", "1"],
+  "memberCanSendMessages": true,
+  "membersCanLeave": true,
+  "externalRef": "friends-test-20260724"
+}
+```
+
+A genuinely new group currently requires a new value such as
+`friends-test-20260724-2`.
+
+### BUG-4: Audio call ends before connection
+
+Observed during testing through a Cloudflare Quick Tunnel from different
+networks:
+
+- The call closes almost immediately before the receiver can establish the
+  connection.
+- The UI can show `Call ended` while the incoming-call presentation is still
+  visible.
+
+Investigate:
+
+- Signaling event order and duplicate `call:end` / `call:failed` handling.
+- Socket reconnects or namespace state during the call.
+- Browser media permission failures.
+- ICE candidate gathering and connection-state timeouts.
+- STUN-only NAT traversal. A TURN server may be required for some network
+  combinations.
+
+Expected:
+
+- Ring until accepted, declined, cancelled, or an explicit timeout expires.
+- Do not terminate from transient ICE states.
+- Show a meaningful failure reason when media connectivity cannot be
+  established.
+
+## Next Work
+
+Recommended priority on the desktop:
+
+1. Reproduce and fix BUG-4 with two real devices/networks. Add signaling logs
+   and a focused E2E/unit regression test where practical.
+2. Fix BUG-2 and cover DM-before-contact and group-member-picker scenarios.
+3. Disable the popup layer for BUG-1 without affecting realtime/unread state.
+4. Improve the API contract and tests for BUG-3.
+5. Run backend tests, frontend tests, production builds, targeted E2E tests,
+   then the full E2E suite.
+6. Commit to a focused `codex/` branch, merge to `main`, and push only after
+   verification.
+
+## Test Accounts
+
+All built-in account passwords are `123456`.
+
+| Automation ID | Username | Email | Global role |
+| --- | --- | --- | --- |
+| `1` | `emiradmin` | `emiradmin@ello.com` | admin |
+| `2` | `emiruser` | `emiruser@ello.com` | user |
+| `3` | `aslıadmin` | `asliadmin@ello.com` | admin |
+| `4` | `aslıuser` | `asliuser@ello.com` | user |
+| `5` | `gülsimaadmin` | `gulsimaadmin@ello.com` | admin |
+| `6` | `gülsimauser` | `gulsimauser@ello.com` | user |
+
+The database also contains the required `ellO Automation Bot` system account.
+Do not expose normal direct messaging to the bot unless that product decision
+is revisited.
+
+## Bot API Test
+
+Swagger:
+
+```text
+http://localhost:3000/api/docs
+```
+
+Bot endpoints use the `x-bot-secret` header. Read the active local value without
+writing it into this document:
+
+```powershell
+docker inspect chat-app-demo-backend-1 --format '{{range .Config.Env}}{{println .}}{{end}}' |
+  Select-String '^BOT_WEBHOOK_SECRET='
+```
+
+Useful flow:
+
+1. `POST /api/bot/groups`
+2. Copy the returned conversation ID.
+3. `POST /api/bot/groups/{conversationId}/participants`
+4. `POST /api/bot/groups/{conversationId}/messages`
+5. Confirm group/message updates appear without refresh.
+
+## Database State And Transfer
+
+Git does not carry PostgreSQL data. Each machine has a separate Docker volume.
+The laptop database was cleaned to the six built-in test accounts plus the
+Automation Bot before the latest manual tests. Groups/messages created after
+that cleanup are laptop-local.
+
+If only code and fresh test accounts are needed, do not transfer the database.
+`docker compose up -d --build` bootstraps the built-in users.
+
+To move the exact laptop database to the desktop, create a fresh custom-format
+dump on the laptop:
+
+```powershell
+docker exec chat-app-demo-postgres pg_dump `
+  -U postgres -d chat_app_demo -Fc `
+  -f /tmp/ello-desktop-handoff.dump
+
+docker cp chat-app-demo-postgres:/tmp/ello-desktop-handoff.dump `
+  "$HOME\Desktop\ello-desktop-handoff.dump"
+```
+
+Restore only after taking a backup of any existing desktop database. Stop the
+backend/frontend/Java services during restore so they cannot write concurrently.
+
+An older laptop backup made before a cleanup exists only on the laptop at:
+
+```text
+C:\Users\emovi\AppData\Local\Temp\ello-before-demo-only-cleanup-20260724-155816.dump
+```
+
+## Temporary Internet Testing
+
+The laptop currently has a Docker-based Cloudflare Quick Tunnel container named
+`ello-quick-tunnel`. It exposes the frontend, proxied API, and Socket.IO through
+one temporary HTTPS URL.
+
+Inspect the current laptop URL:
+
+```powershell
+docker logs ello-quick-tunnel 2>&1 |
+  Select-String 'https://.*trycloudflare.com'
+```
+
+Stop public access before leaving the laptop:
+
+```powershell
+docker stop ello-quick-tunnel
+```
+
+The container restart policy is intentionally `no`, so it should not expose the
+application automatically after Docker restarts. The URL is temporary and will
+change when a new Quick Tunnel is created on the desktop.
+
+Create a new desktop tunnel after the application is healthy:
+
+```powershell
+docker run -d --name ello-quick-tunnel `
+  cloudflare/cloudflared:latest tunnel --no-autoupdate `
+  --url http://host.docker.internal:5173
+
+docker logs ello-quick-tunnel
+```
+
+The public link should be shared only with the intended testers. The demo
+accounts use weak test passwords, and a Quick Tunnel is not a production
+deployment.
+
+## Final Desktop Sanity Check
+
+```powershell
+git status --short --branch
+docker compose ps
+Invoke-RestMethod http://localhost:3000/api/health
+Invoke-WebRequest -UseBasicParsing http://localhost:5173/healthz
+Invoke-RestMethod http://localhost:8080/health
+```
+
+Then manually verify:
+
+- Login with one admin and two users.
+- Direct and group messages update without refresh.
+- Presence becomes online/offline correctly.
+- Bot group creation and bot messages appear in realtime.
+- Reproduce the four open bugs before changing code.
