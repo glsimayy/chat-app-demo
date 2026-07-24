@@ -73,8 +73,11 @@
 .conversation-shell {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 100%;
   height: 100vh;
   height: 100dvh;
+  min-width: 0;
   min-height: 0;
 
   .user-chat-topbar {
@@ -94,11 +97,15 @@
 
   .chat-input-section {
     position: relative;
+    width: 100%;
+    min-width: 0;
     flex-shrink: 0;
   }
 
   .chat-input-row {
     display: grid;
+    width: 100%;
+    min-width: 0;
     grid-template-columns: auto minmax(0, 1fr) auto;
 
     > .col,

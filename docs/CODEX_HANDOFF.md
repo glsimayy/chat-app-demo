@@ -1,8 +1,8 @@
 # ellO Codex Handoff
 
 Last updated: 2026-07-24
-Source setup: laptop
-Target setup: desktop
+Source setup: desktop
+Target setup: any
 
 This file is the persistent source of truth when changing machines, Codex
 threads, or models. On a new setup, pull `main`, ask Codex to read this file,
@@ -68,6 +68,9 @@ Do not touch the untracked output/ directory.
   presence, typing, and WebRTC signaling.
 - Audio calling has a WebRTC UI, signaling, persisted call history, call
   status/duration, and redial support.
+- Audio calls tolerate short Socket.IO outages, resynchronize the server call
+  session after reconnect, and attempt ICE recovery before failing.
+- Call signaling logs include lifecycle metadata without SDP or ICE contents.
 - Calls page uses real backend data instead of template data.
 - Presence is based on authenticated active sockets and supports multiple tabs.
 - Contacts no longer render every user in PostgreSQL. They are derived from
@@ -80,9 +83,9 @@ Do not touch the untracked output/ directory.
 
 Last complete verification for the merged implementation:
 
-- Backend unit tests: `46/46`
-- Frontend unit tests: `15/15`
-- Playwright E2E tests: `27/27`
+- Backend unit tests: `51/51`
+- Frontend unit tests: `18/18`
+- Playwright E2E tests: `28/28`
 - Backend and frontend production builds passed.
 - Full Docker Compose build, migration, and health checks passed.
 
@@ -153,41 +156,44 @@ Example that reuses the first group:
 A genuinely new group currently requires a new value such as
 `friends-test-20260724-2`.
 
+## Resolved And Pending Manual Confirmation
+
 ### BUG-4: Audio call ends before connection
 
-Observed during testing through a Cloudflare Quick Tunnel from different
-networks:
+Originally observed during testing through a Cloudflare Quick Tunnel from
+different networks:
 
 - The call closes almost immediately before the receiver can establish the
   connection.
 - The UI can show `Call ended` while the incoming-call presentation is still
   visible.
 
-Investigate:
+Implemented on `codex/audio-call-stability`:
 
-- Signaling event order and duplicate `call:end` / `call:failed` handling.
-- Socket reconnects or namespace state during the call.
-- Browser media permission failures.
-- ICE candidate gathering and connection-state timeouts.
-- STUN-only NAT traversal. A TURN server may be required for some network
-  combinations.
+- A 15-second backend disconnect grace period keeps ringing/active sessions
+  alive during transient socket reconnects.
+- `call:sync` restores session state after reconnect and `call:recover`
+  requests a fresh caller offer when the recipient needs ICE recovery.
+- The frontend shows a reconnecting state, retries ICE, and sends terminal call
+  events once.
+- Structured lifecycle/signaling logs omit SDP and ICE payload contents.
+- Backend unit tests and Playwright now cover the reconnecting ringing call.
 
-Expected:
+Still verify manually:
 
-- Ring until accepted, declined, cancelled, or an explicit timeout expires.
-- Do not terminate from transient ICE states.
-- Show a meaningful failure reason when media connectivity cannot be
-  established.
+- Repeat the call using two real devices on different networks through HTTPS.
+- If signaling recovers but audio never connects, configure a TURN server in
+  `REACT_APP_WEBRTC_ICE_SERVERS`; public STUN alone cannot traverse every NAT.
 
 ## Next Work
 
 Recommended priority on the desktop:
 
-1. Reproduce and fix BUG-4 with two real devices/networks. Add signaling logs
-   and a focused E2E/unit regression test where practical.
-2. Fix BUG-2 and cover DM-before-contact and group-member-picker scenarios.
-3. Disable the popup layer for BUG-1 without affecting realtime/unread state.
-4. Improve the API contract and tests for BUG-3.
+1. Fix BUG-2 and cover DM-before-contact and group-member-picker scenarios.
+2. Disable the popup layer for BUG-1 without affecting realtime/unread state.
+3. Improve the API contract and tests for BUG-3.
+4. Manually confirm BUG-4 across two real networks and decide whether the
+   deployment needs TURN credentials.
 5. Run backend tests, frontend tests, production builds, targeted E2E tests,
    then the full E2E suite.
 6. Commit to a focused `codex/` branch, merge to `main`, and push only after

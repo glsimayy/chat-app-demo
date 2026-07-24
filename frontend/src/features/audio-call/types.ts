@@ -1,5 +1,11 @@
 export type AudioCallStatus =
-  "calling" | "incoming" | "connecting" | "active" | "ended" | "failed";
+  | "calling"
+  | "incoming"
+  | "connecting"
+  | "reconnecting"
+  | "active"
+  | "ended"
+  | "failed";
 
 export interface AudioCallPeer {
   id: string;

@@ -9,6 +9,7 @@ const statusLabels = {
   calling: "Calling...",
   incoming: "Incoming audio call",
   connecting: "Connecting securely...",
+  reconnecting: "Reconnecting...",
   active: "Connected",
   ended: "Call ended",
   failed: "Call could not be completed",
@@ -65,7 +66,10 @@ const AudioCallOverlay = ({
   }
 
   const isIncoming = call.status === "incoming";
-  const isWaiting = call.status === "calling" || call.status === "connecting";
+  const isWaiting =
+    call.status === "calling" ||
+    call.status === "connecting" ||
+    call.status === "reconnecting";
   const isComplete = call.status === "ended" || call.status === "failed";
 
   return (

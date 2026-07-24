@@ -116,7 +116,12 @@ export class ChatGateway
     string,
     ReturnType<typeof setTimeout>
   >();
+  private readonly callDisconnectTimeouts = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+  >();
   private readonly callRingTimeoutMs = 30_000;
+  private readonly callDisconnectGraceMs = 15_000;
   private removeRealtimeListener?: () => void;
 
   constructor(
@@ -141,7 +146,11 @@ export class ChatGateway
     for (const timeout of this.callTimeouts.values()) {
       clearTimeout(timeout);
     }
+    for (const timeout of this.callDisconnectTimeouts.values()) {
+      clearTimeout(timeout);
+    }
     this.callTimeouts.clear();
+    this.callDisconnectTimeouts.clear();
     this.callSessions.clear();
   }
 
@@ -159,6 +168,7 @@ export class ChatGateway
       };
       client.data.conversationIds = new Set<string>();
 
+      this.clearCallDisconnectTimeout(payload.sub, "socket-reconnected");
       this.trackOnlineSocket(payload.sub, client.id);
       this.authenticatedSockets.set(client.id, client);
       this.metricsService.recordSocketConnection();
@@ -221,7 +231,7 @@ export class ChatGateway
       return;
     }
 
-    await this.finishCallsForUser(user.id, "peer-disconnected");
+    this.scheduleCallDisconnect(user.id);
     await this.emitPresenceChange(user.id, false);
 
     for (const conversationId of client.data.conversationIds ?? []) {
@@ -604,6 +614,7 @@ export class ChatGateway
       startedAt: session.createdAt,
     });
     this.callSessions.set(session.id, session);
+    this.logCallEvent("call_started", session, user.id);
     this.callTimeouts.set(
       session.id,
       setTimeout(
@@ -644,7 +655,7 @@ export class ChatGateway
       );
     }
 
-    if (!this.isUserOnline(session.callerId)) {
+    if (!this.isCallParticipantReachable(session.callerId)) {
       await this.finishCall(session, "caller-unavailable");
       throw this.callException(
         "CALLER_OFFLINE",
@@ -655,6 +666,7 @@ export class ChatGateway
     session.status = "active";
     this.clearCallTimeout(session.id);
     await this.callsService.accept(session.id);
+    this.logCallEvent("call_accepted", session, user.id);
     this.emitCallHistoryUpdated(session);
     const response = { success: true, data: this.toCallState(session) };
     ack?.(response);
@@ -699,6 +711,7 @@ export class ChatGateway
       callId: session.id,
     });
     await this.callsService.finish(session.id, reason, user.id);
+    this.logCallEvent("call_rejected", session, user.id, reason);
     this.emitCallHistoryUpdated(session);
     this.clearCall(session.id);
 
@@ -750,12 +763,66 @@ export class ChatGateway
       fromUserId: user.id,
     };
     this.server.to(this.userRoom(targetUserId)).emit("call:signal", signal);
+    this.logCallEvent(
+      "call_signal_forwarded",
+      session,
+      user.id,
+      payload.signalType,
+    );
 
     const response = {
       success: true,
       data: { callId: session.id, signalType: payload.signalType },
     };
     ack?.(response);
+
+    return response;
+  }
+
+  @SubscribeMessage("call:sync")
+  async syncCall(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @Ack() ack?: (response: unknown) => void,
+  ) {
+    this.consumeRateLimit(client, "call:sync");
+    const user = this.getUser(client);
+    const session = this.findCallForUser(user.id);
+    const data = session
+      ? await this.toCallStateForUser(session, user.id)
+      : null;
+    const response = { success: true, data };
+
+    ack?.(response);
+    if (session) {
+      this.logCallEvent("call_synced", session, user.id);
+    }
+
+    return response;
+  }
+
+  @SubscribeMessage("call:recover")
+  recoverCall(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: CallEventPayloadDto,
+    @Ack() ack?: (response: unknown) => void,
+  ) {
+    this.consumeRateLimit(client, "call:recover");
+    const user = this.getUser(client);
+    const session = this.getCallForUser(payload.callId, user.id);
+
+    if (session.status !== "active" || user.id !== session.recipientId) {
+      throw this.callException(
+        "CALL_CANNOT_BE_RECOVERED",
+        "This participant cannot request call recovery",
+      );
+    }
+
+    const response = { success: true, data: this.toCallState(session) };
+    ack?.(response);
+    this.server
+      .to(this.userRoom(session.callerId))
+      .emit("call:recovery-needed", this.toCallState(session));
+    this.logCallEvent("call_recovery_requested", session, user.id);
 
     return response;
   }
@@ -867,11 +934,68 @@ export class ChatGateway
     return this.onlineUserSockets.has(userId);
   }
 
+  private isCallParticipantReachable(userId: string) {
+    return this.isUserOnline(userId) || this.callDisconnectTimeouts.has(userId);
+  }
+
   private findCallForUser(userId: string) {
     return Array.from(this.callSessions.values()).find(
       (session) =>
         session.callerId === userId || session.recipientId === userId,
     );
+  }
+
+  private scheduleCallDisconnect(userId: string) {
+    const session = this.findCallForUser(userId);
+    if (!session || this.callDisconnectTimeouts.has(userId)) {
+      return;
+    }
+
+    this.logCallEvent(
+      "call_disconnect_grace_started",
+      session,
+      userId,
+      `${this.callDisconnectGraceMs}ms`,
+    );
+    const timeout = setTimeout(() => {
+      this.callDisconnectTimeouts.delete(userId);
+      if (this.isUserOnline(userId)) {
+        return;
+      }
+
+      void this.finishCallsForUser(userId, "peer-disconnected").catch(
+        (error: unknown) => {
+          this.logger.error(
+            JSON.stringify({
+              type: "call_disconnect_cleanup_failed",
+              userId,
+              message:
+                error instanceof Error ? error.message : "Unknown call error",
+            }),
+          );
+        },
+      );
+    }, this.callDisconnectGraceMs);
+    this.callDisconnectTimeouts.set(userId, timeout);
+  }
+
+  private clearCallDisconnectTimeout(userId: string, reason?: string) {
+    const timeout = this.callDisconnectTimeouts.get(userId);
+    if (!timeout) {
+      return;
+    }
+
+    clearTimeout(timeout);
+    this.callDisconnectTimeouts.delete(userId);
+    const session = this.findCallForUser(userId);
+    if (session && reason) {
+      this.logCallEvent(
+        "call_disconnect_grace_cleared",
+        session,
+        userId,
+        reason,
+      );
+    }
   }
 
   private getCallForUser(callId: string, userId: string) {
@@ -913,6 +1037,7 @@ export class ChatGateway
       endedBy: endedBy ?? null,
     };
     await this.callsService.finish(session.id, reason, endedBy);
+    this.logCallEvent("call_finished", session, endedBy, reason);
     this.server
       .to(this.userRoom(session.callerId))
       .to(this.userRoom(session.recipientId))
@@ -931,7 +1056,7 @@ export class ChatGateway
   private async buildPresenceSnapshot(userId: string) {
     const peerIds = await this.getPresencePeerIds(userId);
     return {
-      users: Array.from(peerIds).map(peerId => ({
+      users: Array.from(peerIds).map((peerId) => ({
         userId: peerId,
         online: this.isUserOnline(peerId),
       })),
@@ -975,8 +1100,13 @@ export class ChatGateway
   }
 
   private clearCall(callId: string) {
+    const session = this.callSessions.get(callId);
     this.clearCallTimeout(callId);
     this.callSessions.delete(callId);
+    if (session) {
+      this.clearCallDisconnectTimeout(session.callerId);
+      this.clearCallDisconnectTimeout(session.recipientId);
+    }
   }
 
   private clearCallTimeout(callId: string) {
@@ -996,6 +1126,42 @@ export class ChatGateway
       status: session.status,
       createdAt: session.createdAt,
     };
+  }
+
+  private async toCallStateForUser(session: CallSession, userId: string) {
+    const peerId =
+      userId === session.callerId ? session.recipientId : session.callerId;
+    const peer = await this.usersService.findById(peerId);
+
+    return {
+      ...this.toCallState(session),
+      direction: userId === session.callerId ? "outgoing" : "incoming",
+      peer: {
+        id: peerId,
+        username: peer?.username ?? peerId,
+        profileImage: peer?.profileImage ?? null,
+      },
+    };
+  }
+
+  private logCallEvent(
+    type: string,
+    session: CallSession,
+    actorUserId?: string,
+    detail?: string,
+  ) {
+    this.logger.log(
+      JSON.stringify({
+        type,
+        callId: session.id,
+        conversationId: session.conversationId,
+        callerId: session.callerId,
+        recipientId: session.recipientId,
+        status: session.status,
+        actorUserId: actorUserId ?? null,
+        detail: detail ?? null,
+      }),
+    );
   }
 
   private callException(code: string, message: string) {
