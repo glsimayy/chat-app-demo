@@ -1,39 +1,13 @@
 import { APIClient } from "./apiCore";
-import { getCurrentUserId, mapContact } from "./backendAdapters";
+import { mapContact } from "./backendAdapters";
 
 const api = new APIClient();
 
 const getContacts = async (_filters?: object) => {
-  const [users, conversationResponse]: any[] = await Promise.all([
-    api.get("/users"),
-    api.get("/conversations", {
-      params: { type: "direct", limit: 100 },
-    }),
-  ]);
-  const currentUserId = getCurrentUserId();
+  const users: any = await api.get("/conversations/contacts");
   const userList = Array.isArray(users) ? users : users?.items || [];
-  const conversations = Array.isArray(conversationResponse)
-    ? conversationResponse
-    : conversationResponse?.items || [];
-  const contactUserIds = new Set(
-    conversations.flatMap((conversation: any) =>
-      (conversation.participants || [])
-        .filter(
-          (participant: any) =>
-            !participant.leftAt && participant.userId !== currentUserId,
-        )
-        .map((participant: any) => participant.userId),
-    ),
-  );
 
-  return userList
-    .filter(
-      (user: any) =>
-        user.id !== currentUserId &&
-        !user.isBot &&
-        contactUserIds.has(user.id),
-    )
-    .map(mapContact);
+  return userList.map(mapContact);
 };
 
 export interface ContactInvitation {

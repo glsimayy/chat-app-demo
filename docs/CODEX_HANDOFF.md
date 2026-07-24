@@ -76,17 +76,24 @@ Do not touch the untracked output/ directory.
 - Presence is based on authenticated active sockets and supports multiple tabs.
 - Contacts no longer render every user in PostgreSQL. They are derived from
   active direct-conversation participants.
+- The backend exposes those direct-conversation contacts through
+  `GET /api/conversations/contacts`, independently of chat pagination or
+  per-user archive/delete preferences.
+- Existing direct-conversation participants are available in the group member
+  picker, and their profile is shown as an existing contact instead of offering
+  a duplicate invitation.
 - Saved Messages menus stay inside the viewport.
 - Opening a bookmarked message scrolls only the conversation container and does
   not move the page or composer.
-- Playwright uses an in-memory backend database and no longer pollutes the local
-  PostgreSQL database.
+- Playwright starts isolated frontend/backend servers on ports `5273` and
+  `3100` with an in-memory backend database, so Docker can remain running
+  without polluting the local PostgreSQL database.
 
-Last complete verification for the merged implementation:
+Last complete verification:
 
-- Backend unit tests: `51/51`
+- Backend unit tests: `54/54`
 - Frontend unit tests: `18/18`
-- Playwright E2E tests: `28/28`
+- Playwright E2E tests: `29/29`
 - Backend and frontend production builds passed.
 - Full Docker Compose build, migration, and health checks passed.
 
@@ -105,25 +112,6 @@ Decision:
   work.
 
 Do not merely deduplicate the popup unless the user changes this decision.
-
-### BUG-2: Direct message and Contact relationship gap
-
-Observed:
-
-- Starting or accepting a message request/direct conversation does not create
-  the Contact relationship expected by the UI.
-- Once a direct conversation exists, a later Contact invitation can be
-  rejected.
-- The group member picker depends on Contacts, so a person with an existing DM
-  can become impossible to add to a group.
-
-Expected:
-
-- A completed message-request flow should establish the intended Contact
-  relationship.
-- Existing active direct-conversation participants must also be valid group
-  member candidates.
-- Avoid duplicate Contact relationships or duplicate direct conversations.
 
 ### BUG-3: Bot API idempotency response is unclear
 
@@ -159,6 +147,23 @@ A genuinely new group currently requires a new value such as
 
 ## Resolved Bugs
 
+### BUG-2: Direct message and Contact relationship gap
+
+Resolved on `codex/contact-dm-sync`:
+
+- Active direct conversations are the single Contact relationship source; no
+  duplicate Contact table or direct conversation is created.
+- `GET /api/conversations/contacts` returns the authenticated user's unique
+  non-bot direct contacts even when the chat is hidden from that user's list.
+- The frontend loads contacts on the Chats screen and refreshes them before
+  opening the group member picker.
+- User profiles recognize existing direct contacts and no longer offer a
+  duplicate invitation.
+- Contact invitation conflicts now clearly report that the users are already
+  contacts.
+- Unit and Playwright coverage includes idempotent direct conversations,
+  hidden chats, duplicate invitations, and DM-before-group selection.
+
 ### BUG-4: Audio call ends before connection
 
 Originally observed during testing through a Cloudflare Quick Tunnel from
@@ -191,12 +196,11 @@ User validation completed:
 
 Recommended priority on the desktop:
 
-1. Fix BUG-2 and cover DM-before-contact and group-member-picker scenarios.
-2. Disable the popup layer for BUG-1 without affecting realtime/unread state.
-3. Improve the API contract and tests for BUG-3.
-4. Run backend tests, frontend tests, production builds, targeted E2E tests,
+1. Disable the popup layer for BUG-1 without affecting realtime/unread state.
+2. Improve the API contract and tests for BUG-3.
+3. Run backend tests, frontend tests, production builds, targeted E2E tests,
    then the full E2E suite.
-5. Commit to a focused `codex/` branch, merge to `main`, and push only after
+4. Commit to a focused `codex/` branch, merge to `main`, and push only after
    verification.
 
 ## Test Accounts

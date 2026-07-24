@@ -36,6 +36,7 @@ import {
   MessageSearchResponseDto,
   ParticipantLeftResponseDto,
   ReadStateResponseDto,
+  UserResponseDto,
 } from "../common/swagger/backend-response.dto";
 import { UserRole } from "../users/user-role.enum";
 import { ConversationsService } from "./conversations.service";
@@ -98,6 +99,15 @@ export class ConversationsController {
     @Query() query: FindConversationsQueryDto,
   ) {
     return this.conversationsService.findForUser(user.id, query);
+  }
+
+  @Get("contacts")
+  @ApiSuccessResponse(UserResponseDto, {
+    description: "Users related through an active direct conversation",
+    isArray: true,
+  })
+  findMyContacts(@CurrentUser() user: AuthenticatedUser) {
+    return this.conversationsService.findContactsForUser(user.id);
   }
 
   @Get(":conversationId")

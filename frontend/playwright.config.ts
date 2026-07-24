@@ -1,7 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const frontendUrl = "http://127.0.0.1:5173";
-const backendUrl = "http://127.0.0.1:3000";
+const frontendUrl =
+  process.env.E2E_FRONTEND_URL || "http://127.0.0.1:5273";
+const backendUrl = process.env.E2E_BACKEND_URL || "http://127.0.0.1:3100";
+const frontendPort = new URL(frontendUrl).port || "5273";
+const backendPort = new URL(backendUrl).port || "3100";
+const reuseExistingServer =
+  process.env.E2E_REUSE_EXISTING_SERVER === "true";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -34,12 +39,12 @@ export default defineConfig({
     {
       command: "npm --prefix ../backend run start:dev",
       url: `${backendUrl}/api/health`,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer,
       timeout: 120_000,
       env: {
         ...process.env,
         NODE_ENV: "development",
-        PORT: "3000",
+        PORT: backendPort,
         API_PREFIX: "api",
         CORS_ORIGIN: `${frontendUrl},http://localhost:5173`,
         SWAGGER_ENABLED: "false",
@@ -51,9 +56,9 @@ export default defineConfig({
       },
     },
     {
-      command: "npm start",
+      command: `npx cross-env PORT=${frontendPort} react-scripts start`,
       url: frontendUrl,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer,
       timeout: 180_000,
       env: {
         ...process.env,

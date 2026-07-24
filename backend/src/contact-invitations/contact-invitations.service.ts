@@ -70,7 +70,7 @@ export class ContactInvitationsService implements OnModuleInit {
     if (
       this.conversationsService.hasDirectConversation(senderId, recipient.id)
     ) {
-      throw new ConflictException("A direct conversation already exists");
+      throw new ConflictException("Users are already contacts");
     }
 
     const pending = Array.from(this.invitations.values()).find(

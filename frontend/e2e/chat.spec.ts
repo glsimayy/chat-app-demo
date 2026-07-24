@@ -10,7 +10,7 @@ import {
 } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-const apiUrl = "http://127.0.0.1:3000/api";
+const apiUrl = `${process.env.E2E_BACKEND_URL || "http://127.0.0.1:3100"}/api`;
 const botWebhookSecret =
   process.env.E2E_BOT_WEBHOOK_SECRET ||
   "playwright-bot-secret-with-at-least-32-characters";
@@ -101,7 +101,7 @@ async function openConversation(page: Page, label: string) {
   await expect(page.locator("#chat-input")).toBeVisible();
   await expect(
     page.getByText("Realtime connected", { exact: true }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15_000 });
 }
 
 async function expectMessageMenuWithinViewport(
@@ -394,6 +394,77 @@ test("contacts only show users with a direct connection", async ({
     ).toHaveCount(0);
     await expect(
       admin.page.getByText("Realtime connected", { exact: true }),
+    ).toBeVisible();
+  } finally {
+    await admin.context.close();
+  }
+});
+
+test("a direct contact is available in the group member picker", async ({
+  browser,
+  request,
+}) => {
+  const suffix = Date.now();
+  const username = `dmcontact${suffix}`;
+  const registration = await request.post(`${apiUrl}/auth/register`, {
+    data: {
+      email: `${username}@ello.local`,
+      username,
+      password: "DirectContact123!",
+    },
+  });
+  expect(registration.ok(), await registration.text()).toBeTruthy();
+  const contactSession = (await registration.json()).data as AuthSession;
+
+  const direct = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.admin.accessToken}` },
+    data: { participantId: contactSession.user.id },
+  });
+  expect(direct.ok(), await direct.text()).toBeTruthy();
+
+  const contactsResponse = await request.get(
+    `${apiUrl}/conversations/contacts`,
+    {
+      headers: { Authorization: `Bearer ${sessions.admin.accessToken}` },
+    },
+  );
+  expect(contactsResponse.ok(), await contactsResponse.text()).toBeTruthy();
+  const contactsBody = await contactsResponse.json();
+  expect(contactsBody.data).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ id: contactSession.user.id }),
+    ]),
+  );
+
+  const admin = await createAuthenticatedPage(browser, sessions.admin);
+
+  try {
+    await admin.page
+      .getByRole("button", { name: "Create group", exact: true })
+      .click();
+    const dialog = admin.page.getByRole("dialog");
+    await expect(
+      dialog.getByRole("heading", { name: "Create New Group" }),
+    ).toBeVisible();
+    await dialog.getByLabel("Group Name").fill(`dm-group-${suffix}`);
+    await dialog
+      .getByRole("button", { name: "Select Members", exact: true })
+      .click();
+
+    const contactCheckbox = dialog.locator(
+      `[id="contact-${contactSession.user.id}"]`,
+    );
+    await expect(contactCheckbox).toBeVisible();
+    await contactCheckbox.check();
+    await dialog
+      .getByRole("button", { name: "Create Groups", exact: true })
+      .click();
+
+    await expect(dialog).toHaveCount(0);
+    await expect(
+      admin.page
+        .locator(".chat-user-list li")
+        .filter({ hasText: `dm-group-${suffix}` }),
     ).toBeVisible();
   } finally {
     await admin.context.close();
@@ -1057,8 +1128,17 @@ test("composer actions work and empty media counts do not render as zero", async
     ).toBeVisible();
     const userProfileDialog = user.page.getByRole("dialog");
     await expect(
-      userProfileDialog.getByRole("button", { name: "Add contact" }),
+      userProfileDialog.getByRole("button", {
+        name: "Already a contact",
+        exact: true,
+      }),
     ).toBeVisible();
+    await expect(
+      userProfileDialog.getByRole("button", {
+        name: "Add contact",
+        exact: true,
+      }),
+    ).toHaveCount(0);
     await user.page.keyboard.press("Escape");
 
     const audioName = `audio-${Date.now()}.mp3`;
@@ -1406,6 +1486,12 @@ test("group messages arrive in the other participant's open conversation", async
   browser,
   request,
 }) => {
+  const directResponse = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+    data: { participantId: sessions.user2.user.id },
+  });
+  expect(directResponse.ok(), await directResponse.text()).toBeTruthy();
+
   const groupName = `e2e-group-${Date.now()}`;
   const response = await request.post(`${apiUrl}/conversations/groups`, {
     headers: { Authorization: `Bearer ${sessions.admin.accessToken}` },
@@ -1442,16 +1528,19 @@ test("group messages arrive in the other participant's open conversation", async
     await expect(
       user2Page.getByRole("heading", { name: "User profile" }),
     ).toBeVisible();
-    const addContactButton = user2Page
-      .getByRole("dialog")
-      .getByRole("button", { name: "Add contact" });
-    await expect(addContactButton).toBeVisible();
-    await addContactButton.click();
+    const profileDialog = user2Page.getByRole("dialog");
     await expect(
-      user2Page.getByText(
-        /^(Contact invitation sent\.|A direct conversation already exists)$/,
-      ),
+      profileDialog.getByRole("button", {
+        name: "Already a contact",
+        exact: true,
+      }),
     ).toBeVisible();
+    await expect(
+      profileDialog.getByRole("button", {
+        name: "Add contact",
+        exact: true,
+      }),
+    ).toHaveCount(0);
     await user2Page.keyboard.press("Escape");
 
     const reply = `group-reply-e2e-${Date.now()}`;
@@ -1489,6 +1578,9 @@ test("users can answer, mute, and end a direct audio call", async ({
 
   try {
     await openConversation(caller.page, sessions.user2.user.username);
+    await expect(
+      caller.page.getByText("Online", { exact: true }).first(),
+    ).toBeVisible({ timeout: 15_000 });
     await caller.page
       .getByRole("button", { name: "Conversation details", exact: true })
       .click();
@@ -1588,6 +1680,9 @@ test("a ringing audio call survives a temporary socket outage", async ({
 
   try {
     await openConversation(caller.page, sessions.user2.user.username);
+    await expect(
+      caller.page.getByText("Online", { exact: true }).first(),
+    ).toBeVisible({ timeout: 15_000 });
     await caller.page
       .getByRole("button", { name: "Conversation details", exact: true })
       .click();
@@ -1762,7 +1857,7 @@ test("a group member can leave from the conversation controls", async ({
     await expect(member.page.locator("#chat-input")).toHaveCount(0);
     await expect(
       member.page.locator(".chat-user-list li").filter({ hasText: groupName }),
-    ).toHaveCount(0);
+    ).toHaveCount(0, { timeout: 15_000 });
   } finally {
     await member.context.close();
   }

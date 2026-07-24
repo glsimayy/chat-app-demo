@@ -69,7 +69,7 @@ const SharedContactCard = ({ userId }: SharedContactCardProps) => {
             {user?.username || "Contact unavailable"}
           </strong>
           <small className="d-block text-muted">
-            View profile and add contact
+            View user profile
           </small>
         </span>
         <i className="bx bx-chevron-right font-size-20"></i>

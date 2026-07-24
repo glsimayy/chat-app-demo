@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 // hooks
 import { useRedux } from "../hooks/index";
@@ -64,22 +64,11 @@ const useContacts = () => {
   // Inside your component
   const { contactsList} = useAppSelector(errorData);
 
-  const [contacts, setContacts] = useState<Array<any>>([]);
-  const [categorizedContacts, setCategorizedContacts] = useState<Array<any>>(
-    []
+  const categorizedContacts = useMemo(
+    () =>
+      contactsList.length > 0 ? divideByKey("firstName", contactsList) : [],
+    [contactsList],
   );
-  useEffect(() => {
-    if (contactsList.length > 0) {
-      setContacts(contactsList);
-    }
-  }, [contactsList]);
-
-  useEffect(() => {
-    if (contacts.length > 0) {
-      const formattedContacts = divideByKey("firstName", contacts);
-      setCategorizedContacts(formattedContacts);
-    }
-  }, [contacts]);
 
   const totalContacts = (categorizedContacts || []).length;
   return { categorizedContacts, totalContacts };

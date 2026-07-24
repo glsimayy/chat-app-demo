@@ -16,6 +16,7 @@ import {
 import { PrismaService } from "../database/prisma.service";
 import { UsersService } from "../users/users.service";
 import { UserRole } from "../users/user-role.enum";
+import { PublicUser } from "../users/user.types";
 import { MetricsService } from "../metrics/metrics.service";
 import { ConversationType } from "./conversation-type.enum";
 import { ConversationStatus } from "./conversation-status.enum";
@@ -254,6 +255,38 @@ export class ConversationsService implements OnModuleInit {
 
   hasDirectConversation(currentUserId: string, participantId: string) {
     return Boolean(this.findDirectConversation(currentUserId, participantId));
+  }
+
+  findContactsForUser(userId: string): PublicUser[] {
+    const contactIds = new Set<string>();
+
+    for (const conversation of this.conversations.values()) {
+      if (
+        conversation.type !== ConversationType.Direct ||
+        conversation.status !== ConversationStatus.Active ||
+        !this.isParticipant(conversation, userId)
+      ) {
+        continue;
+      }
+
+      for (const participant of conversation.participants) {
+        if (participant.userId !== userId && !participant.leftAt) {
+          contactIds.add(participant.userId);
+        }
+      }
+    }
+
+    return Array.from(contactIds)
+      .reduce<PublicUser[]>((contacts, contactId) => {
+        const user = this.usersService.findByIdSync(contactId);
+
+        if (user && !user.isBot) {
+          contacts.push(user);
+        }
+
+        return contacts;
+      }, [])
+      .sort((left, right) => left.username.localeCompare(right.username));
   }
 
   async createGroupConversation(

@@ -20,7 +20,7 @@ describe("ContactInvitationsService", () => {
     isBot: false,
   };
 
-  const createService = () => {
+  const createService = (hasDirectConversation = false) => {
     const users = {
       findById: jest.fn(async (id: string) =>
         id === sender.id ? sender : id === recipient.id ? recipient : undefined,
@@ -33,7 +33,7 @@ describe("ContactInvitationsService", () => {
       ),
     };
     const conversations = {
-      hasDirectConversation: jest.fn(() => false),
+      hasDirectConversation: jest.fn(() => hasDirectConversation),
       createDirectConversation: jest.fn(async () => ({ id: "conversation-1" })),
     };
     const realtime = { emit: jest.fn() };
@@ -84,5 +84,14 @@ describe("ContactInvitationsService", () => {
     await expect(
       service.create(sender.id, { email: recipient.email }),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("rejects an invitation when the users already have a direct contact", async () => {
+    const { realtime, service } = createService(true);
+
+    await expect(
+      service.create(sender.id, { email: recipient.email }),
+    ).rejects.toThrow("Users are already contacts");
+    expect(realtime.emit).not.toHaveBeenCalled();
   });
 });

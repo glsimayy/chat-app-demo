@@ -10,7 +10,7 @@ import {
   Spinner,
 } from "reactstrap";
 import { getCurrentUserId } from "../api/backendAdapters";
-import { getUserProfile, inviteContact } from "../api/contacts";
+import { getContacts, getUserProfile, inviteContact } from "../api/contacts";
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -28,6 +28,7 @@ const UserProfileModal = ({
   const [user, setUser] = useState<any>(initialUser || null);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [isContact, setIsContact] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -40,12 +41,16 @@ const UserProfileModal = ({
     setUser(initialUser?.id === userId ? initialUser : null);
     setError("");
     setSuccess("");
+    setIsContact(false);
     setLoading(true);
 
-    getUserProfile(userId)
-      .then(profile => {
+    Promise.all([getUserProfile(userId), getContacts()])
+      .then(([profile, contacts]) => {
         if (active) {
           setUser(profile);
+          setIsContact(
+            contacts.some((contact: any) => contact.id === profile.id),
+          );
         }
       })
       .catch(reason => {
@@ -78,7 +83,13 @@ const UserProfileModal = ({
       });
       setSuccess("Contact invitation sent.");
     } catch (reason) {
-      setError(String(reason || "Contact invitation could not be sent."));
+      const message = String(reason || "Contact invitation could not be sent.");
+
+      if (message === "Users are already contacts") {
+        setIsContact(true);
+      } else {
+        setError(message);
+      }
     } finally {
       setSending(false);
     }
@@ -89,6 +100,8 @@ const UserProfileModal = ({
     user &&
     user.id !== getCurrentUserId() &&
     !user.isBot &&
+    !loading &&
+    !isContact &&
     success.length === 0;
 
   return (
@@ -141,6 +154,12 @@ const UserProfileModal = ({
         <Button type="button" color="light" onClick={onClose}>
           Close
         </Button>
+        {isContact && user && user.id !== getCurrentUserId() && !user.isBot && (
+          <Button type="button" color="success" outline disabled>
+            <i className="bx bx-check me-2" aria-hidden="true"></i>
+            Already a contact
+          </Button>
+        )}
         {canInvite && (
           <Button
             type="button"

@@ -159,6 +159,7 @@ const Index = (props: IndexProps) => {
     dispatch(getFavourites());
     dispatch(getDirectMessages());
     dispatch(getChannels());
+    dispatch(getContacts());
   }, [dispatch]);
   useEffect(() => {
     if (isFavouriteContactToggled) {
@@ -212,6 +213,7 @@ const Index = (props: IndexProps) => {
     if (isContactsAdded) {
       setIsOpenAddContact(false);
       dispatch(getDirectMessages());
+      dispatch(getContacts());
     }
   }, [dispatch, isContactsAdded]);
 
@@ -221,6 +223,7 @@ const Index = (props: IndexProps) => {
   const [isOpenCreateChannel, setIsOpenCreateChannel] =
     useState<boolean>(false);
   const openCreateChannelModal = () => {
+    dispatch(getContacts());
     setIsOpenCreateChannel(true);
   };
   const closeCreateChannelModal = () => {
