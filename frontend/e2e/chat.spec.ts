@@ -11,6 +11,9 @@ import {
 import AxeBuilder from "@axe-core/playwright";
 
 const apiUrl = "http://127.0.0.1:3000/api";
+const botWebhookSecret =
+  process.env.E2E_BOT_WEBHOOK_SECRET ||
+  "playwright-bot-secret-with-at-least-32-characters";
 const accounts = {
   admin: {
     email: "emiradmin@ello.com",
@@ -74,7 +77,7 @@ async function loginThroughUi(
   page: Page,
   account: (typeof accounts)[keyof typeof accounts],
 ) {
-  await page.goto("/auth-login");
+  await page.goto("/auth-login", { waitUntil: "domcontentloaded" });
   await page.getByLabel("Email").fill(account.email);
   await page
     .getByRole("textbox", { name: "Password", exact: true })
@@ -146,11 +149,11 @@ async function createAuthenticatedPage(
 ) {
   const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
-  await page.goto("/auth-login");
+  await page.goto("/auth-login", { waitUntil: "domcontentloaded" });
   await page.evaluate(authUser => {
     window.localStorage.setItem("authUser", JSON.stringify(authUser));
   }, toFrontendAuthUser(session));
-  await page.goto("/dashboard");
+  await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
   await expect(
     page.getByRole("heading", { name: "Chats", exact: true }),
   ).toBeVisible();
@@ -203,7 +206,7 @@ test("development accounts authenticate with the expected roles", async ({
 });
 
 test("protected routes redirect unauthenticated visitors", async ({ page }) => {
-  await page.goto("/dashboard");
+  await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
 
   await expect(page).toHaveURL(/\/auth-login$/);
   await expect(page.getByRole("button", { name: "Log In" })).toBeVisible();
@@ -212,7 +215,7 @@ test("protected routes redirect unauthenticated visitors", async ({ page }) => {
 test("invalid sessions are cleared before the dashboard renders", async ({
   page,
 }) => {
-  await page.goto("/auth-login");
+  await page.goto("/auth-login", { waitUntil: "domcontentloaded" });
   await page.evaluate(() => {
     window.localStorage.setItem(
       "authUser",
@@ -224,7 +227,7 @@ test("invalid sessions are cleared before the dashboard renders", async ({
     );
   });
 
-  await page.goto("/dashboard");
+  await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
 
   await expect(page).toHaveURL(/\/auth-login$/);
   await expect
@@ -238,7 +241,7 @@ test("login shows an actionable error while the backend is unreachable", async (
   await page.route("**/api/auth/login", route =>
     route.abort("connectionrefused"),
   );
-  await page.goto("/auth-login");
+  await page.goto("/auth-login", { waitUntil: "domcontentloaded" });
   await page.getByLabel("Email").fill(accounts.user1.email);
   await page
     .getByRole("textbox", { name: "Password", exact: true })
@@ -303,7 +306,7 @@ test("external automation groups and bot messages appear realtime", async ({
   const groupName = `Automated Alert ${suffix}`;
   const created = await request.post(`${apiUrl}/bot/groups`, {
     headers: {
-      "x-bot-secret": "playwright-bot-secret-with-at-least-32-characters",
+      "x-bot-secret": botWebhookSecret,
     },
     data: {
       name: groupName,
@@ -330,7 +333,7 @@ test("external automation groups and bot messages appear realtime", async ({
       `${apiUrl}/bot/groups/${group.id}/messages`,
       {
         headers: {
-          "x-bot-secret": "playwright-bot-secret-with-at-least-32-characters",
+          "x-bot-secret": botWebhookSecret,
         },
         data: {
           content: "Monitoring status changed to critical.",
@@ -362,18 +365,13 @@ test("external automation groups and bot messages appear realtime", async ({
   }
 });
 
-test("contacts open or create a direct conversation", async ({
+test("contacts only show users with a direct connection", async ({
   browser,
   request,
 }) => {
-  const suffix = Date.now();
-  const username = `contact${suffix}`;
-  const response = await request.post(`${apiUrl}/auth/register`, {
-    data: {
-      email: `${username}@ello.local`,
-      username,
-      password: "Contact123!",
-    },
+  const response = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.admin.accessToken}` },
+    data: { participantId: sessions.user2.user.id },
   });
   expect(response.ok(), await response.text()).toBeTruthy();
 
@@ -385,7 +383,7 @@ test("contacts open or create a direct conversation", async ({
       .click();
     const contact = admin.page
       .locator(".contact-list li")
-      .filter({ hasText: username });
+      .filter({ hasText: sessions.user2.user.username });
 
     await expect(contact).toHaveCount(1);
     await contact.click();
@@ -476,7 +474,7 @@ test("logout clears the session and protects the dashboard", async ({
       .poll(() => page.evaluate(() => window.localStorage.getItem("authUser")))
       .toBeNull();
 
-    await page.goto("/dashboard");
+    await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/auth-login$/);
   } finally {
     await context.close();
@@ -511,7 +509,9 @@ test("profile details and image are saved through settings", async ({
     await user.page.getByLabel("About").fill(about);
     await user.page.getByLabel("Location").fill(location);
     await user.page.getByRole("button", { name: "Save profile" }).click();
-    await expect(user.page.getByText(about, { exact: true })).toBeVisible();
+    await expect(
+      user.page.locator("#settingprofile").getByText(about, { exact: true }),
+    ).toBeVisible();
 
     await user.page.locator("#profile-img-file-input").setInputFiles({
       name: "profile.png",
@@ -584,6 +584,40 @@ test("direct messages arrive in the other user's open conversation", async ({
   }
 });
 
+test("presence follows authenticated socket connections", async ({
+  browser,
+  request,
+}) => {
+  const response = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+    data: { participantId: sessions.user2.user.id },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+
+  const user1 = await createAuthenticatedPage(browser, sessions.user1);
+  const user2 = await createAuthenticatedPage(browser, sessions.user2);
+
+  try {
+    await openConversation(user1.page, sessions.user2.user.username);
+    await expect(
+      user1.page.getByText("Online", { exact: true }).first(),
+    ).toBeVisible();
+
+    await user2.context.close();
+
+    await expect(
+      user1.page.getByText("Offline", { exact: true }).first(),
+    ).toBeVisible();
+    const directRow = user1.page
+      .locator(".chat-user-list li")
+      .filter({ hasText: sessions.user2.user.username })
+      .first();
+    await expect(directRow.locator(".chat-user-img")).not.toHaveClass(/online/);
+  } finally {
+    await user1.context.close();
+  }
+});
+
 test("direct profile supports presence, bookmark, archive, and delete", async ({
   browser,
   request,
@@ -619,9 +653,9 @@ test("direct profile supports presence, bookmark, archive, and delete", async ({
       .click();
     const profileStatus = user.page
       .locator(".user-profile-sidebar")
-      .getByText("Active", { exact: true });
+      .getByText("Offline", { exact: true });
     await expect(profileStatus).toBeVisible();
-    await expect(profileStatus.locator("i")).toHaveClass(/text-success/);
+    await expect(profileStatus.locator("i")).toHaveClass(/text-muted/);
 
     const bookmarkResponsePromise = user.page.waitForResponse(
       apiResponse =>
@@ -773,7 +807,9 @@ test("messages can be searched, bookmarked, reopened, and removed", async ({
   });
   expect(response.ok(), await response.text()).toBeTruthy();
 
-  const user = await createAuthenticatedPage(browser, sessions.user1);
+  const user = await createAuthenticatedPage(browser, sessions.user1, {
+    viewport: { width: 1000, height: 620 },
+  });
   const message = `search-bookmark-e2e-${Date.now()}`;
 
   try {
@@ -820,6 +856,29 @@ test("messages can be searched, bookmarked, reopened, and removed", async ({
       .locator(".bookmark-message-item")
       .filter({ hasText: message });
     await expect(bookmarkItem).toBeVisible();
+    await bookmarkItem.getByLabel("Saved message actions").click();
+    const savedMenu = user.page.locator(".saved-message-actions-menu.show");
+    await expect(savedMenu).toBeVisible();
+    const savedMenuBounds = await savedMenu.evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      return {
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        left: rect.left,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+      };
+    });
+    expect(savedMenuBounds.top).toBeGreaterThanOrEqual(0);
+    expect(savedMenuBounds.left).toBeGreaterThanOrEqual(0);
+    expect(savedMenuBounds.right).toBeLessThanOrEqual(
+      savedMenuBounds.viewportWidth,
+    );
+    expect(savedMenuBounds.bottom).toBeLessThanOrEqual(
+      savedMenuBounds.viewportHeight,
+    );
+    await user.page.keyboard.press("Escape");
     await bookmarkItem
       .getByRole("button", {
         name: `Go to saved message: ${message}`,
@@ -829,6 +888,13 @@ test("messages can be searched, bookmarked, reopened, and removed", async ({
 
     await expect(messageItem).toBeVisible();
     await expect(messageItem).toHaveClass(/message-search-highlight/);
+    const inputBounds = await user.page.locator("#chat-input").boundingBox();
+    expect(inputBounds).not.toBeNull();
+    expect((inputBounds?.y || 0) + (inputBounds?.height || 0)).toBeLessThanOrEqual(
+      620,
+    );
+    expect(inputBounds?.y || 0).toBeGreaterThan(450);
+    expect(await user.page.evaluate(() => window.scrollY)).toBe(0);
     await messageItem.hover();
     await messageItem.getByRole("button", { name: "Message actions" }).click();
     const deleteResponsePromise = user.page.waitForResponse(
@@ -1124,7 +1190,7 @@ test("login and dashboard have no serious accessibility violations", async ({
   const page = await context.newPage();
 
   try {
-    await page.goto("/auth-login");
+    await page.goto("/auth-login", { waitUntil: "domcontentloaded" });
     const loginResults = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa"])
       .analyze();
@@ -1137,7 +1203,7 @@ test("login and dashboard have no serious accessibility violations", async ({
     await page.evaluate(authUser => {
       window.localStorage.setItem("authUser", JSON.stringify(authUser));
     }, toFrontendAuthUser(sessions.user1));
-    await page.goto("/dashboard");
+    await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
     await expect(
       page.getByRole("heading", { name: "Chats", exact: true }),
     ).toBeVisible();
@@ -1391,6 +1457,105 @@ test("group messages arrive in the other participant's open conversation", async
     await expect(user2Page.getByText(reply, { exact: true })).toHaveCount(1);
   } finally {
     await closeContexts(user1Context, user2Context);
+  }
+});
+
+test("users can answer, mute, and end a direct audio call", async ({
+  browser,
+  request,
+}) => {
+  const response = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+    data: { participantId: sessions.user2.user.id },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+
+  const [caller, recipient] = await Promise.all([
+    createAuthenticatedPage(browser, sessions.user1, {
+      permissions: ["microphone"],
+    }),
+    createAuthenticatedPage(browser, sessions.user2, {
+      permissions: ["microphone"],
+      viewport: { width: 390, height: 844 },
+    }),
+  ]);
+
+  try {
+    await openConversation(caller.page, sessions.user2.user.username);
+    await caller.page
+      .getByRole("button", { name: "Conversation details", exact: true })
+      .click();
+    await caller.page
+      .getByRole("button", { name: "Start audio call", exact: true })
+      .click();
+
+    const incomingDialog = recipient.page.getByRole("dialog");
+    await expect(
+      incomingDialog.getByText("Incoming audio call", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      incomingDialog.getByRole("heading", {
+        name: sessions.user1.user.username,
+        exact: true,
+      }),
+    ).toBeVisible();
+    await incomingDialog
+      .getByRole("button", { name: "Answer audio call", exact: true })
+      .click();
+
+    await expect(
+      caller.page.getByText("Connected", { exact: true }),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      recipient.page.getByText("Connected", { exact: true }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    const muteButton = caller.page.getByRole("button", {
+      name: "Mute microphone",
+      exact: true,
+    });
+    await muteButton.click();
+    await expect(
+      caller.page.getByRole("button", {
+        name: "Unmute microphone",
+        exact: true,
+      }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    await caller.page
+      .getByRole("button", { name: "End audio call", exact: true })
+      .click();
+    await expect(caller.page.getByRole("dialog")).toHaveCount(0);
+    await expect(
+      recipient.page.getByText("Call ended", { exact: true }),
+    ).toBeVisible();
+    await recipient.page.getByRole("button", { name: "Close" }).click();
+
+    await caller.page.locator("#pills-calls-tab").click();
+    await expect(
+      caller.page.getByRole("heading", { name: "Calls", exact: true }),
+    ).toBeVisible();
+    const callerHistory = caller.page
+      .locator(".call-history-item")
+      .filter({ hasText: sessions.user2.user.username })
+      .first();
+    await expect(callerHistory).toContainText("Completed");
+    await expect(callerHistory).toContainText(/(< 1s|\d{2}:\d{2})/);
+    await expect(
+      callerHistory.getByRole("button", {
+        name: `Call ${sessions.user2.user.username}`,
+        exact: true,
+      }),
+    ).toBeEnabled();
+
+    await recipient.page.locator("#pills-calls-tab").click();
+    const recipientHistory = recipient.page
+      .locator(".call-history-item")
+      .filter({ hasText: sessions.user1.user.username })
+      .first();
+    await expect(recipientHistory).toContainText("Completed");
+  } finally {
+    await closeContexts(caller.context, recipient.context);
   }
 });
 

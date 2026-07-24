@@ -41,6 +41,15 @@ enum ContactInvitationStatus {
   declined
 }
 
+enum CallStatus {
+  ringing
+  active
+  completed
+  missed
+  declined
+  failed
+}
+
 enum SupportTicketPriority {
   low
   medium
@@ -86,6 +95,9 @@ model User {
   receivedContactInvitations ContactInvitation[]       @relation("ContactInvitationRecipient")
   messageBookmarks           MessageBookmark[]
   conversationPreferences    ConversationPreference[]
+  callsPlaced                CallRecord[]               @relation("CallCaller")
+  callsReceived              CallRecord[]               @relation("CallRecipient")
+  callsEnded                 CallRecord[]               @relation("CallEndedBy")
 
   @@index([role])
   @@map("users")
@@ -168,6 +180,7 @@ model Conversation {
   messages               Message[]
   participants           ConversationParticipant[]
   preferences            ConversationPreference[]
+  calls                  CallRecord[]
 
   @@index([type])
   @@index([createdBy])
@@ -247,6 +260,29 @@ model ConversationPreference {
   @@index([userId, isArchived])
   @@index([userId, isDeleted])
   @@map("conversation_preferences")
+}
+
+model CallRecord {
+  id             String       @id @db.Uuid
+  conversationId String       @db.Uuid
+  callerId       String       @db.Uuid
+  recipientId    String       @db.Uuid
+  status         CallStatus   @default(ringing)
+  startedAt      DateTime     @default(now())
+  answeredAt     DateTime?
+  endedAt        DateTime?
+  endedReason    String?
+  endedById      String?      @db.Uuid
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  caller         User         @relation("CallCaller", fields: [callerId], references: [id], onDelete: Cascade)
+  recipient      User         @relation("CallRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  endedBy        User?        @relation("CallEndedBy", fields: [endedById], references: [id], onDelete: SetNull)
+
+  @@index([callerId, startedAt])
+  @@index([recipientId, startedAt])
+  @@index([conversationId, startedAt])
+  @@index([status])
+  @@map("call_records")
 }
 
 model MessageAttachment {

@@ -81,12 +81,12 @@ demo hesaplari hazirlanir:
 
 | Bot ID | Rol   | Kullanici adi  | E-posta                 | Sifre    |
 | ------ | ----- | -------------- | ----------------------- | -------- |
-| `1`    | Admin | `emiradmin`    | `emiradmin@ello.com`     | `123456` |
-| `2`    | User  | `emiruser`     | `emiruser@ello.com`      | `123456` |
-| `3`    | Admin | `aslıadmin`    | `asliadmin@ello.com`     | `123456` |
-| `4`    | User  | `aslıuser`     | `asliuser@ello.com`      | `123456` |
-| `5`    | Admin | `gülsimaadmin` | `gulsimaadmin@ello.com`  | `123456` |
-| `6`    | User  | `gülsimauser`  | `gulsimauser@ello.com`   | `123456` |
+| `1`    | Admin | `emiradmin`    | `emiradmin@ello.com`    | `123456` |
+| `2`    | User  | `emiruser`     | `emiruser@ello.com`     | `123456` |
+| `3`    | Admin | `aslıadmin`    | `asliadmin@ello.com`    | `123456` |
+| `4`    | User  | `aslıuser`     | `asliuser@ello.com`     | `123456` |
+| `5`    | Admin | `gülsimaadmin` | `gulsimaadmin@ello.com` | `123456` |
+| `6`    | User  | `gülsimauser`  | `gulsimauser@ello.com`  | `123456` |
 
 Bot endpointlerindeki `participantIds`, `managerIds`, `ownerId` ve URL'deki
 `userId` alanlari built-in hesaplar icin UUID yerine bu kisa Bot ID degerlerini
@@ -167,6 +167,15 @@ adresler `http://localhost:3000/api` ve `http://localhost:3000/chat` olur.
 Mesajlar socket bagliyken ACK ile gonderilir, baglanti yoksa ayni
 `clientMessageId` ile REST fallback kullanilir.
 
+Birebir sesli aramalar WebRTC kullanir. Socket.IO yalnizca yetkili iki
+kullanici arasindaki arama sinyallerini tasir; ses sunucuda depolanmaz.
+Gelen, giden, tamamlanan, reddedilen ve cevapsiz aramalar PostgreSQL'deki
+cagri gecmisine yazilir ve Calls sekmesinde gosterilir.
+`REACT_APP_WEBRTC_ICE_SERVERS` JSON listesiyle STUN/TURN sunuculari
+yapilandirilir. `localhost` disindaki mikrofon erisimi icin frontend HTTPS
+uzerinden sunulmalidir. Farkli aglar arasinda guvenilir baglanti icin production
+ortaminda kimlik dogrulamali bir TURN sunucusu kullanilmalidir.
+
 Frontend kontrolleri:
 
 ```bash
@@ -177,8 +186,10 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Playwright testi development hesaplariyla admin login, direct message ve group
-message akislarini gercek frontend, backend ve Socket.IO uzerinde kontrol eder.
+Playwright test backend'i bilerek in-memory calisir; yerel PostgreSQL'e test
+kullanicisi veya sohbeti yazmaz. Test development hesaplariyla admin login,
+direct message, group message, presence ve birebir WebRTC sesli arama
+akislarini gercek frontend, backend ve Socket.IO uzerinde kontrol eder.
 
 ## Ana Ozellikler
 
@@ -194,6 +205,8 @@ message akislarini gercek frontend, backend ve Socket.IO uzerinde kontrol eder.
 - Message pagination
 - Conversation icinde mesaj arama
 - Kullaniciya ozel kalici mesaj bookmark'lari
+- Kalici birebir sesli arama gecmisi
+- Socket oturumuna dayali gercek zamanli online/offline durumu
 - Read tracking
 - Participant add/remove
 - Socket.IO realtime messaging

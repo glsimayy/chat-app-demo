@@ -10,6 +10,7 @@ import classnames from "classnames";
 
 // constants
 import { STATUS_TYPES } from "../../../constants";
+import { usePresence } from "../../../features/presence/PresenceProvider";
 interface ProfileUserProps {
   onCloseUserDetails: () => any;
   chatUserDetails: any;
@@ -24,6 +25,7 @@ const ProfileUser = ({
   onOpenVideo,
   isChannel,
 }: ProfileUserProps) => {
+  const { isOnline } = usePresence();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const toggle = () => setDropdownOpen(!dropdownOpen);
 
@@ -36,6 +38,8 @@ const ProfileUser = ({
   const initials = String(fullName || "U")
     .slice(0, 2)
     .toUpperCase();
+  const online = !isChannel && isOnline(chatUserDetails.participantId);
+  const displayedStatus = online ? STATUS_TYPES.ACTIVE : STATUS_TYPES.OFFLINE;
 
   return (
     <div className="p-3 border-bottom">
@@ -156,7 +160,7 @@ const ProfileUser = ({
                   ? "BOT managed | No human owner"
                   : "Human-owned group"}
               </p>
-            ) : chatUserDetails.status ? (
+            ) : (
               <p className="font-size-14 text-truncate mb-0">
                 <i
                   className={classnames(
@@ -167,21 +171,16 @@ const ProfileUser = ({
                     "ms-0",
                     {
                       "text-success":
-                        chatUserDetails.status === STATUS_TYPES.ACTIVE,
+                        displayedStatus === STATUS_TYPES.ACTIVE,
                     },
                     {
-                      "text-warning":
-                        chatUserDetails.status === STATUS_TYPES.AWAY,
-                    },
-                    {
-                      "text-danger":
-                        chatUserDetails.status === STATUS_TYPES.DO_NOT_DISTURB,
+                      "text-muted": displayedStatus === STATUS_TYPES.OFFLINE,
                     },
                   )}
                 ></i>{" "}
-                {chatUserDetails.status}
+                {displayedStatus}
               </p>
-            ) : null}
+            )}
           </div>
         </div>
       </div>

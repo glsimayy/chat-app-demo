@@ -11,6 +11,7 @@ Bu dokuman Main Backend, Java ve Database tarafinin ayni kontrata gore calismasi
 - Demo test ekrani: `GET /demo` (`SERVE_DEMO_UI=true`)
 - Socket.IO namespace: `/chat`
 - Admin metrics: `GET /api/metrics`
+- Current user call history: `GET /api/calls`
 - Postman collection: `docs/postman/chat-app-demo.postman_collection.json`
 
 ## Env Notlari
@@ -47,6 +48,9 @@ npm run test:load
 reconnect sync, tekrar mesaj korumasi, bot group ve group rename akislarini
 kontrol eder. `test:load` varsayilan olarak 5 socket ile 50 mesaj gonderir ve
 throughput ile ACK p50/p95/max surelerini raporlar.
+
+Frontend Playwright backend'i `DATABASE_URL` vermeden in-memory calistirir.
+Tarayici testleri local PostgreSQL verisini degistirmez.
 
 ## Genel Response Formati
 

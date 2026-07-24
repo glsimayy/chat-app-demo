@@ -67,6 +67,8 @@ const AttachedFiles = ({
               color="none"
               className="btn avatar-sm p-0"
               onClick={onOpenAudio}
+              aria-label="Start audio call"
+              title="Start audio call"
             >
               <span className="avatar-title rounded bg-light text-body">
                 <i className="bx bxs-phone-call"></i>
@@ -84,6 +86,8 @@ const AttachedFiles = ({
               type="button"
               className="btn avatar-sm p-0"
               onClick={onOpenVideo}
+              aria-label="Video calls are not available in this release"
+              title="Video calls are not available in this release"
             >
               <span className="avatar-title rounded bg-light text-body">
                 <i className="bx bx-video"></i>

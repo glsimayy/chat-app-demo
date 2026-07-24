@@ -24,6 +24,7 @@ export const DisplayTypes: Array<DisplayOpt> = [
 
 export enum STATUS_TYPES {
   ACTIVE = "Active",
+  OFFLINE = "Offline",
   AWAY = "Away",
   DO_NOT_DISTURB = "Do not disturb",
 }

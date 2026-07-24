@@ -173,7 +173,22 @@ const Conversation = ({
       const messageElement = document.querySelector<HTMLElement>(
         `[data-message-id="${String(focusedMessageId)}"]`,
       );
-      messageElement?.scrollIntoView({ behavior: "auto", block: "center" });
+      const scrollContainer = ref.current?.getScrollElement?.();
+      if (!messageElement || !scrollContainer) {
+        return;
+      }
+
+      const messageBounds = messageElement.getBoundingClientRect();
+      const containerBounds = scrollContainer.getBoundingClientRect();
+      const targetTop =
+        scrollContainer.scrollTop +
+        messageBounds.top -
+        containerBounds.top -
+        (scrollContainer.clientHeight - messageBounds.height) / 2;
+      scrollContainer.scrollTo({
+        top: Math.max(0, targetTop),
+        behavior: "auto",
+      });
     }, 50);
 
     return () => window.clearTimeout(timer);

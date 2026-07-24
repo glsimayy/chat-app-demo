@@ -75,7 +75,11 @@ const BookMark = ({ bookmark, onOpen, onUpdate, onDelete }: BookMarkProps) => {
                   aria-hidden="true"
                 ></i>
               </DropdownToggle>
-              <DropdownMenu className="dropdown-menu-end">
+              <DropdownMenu
+                className="dropdown-menu-end saved-message-actions-menu"
+                container="body"
+                strategy="fixed"
+              >
                 <DropdownItem
                   onClick={() => onOpen(bookmark)}
                   className="d-flex align-items-center justify-content-between"

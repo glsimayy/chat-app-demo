@@ -33,6 +33,7 @@ Frontend build:
 REACT_APP_DEFAULTAUTH=fake
 REACT_APP_API_URL=https://api.example.com/api
 REACT_APP_SOCKET_URL=https://api.example.com/chat
+REACT_APP_WEBRTC_ICE_SERVERS=[{"urls":"stun:stun.example.com:3478"},{"urls":"turn:turn.example.com:3478","username":"ello","credential":"replace-with-secret"}]
 ```
 
 Java webhook environment degerleri `java-webhook/README.md` ile ayni tutulur.
@@ -60,6 +61,9 @@ Detayli akis: `docs/full-stack-docker.md`
 - [x] Production ADMIN bootstrap temiz database'de dogrulandi.
 - [x] Database ve Java release paketleri Main Backend ile birlestirildi.
 - [x] Birlesik final Docker Compose stack smoke testi gecti.
+- [x] Iki oturumlu birebir WebRTC sesli arama, mute ve kapatma testi gecti.
+- [x] Cagri gecmisi, presence ve kucuk viewport bookmark odaklama testleri gecti.
+- [ ] Production HTTPS ve TURN sunucusu iki farkli agda dogrulandi.
 - [ ] Iki farkli cihazda direct ve group realtime mesajlasma calisti.
 - [x] USER ve ADMIN yetki kontrolleri gecti.
 - [x] Ayni ticket iki kez geldiginde tek bot grubu olustu.
@@ -88,3 +92,4 @@ Tag, kalite kapilari kapanmadan atilmaz.
 - Gelismis monitoring ve alarm sistemi
 - Dosya yukleme
 - Masaustu `.exe` paketleme
+- Grup aramasi, goruntulu arama, ekran paylasimi ve arama kaydi

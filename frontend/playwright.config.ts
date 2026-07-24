@@ -7,6 +7,7 @@ export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
   workers: 1,
+  timeout: 60_000,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["line"], ["html", { open: "never" }]] : "list",
   use: {
@@ -18,7 +19,15 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        launchOptions: {
+          args: [
+            "--use-fake-ui-for-media-stream",
+            "--use-fake-device-for-media-stream",
+          ],
+        },
+      },
     },
   ],
   webServer: [
@@ -34,8 +43,11 @@ export default defineConfig({
         API_PREFIX: "api",
         CORS_ORIGIN: `${frontendUrl},http://localhost:5173`,
         SWAGGER_ENABLED: "false",
+        DATABASE_URL: "",
         JWT_SECRET: "playwright-jwt-secret-with-at-least-32-characters",
         BOT_WEBHOOK_SECRET: "playwright-bot-secret-with-at-least-32-characters",
+        RATE_LIMIT_MAX: "10000",
+        SOCKET_RATE_LIMIT_MAX: "10000",
       },
     },
     {

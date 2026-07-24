@@ -2,10 +2,14 @@ import {
   ArrayMaxSize,
   ArrayUnique,
   IsArray,
+  IsIn,
+  IsInt,
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   MaxLength,
+  Min,
   MinLength,
 } from "class-validator";
 
@@ -53,4 +57,51 @@ export class SyncConversationsPayloadDto {
   @ArrayMaxSize(100)
   @IsUUID("4", { each: true })
   conversationIds!: string[];
+}
+
+export class StartCallPayloadDto extends ConversationEventPayloadDto {
+  @IsUUID("4")
+  targetUserId!: string;
+}
+
+export class CallEventPayloadDto {
+  @IsUUID("4")
+  callId!: string;
+}
+
+export class RejectCallPayloadDto extends CallEventPayloadDto {
+  @IsOptional()
+  @IsIn(["declined", "busy"])
+  reason?: "declined" | "busy";
+}
+
+export class CallSignalPayloadDto extends CallEventPayloadDto {
+  @IsIn(["offer", "answer", "ice-candidate"])
+  signalType!: "offer" | "answer" | "ice-candidate";
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20000)
+  sdp?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4096)
+  candidate?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  sdpMid?: string | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(65535)
+  sdpMLineIndex?: number | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  usernameFragment?: string | null;
 }
