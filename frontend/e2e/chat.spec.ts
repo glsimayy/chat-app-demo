@@ -611,7 +611,7 @@ test("profile details and image are saved through settings", async ({
   }
 });
 
-test("direct messages arrive in the other user's open conversation", async ({
+test("direct messages update unread state and open chats without popups", async ({
   browser,
   request,
 }) => {
@@ -626,21 +626,26 @@ test("direct messages arrive in the other user's open conversation", async ({
 
   try {
     await openConversation(user1Page, "aslıuser");
-    await openConversation(user2Page, "emiruser");
 
     const message = `direct-e2e-${Date.now()}`;
     await user1Page.locator("#chat-input").fill(message);
     await user1Page.locator("#chat-input").press("Enter");
 
     await expect(user1Page.getByText(message, { exact: true })).toBeVisible();
-    await expect(user2Page.getByText(message, { exact: true })).toBeVisible();
     await expect(user1Page.getByText(message, { exact: true })).toHaveCount(1);
+    const user2Conversation = user2Page
+      .locator(".chat-user-list li")
+      .filter({ hasText: "emiruser" })
+      .first();
+    await expect(
+      user2Conversation.locator(".badge.badge-soft-dark"),
+    ).toHaveText("1");
+    await user2Page.waitForTimeout(750);
+    await expect(user2Page.locator(".incoming-message-toast")).toHaveCount(0);
+
+    await openConversation(user2Page, "emiruser");
+    await expect(user2Page.getByText(message, { exact: true })).toBeVisible();
     await expect(user2Page.getByText(message, { exact: true })).toHaveCount(1);
-    const incomingToast = user2Page
-      .locator(".incoming-message-toast")
-      .filter({ hasText: message });
-    await expect(incomingToast).toBeVisible();
-    await expect(incomingToast).toContainText("emiruser in emiruser");
 
     const reply = `direct-reply-e2e-${Date.now()}`;
     await user2Page.locator("#chat-input").fill(reply);
@@ -650,6 +655,8 @@ test("direct messages arrive in the other user's open conversation", async ({
     await expect(user2Page.getByText(reply, { exact: true })).toBeVisible();
     await expect(user1Page.getByText(reply, { exact: true })).toHaveCount(1);
     await expect(user2Page.getByText(reply, { exact: true })).toHaveCount(1);
+    await user1Page.waitForTimeout(750);
+    await expect(user1Page.locator(".incoming-message-toast")).toHaveCount(0);
   } finally {
     await closeContexts(user1Context, user2Context);
   }
@@ -1217,12 +1224,16 @@ test("the core chat flow fits a mobile viewport without horizontal overflow", as
     }));
     expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth + 1);
 
+    await expect
+      .poll(async () => {
+        const box = await user.page.locator("#chat-input").boundingBox();
+        return box ? box.x + box.width : Number.POSITIVE_INFINITY;
+      })
+      .toBeLessThanOrEqual(layout.viewportWidth);
+
     const inputBox = await user.page.locator("#chat-input").boundingBox();
     expect(inputBox).not.toBeNull();
     expect(inputBox?.x ?? -1).toBeGreaterThanOrEqual(0);
-    expect((inputBox?.x ?? 0) + (inputBox?.width ?? 0)).toBeLessThanOrEqual(
-      390,
-    );
   } finally {
     await user.context.close();
   }

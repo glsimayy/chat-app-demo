@@ -601,23 +601,6 @@ body[data-bs-theme="light"] .chat-leftsidebar .text-muted {
   }
 }
 
-.incoming-message-toast {
-  min-height: 76px;
-  border-left: 5px solid var(--bs-primary);
-  background-color: var(--bs-body-bg);
-  color: var(--bs-body-color);
-  box-shadow: 0 12px 30px rgba(16, 24, 40, 0.24);
-  font-weight: 500;
-
-  .Toastify__toast-icon {
-    width: 26px;
-  }
-
-  .Toastify__close-button {
-    color: var(--bs-body-color);
-  }
-}
-
 .support-panel {
   height: 100vh;
 

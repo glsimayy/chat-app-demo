@@ -82,6 +82,9 @@ Do not touch the untracked output/ directory.
 - Existing direct-conversation participants are available in the group member
   picker, and their profile is shown as an existing contact instead of offering
   a duplicate invitation.
+- Incoming messages no longer create popup notifications. Socket-driven
+  in-chat updates, unread state/badges, list refreshes, and hidden-tab title
+  notifications remain active.
 - Saved Messages menus stay inside the viewport.
 - Opening a bookmarked message scrolls only the conversation container and does
   not move the page or composer.
@@ -98,20 +101,6 @@ Last complete verification:
 - Full Docker Compose build, migration, and health checks passed.
 
 ## Open Bugs
-
-### BUG-1: Duplicate popup notifications
-
-Observed:
-
-- Each incoming message can display the same popup notification twice.
-
-Decision:
-
-- Remove/disable these popup message notifications completely.
-- Realtime messages, unread state, badges, and in-chat updates must continue to
-  work.
-
-Do not merely deduplicate the popup unless the user changes this decision.
 
 ### BUG-3: Bot API idempotency response is unclear
 
@@ -146,6 +135,21 @@ A genuinely new group currently requires a new value such as
 `friends-test-20260724-2`.
 
 ## Resolved Bugs
+
+### BUG-1: Duplicate popup notifications
+
+Resolved on `codex/disable-message-popups`:
+
+- Removed the dedicated incoming-message toast, its click-to-open behavior, and
+  its custom styling.
+- `message:new` still refreshes conversation lists so unread state and badges
+  update immediately.
+- Messages still appear in an open conversation without refresh, and hidden
+  tabs still temporarily identify the sender in the document title.
+- Playwright verifies the unread badge, popup absence, and realtime
+  bidirectional direct messaging.
+- The mobile viewport E2E assertion now waits for the chat panel transition to
+  settle before measuring the composer.
 
 ### BUG-2: Direct message and Contact relationship gap
 
@@ -196,11 +200,10 @@ User validation completed:
 
 Recommended priority on the desktop:
 
-1. Disable the popup layer for BUG-1 without affecting realtime/unread state.
-2. Improve the API contract and tests for BUG-3.
-3. Run backend tests, frontend tests, production builds, targeted E2E tests,
+1. Improve the API contract and tests for BUG-3.
+2. Run backend tests, frontend tests, production builds, targeted E2E tests,
    then the full E2E suite.
-4. Commit to a focused `codex/` branch, merge to `main`, and push only after
+3. Commit to a focused `codex/` branch, merge to `main`, and push only after
    verification.
 
 ## Test Accounts

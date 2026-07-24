@@ -16,16 +16,11 @@ import Welcome from "./ConversationUser/Welcome";
 import {
   changeSelectedChat,
   getChannels,
-  getChannelDetails,
-  getChatUserConversations,
-  getChatUserDetails,
   getDirectMessages,
-  readConversation,
 } from "../../redux/actions";
 import { getChatSocket } from "../../api/realtime";
 import { getCurrentAuthUser } from "../../api/backendAdapters";
 import { getUsers } from "../../api/chats";
-import { showIncomingMessageNotification } from "../../helpers/notifications";
 import { AudioCallProvider } from "../../features/audio-call/AudioCallProvider";
 import { PresenceProvider } from "../../features/presence/PresenceProvider";
 
@@ -42,13 +37,10 @@ const Index = (props: IndexProps) => {
     state => ({
       selectedChat: state.selectedChat,
       error: state.error,
-      channels: state.channels,
-      directMessages: state.directMessages,
     }),
   );
   // Inside your component
-  const { selectedChat, error, channels, directMessages } =
-    useAppSelector(errorData);
+  const { selectedChat, error } = useAppSelector(errorData);
 
   const retryChatLists = () => {
     dispatch(getDirectMessages());
@@ -66,61 +58,31 @@ const Index = (props: IndexProps) => {
       dispatch(getDirectMessages());
       dispatch(getChannels());
     };
-    const openConversation = (conversationId: string, isChannel: boolean) => {
-      dispatch(
-        isChannel
-          ? getChannelDetails(conversationId)
-          : getChatUserDetails(conversationId),
-      );
-      dispatch(getChatUserConversations(conversationId));
-      dispatch(readConversation(conversationId));
-      dispatch(changeSelectedChat(conversationId));
-    };
     const handleNewMessage = async (event: any) => {
       refreshConversationLists();
 
       const currentUser = getCurrentAuthUser();
-      if (!event?.conversationId || event?.senderId === currentUser?.id) {
+      if (
+        !document.hidden ||
+        !event?.conversationId ||
+        event?.senderId === currentUser?.id
+      ) {
         return;
       }
 
-      const channel = (channels || []).find(
-        (item: any) => String(item.id) === String(event.conversationId),
-      );
-      const direct = (directMessages || []).find(
-        (item: any) => String(item.id) === String(event.conversationId),
-      );
-      const conversation = channel || direct;
-      const directName = [direct?.firstName, direct?.lastName]
-        .filter(Boolean)
-        .join(" ");
-      const conversationName = channel?.name || directName || "a conversation";
       const users = event?.senderId ? await getUsers().catch(() => []) : [];
       const sender = users.find((user: any) => user.id === event.senderId);
       const senderName =
         event?.sender?.username ||
         event?.senderName ||
         sender?.username ||
-        directName ||
         (event?.senderId ? "A participant" : "ellO");
 
-      showIncomingMessageNotification({
-        senderName,
-        conversationName,
-        content: event?.content || "New message",
-        onOpen: conversation
-          ? () =>
-              openConversation(String(event.conversationId), Boolean(channel))
-          : undefined,
-      });
-
-      if (document.hidden) {
-        const previousTitle = document.title;
-        document.title = `New message from ${senderName} | ellO`;
-        window.setTimeout(() => {
-          document.title = previousTitle;
-        }, 5000);
-      }
+      const previousTitle = document.title;
+      document.title = `New message from ${senderName} | ellO`;
+      window.setTimeout(() => {
+        document.title = previousTitle;
+      }, 5000);
     };
     const handleConversationLeft = (event: any) => {
       refreshConversationLists();
@@ -157,7 +119,7 @@ const Index = (props: IndexProps) => {
       socket.off("message:new", handleNewMessage);
       socket.off("conversation:left", handleConversationLeft);
     };
-  }, [channels, directMessages, dispatch, selectedChat]);
+  }, [dispatch, selectedChat]);
 
   const { isChannel } = useConversationUserType();
 
