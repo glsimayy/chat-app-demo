@@ -12,9 +12,8 @@ const FRONTEND_BASE_URL =
 const API_BASE_URL = process.env.API_BASE_URL ?? `${FRONTEND_BASE_URL}/api`;
 const SOCKET_URL = process.env.SOCKET_URL ?? `${FRONTEND_BASE_URL}/chat`;
 const JAVA_BASE_URL = process.env.JAVA_BASE_URL ?? "http://localhost:8080";
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "admin@example.com";
-const ADMIN_PASSWORD =
-  process.env.ADMIN_PASSWORD ?? "Change-This-Admin-Password!42";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "emiradmin@ello.com";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "123456";
 const WEBHOOK_SECRET =
   process.env.WEBHOOK_SECRET ??
   "local-compose-incoming-secret-change-before-production";

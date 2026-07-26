@@ -18,7 +18,6 @@ Copy-Item .env.compose.example .env
 - `JWT_SECRET`
 - `BOT_WEBHOOK_SECRET`
 - `WEBHOOK_SECRET`
-- `ADMIN_PASSWORD`
 
 `POSTGRES_PASSWORD` ile `DATABASE_URL` icindeki parola ayni olmalidir.
 Compose, `JWT_SECRET`, `BOT_WEBHOOK_SECRET` ve `WEBHOOK_SECRET` eksikse
@@ -45,12 +44,12 @@ Adresler:
 - Backend health: `http://localhost:3000/api/health`
 - Java health: `http://localhost:8080/health`
 - Java readiness: `http://localhost:8080/ready`
-- Swagger UI (yalnizca `SWAGGER_ENABLED=true` ise):
-  `http://localhost:3000/api/docs`
+- Swagger UI: `http://localhost:3000/api/docs`
 
-Yerel Compose calismasinda Swagger varsayilan olarak kapalidir. Gerektiginde
-`.env` icinde gecici olarak `SWAGGER_ENABLED=true` yapilabilir. Demo
-kullanicilar, dev reset ve demo UI production profilinde kapalidir.
+Yerel Compose calismasinda Swagger varsayilan olarak aciktir. Gerektiginde
+`.env` icinde `SWAGGER_ENABLED=false` yapilarak kapatilabilir. Demo
+kullanicilar `built-in-users-bootstrap` servisiyle korunur; dev reset ve demo UI
+production profilinde kapalidir.
 
 PostgreSQL, backend ve Java webhook host portlari yalnizca `127.0.0.1`
 adresine baglanir. Ayni agdaki cihazlar ve gecici tunnel yalnizca frontend
@@ -81,8 +80,9 @@ npm.cmd run test:full-stack
 
 Test mevcut verileri silmez. `fullstack-user1@ello.local` ve
 `fullstack-user2@ello.local` hesaplarini ilk calismada olusturur, sonraki
-calismalarda ayni hesaplari yeniden kullanir. Compose ADMIN veya webhook
-secret degerleri `.env` ile degistirildiyse test de ayni dosyayi okur.
+calismalarda ayni hesaplari yeniden kullanir. Varsayilan olarak sabit
+`emiradmin` test hesabini kullanir. Farkli bir admin veya webhook secret
+kullanilacaksa test bu degerleri kok `.env` dosyasindan okur.
 
 ```powershell
 docker compose ps
