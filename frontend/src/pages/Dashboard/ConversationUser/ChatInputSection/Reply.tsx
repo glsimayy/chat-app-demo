@@ -30,7 +30,7 @@ const Reply = ({ reply, onSetReplyData, chatUserDetails }: ReplyProps) => {
 
   const replyUserName = chatUserDetails.firstName
     ? `${chatUserDetails.firstName} ${chatUserDetails.lastName}`
-    :reply && reply.meta.userData?.firstName;
+    : reply && reply.meta.userData?.firstName;
   const isReplyFromMe =
     reply && reply.meta.sender + "" === userProfile.uid + "";
 
@@ -63,6 +63,7 @@ const Reply = ({ reply, onSetReplyData, chatUserDetails }: ReplyProps) => {
               <button
                 type="button"
                 className="btn btn-sm btn-link mt-n2 me-n3 font-size-18"
+                aria-label="Cancel reply"
                 onClick={onClose}
               >
                 <i className="bx bx-x align-middle"></i>

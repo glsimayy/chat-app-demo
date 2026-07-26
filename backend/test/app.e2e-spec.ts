@@ -149,6 +149,7 @@ describe("App e2e", () => {
     const payload = {
       content: "Exactly once",
       clientMessageId: crypto.randomUUID(),
+      isForwarded: true,
     };
 
     const first = await request(app.getHttpServer())
@@ -167,12 +168,132 @@ describe("App e2e", () => {
       .expect(200);
 
     expect(retry.body.data.id).toBe(first.body.data.id);
+    expect(first.body.data.isForwarded).toBe(true);
     expect(
       history.body.data.items.filter(
         (message: { clientMessageId?: string }) =>
           message.clientMessageId === payload.clientMessageId,
       ),
     ).toHaveLength(1);
+  });
+
+  it("marks a conversation unread from a selected message", async () => {
+    const sender = await createAuthUser("unread_sender");
+    const recipient = await createAuthUser("unread_recipient");
+    const direct = await request(app.getHttpServer())
+      .post("/api/conversations/direct")
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .send({ participantId: recipient.user.id })
+      .expect(201);
+    const conversationId = direct.body.data.id;
+
+    const firstMessage = await request(app.getHttpServer())
+      .post(`/api/conversations/${conversationId}/messages`)
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .send({ content: "First unread message" })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/api/conversations/${conversationId}/messages`)
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .send({ content: "Second unread message" })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(`/api/conversations/${conversationId}/read`)
+      .set("authorization", `Bearer ${recipient.accessToken}`)
+      .expect(200);
+
+    const markedUnread = await request(app.getHttpServer())
+      .patch(
+        `/api/conversations/${conversationId}/messages/${firstMessage.body.data.id}/unread`,
+      )
+      .set("authorization", `Bearer ${recipient.accessToken}`)
+      .expect(200);
+
+    expect(markedUnread.body.data).toMatchObject({
+      conversationId,
+      unreadCount: 2,
+    });
+
+    const conversations = await request(app.getHttpServer())
+      .get("/api/conversations")
+      .set("authorization", `Bearer ${recipient.accessToken}`)
+      .expect(200);
+    const summary = conversations.body.data.items.find(
+      (item: { id: string }) => item.id === conversationId,
+    );
+    expect(summary.unreadCount).toBe(2);
+  });
+
+  it("persists replies and rejects targets from another conversation", async () => {
+    const sender = await createAuthUser("reply_sender");
+    const recipient = await createAuthUser("reply_recipient");
+    const outsider = await createAuthUser("reply_outsider");
+    const direct = await request(app.getHttpServer())
+      .post("/api/conversations/direct")
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .send({ participantId: recipient.user.id })
+      .expect(201);
+    const conversationId = direct.body.data.id;
+    const original = await request(app.getHttpServer())
+      .post(`/api/conversations/${conversationId}/messages`)
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .send({ content: "Which room is the presentation in?" })
+      .expect(201);
+
+    const reply = await request(app.getHttpServer())
+      .post(`/api/conversations/${conversationId}/messages`)
+      .set("authorization", `Bearer ${recipient.accessToken}`)
+      .send({
+        content: "Meeting room three.",
+        replyToMessageId: original.body.data.id,
+      })
+      .expect(201);
+
+    expect(reply.body.data).toMatchObject({
+      replyToMessageId: original.body.data.id,
+      replyTo: {
+        id: original.body.data.id,
+        senderId: sender.user.id,
+        content: "Which room is the presentation in?",
+      },
+    });
+
+    const history = await request(app.getHttpServer())
+      .get(`/api/conversations/${conversationId}/messages`)
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .expect(200);
+    expect(
+      history.body.data.items.find(
+        (message: { id: string }) => message.id === reply.body.data.id,
+      ),
+    ).toMatchObject({
+      replyToMessageId: original.body.data.id,
+      replyTo: {
+        id: original.body.data.id,
+        content: "Which room is the presentation in?",
+      },
+    });
+
+    const otherDirect = await request(app.getHttpServer())
+      .post("/api/conversations/direct")
+      .set("authorization", `Bearer ${recipient.accessToken}`)
+      .send({ participantId: outsider.user.id })
+      .expect(201);
+    const foreignMessage = await request(app.getHttpServer())
+      .post(`/api/conversations/${otherDirect.body.data.id}/messages`)
+      .set("authorization", `Bearer ${outsider.accessToken}`)
+      .send({ content: "Message from another conversation" })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/api/conversations/${conversationId}/messages`)
+      .set("authorization", `Bearer ${recipient.accessToken}`)
+      .send({
+        content: "This reply target must be rejected",
+        replyToMessageId: foreignMessage.body.data.id,
+      })
+      .expect(404);
   });
 
   it("stores attachments and restricts downloads to conversation members", async () => {
@@ -193,6 +314,7 @@ describe("App e2e", () => {
       .set("authorization", `Bearer ${sender.accessToken}`)
       .field("content", "Persistent release screenshot")
       .field("clientMessageId", crypto.randomUUID())
+      .field("isForwarded", "true")
       .attach("files", image, {
         filename: "release.png",
         contentType: "image/png",
@@ -201,6 +323,7 @@ describe("App e2e", () => {
 
     expect(created.body.data).toMatchObject({
       content: "Persistent release screenshot",
+      isForwarded: true,
       attachments: [
         expect.objectContaining({
           fileName: "release.png",
@@ -216,7 +339,10 @@ describe("App e2e", () => {
       .get(`/api/conversations/${direct.body.data.id}/messages`)
       .set("authorization", `Bearer ${recipient.accessToken}`)
       .expect(200);
-    expect(history.body.data.items.at(-1).attachments[0].id).toBe(attachmentId);
+    expect(history.body.data.items.at(-1)).toMatchObject({
+      isForwarded: true,
+      attachments: [expect.objectContaining({ id: attachmentId })],
+    });
 
     const downloaded = await request(app.getHttpServer())
       .get(

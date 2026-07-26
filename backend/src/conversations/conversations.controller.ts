@@ -385,6 +385,22 @@ export class ConversationsController {
     return this.conversationsService.markAsRead(conversationId, user.id);
   }
 
+  @Patch(":conversationId/messages/:messageId/unread")
+  @ApiSuccessResponse(ReadStateResponseDto, {
+    description: "Conversation marked as unread from the selected message",
+  })
+  markAsUnread(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("conversationId") conversationId: string,
+    @Param("messageId") messageId: string,
+  ) {
+    return this.conversationsService.markAsUnread(
+      conversationId,
+      messageId,
+      user.id,
+    );
+  }
+
   @Post(":conversationId/leave")
   @ApiSuccessResponse(ParticipantLeftResponseDto, {
     description: "Current user left the group conversation",

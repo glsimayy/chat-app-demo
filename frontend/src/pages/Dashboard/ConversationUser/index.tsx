@@ -8,6 +8,7 @@ import { createSelector } from "reselect";
 import {
   toggleUserDetailsTab,
   getChannels,
+  getDirectMessages,
   getChatUserDetails,
   getChatUserConversations,
   onSendMessage,
@@ -29,8 +30,13 @@ import { getChatSocket } from "../../../api/realtime";
 import {
   deleteMessage as deleteMessageApi,
   getManagementConversation,
+  markMessageAsUnread as markMessageAsUnreadApi,
   updateMessage as updateMessageApi,
 } from "../../../api/chats";
+import {
+  showErrorNotification,
+  showSuccessNotification,
+} from "../../../helpers/notifications";
 import { getCurrentAuthUser } from "../../../api/backendAdapters";
 import { createClientMessageId } from "../../../utils/clientMessageId";
 import {
@@ -254,6 +260,7 @@ const Index = ({ isChannel }: IndexProps) => {
           conversationId: activeConversationId,
           content,
           clientMessageId,
+          replyToMessageId: replyData?.mId,
         },
         (timeoutError: Error | null, response: any) => {
           if (timeoutError) {
@@ -480,6 +487,23 @@ const Index = ({ isChannel }: IndexProps) => {
     }
   };
 
+  const onMarkMessageAsUnread = async (messageId: string | number) => {
+    try {
+      setRealtimeError("");
+      await markMessageAsUnreadApi(activeConversationId, messageId);
+      dispatch(getDirectMessages());
+      dispatch(getChannels());
+      showSuccessNotification("Conversation marked as unread");
+    } catch (error: any) {
+      const message = String(
+        error || "Conversation could not be marked unread",
+      );
+      setRealtimeError(message);
+      showErrorNotification(message);
+      throw error;
+    }
+  };
+
   const showGroupChat = () => {
     setConversationMode("group");
     setRealtimeError("");
@@ -676,6 +700,7 @@ const Index = ({ isChannel }: IndexProps) => {
         chatUserDetails={activeChatDetails}
         onEdit={onEditMessage}
         onDelete={onDeleteMessage}
+        onMarkUnread={onMarkMessageAsUnread}
         onSetReplyData={onSetReplyData}
         isChannel={isChannel}
         focusedMessageId={focusedMessageId}

@@ -95,9 +95,9 @@ model User {
   receivedContactInvitations ContactInvitation[]       @relation("ContactInvitationRecipient")
   messageBookmarks           MessageBookmark[]
   conversationPreferences    ConversationPreference[]
-  callsPlaced                CallRecord[]               @relation("CallCaller")
-  callsReceived              CallRecord[]               @relation("CallRecipient")
-  callsEnded                 CallRecord[]               @relation("CallEndedBy")
+  callsPlaced                CallRecord[]              @relation("CallCaller")
+  callsReceived              CallRecord[]              @relation("CallRecipient")
+  callsEnded                 CallRecord[]              @relation("CallEndedBy")
 
   @@index([role])
   @@map("users")
@@ -207,23 +207,28 @@ model ConversationParticipant {
 }
 
 model Message {
-  id              String              @id @default(uuid()) @db.Uuid
-  clientMessageId String?             @db.Uuid
-  conversationId  String              @db.Uuid
-  senderId        String?             @db.Uuid
-  content         String
-  messageType     MessageType         @default(user)
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime?
-  deletedAt       DateTime?
-  conversation    Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender          User?               @relation(fields: [senderId], references: [id], onDelete: SetNull)
-  attachments     MessageAttachment[]
-  bookmarks       MessageBookmark[]
+  id               String              @id @default(uuid()) @db.Uuid
+  clientMessageId  String?             @db.Uuid
+  conversationId   String              @db.Uuid
+  senderId         String?             @db.Uuid
+  replyToMessageId String?             @db.Uuid
+  content          String
+  messageType      MessageType         @default(user)
+  isForwarded      Boolean             @default(false)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime?
+  deletedAt        DateTime?
+  conversation     Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender           User?               @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  replyTo          Message?            @relation("MessageReplies", fields: [replyToMessageId], references: [id], onDelete: SetNull)
+  replies          Message[]           @relation("MessageReplies")
+  attachments      MessageAttachment[]
+  bookmarks        MessageBookmark[]
 
   @@unique([senderId, clientMessageId])
   @@index([conversationId, createdAt])
   @@index([senderId])
+  @@index([replyToMessageId])
   @@index([messageType])
   @@index([deletedAt])
   @@map("messages")

@@ -93,6 +93,7 @@ const AccordianItem = ({
           )}
           onClick={toggleCollapse}
           type="button"
+          aria-label={item.label}
         >
           <i className={classnames("text-muted", "me-3", item.icon)}></i>{" "}
           {item.label}

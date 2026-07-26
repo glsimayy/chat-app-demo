@@ -39,6 +39,7 @@ interface ConversationProps {
   chatUserDetails: any;
   onEdit: (messageId: string | number, content: string) => Promise<void>;
   onDelete: (messageId: string | number) => Promise<void>;
+  onMarkUnread: (messageId: string | number) => Promise<void>;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   isChannel: boolean;
   focusedMessageId: string | number | null;
@@ -48,6 +49,7 @@ const Conversation = ({
   chatUserConversations,
   onEdit,
   onDelete,
+  onMarkUnread,
   onSetReplyData,
   isChannel,
   focusedMessageId,
@@ -242,6 +244,7 @@ const Conversation = ({
               chatUserDetails={chatUserDetails}
               onEdit={onEdit}
               onDelete={onDelete}
+              onMarkUnread={onMarkUnread}
               onSetReplyData={onSetReplyData}
               isFromMe={isFromMe}
               onOpenForward={onOpenForward}

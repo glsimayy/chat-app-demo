@@ -139,8 +139,10 @@ export class ConversationsService implements OnModuleInit {
           clientMessageId: message.clientMessageId,
           conversationId: message.conversationId,
           senderId: message.senderId,
+          replyToMessageId: message.replyToMessageId,
           content: message.content,
           messageType: message.messageType as MessageType,
+          isForwarded: message.isForwarded,
           createdAt: message.createdAt,
           updatedAt: message.updatedAt,
           deletedAt: message.deletedAt,
@@ -1065,23 +1067,28 @@ export class ConversationsService implements OnModuleInit {
     if (existingMessage) {
       if (
         existingMessage.conversationId !== conversationId ||
-        existingMessage.content !== content
+        existingMessage.content !== content ||
+        existingMessage.replyToMessageId !== (dto.replyToMessageId ?? null) ||
+        existingMessage.isForwarded !== Boolean(dto.isForwarded)
       ) {
         throw new ConflictException(
           "clientMessageId has already been used for another message",
         );
       }
 
-      return existingMessage;
+      return this.withReplyReference(existingMessage);
     }
 
+    this.validateReplyTarget(conversationId, dto.replyToMessageId);
     const message: MessageRecord = {
       id: crypto.randomUUID(),
       clientMessageId: dto.clientMessageId ?? null,
       conversationId,
       senderId: userId,
+      replyToMessageId: dto.replyToMessageId ?? null,
       content,
       messageType: MessageType.User,
+      isForwarded: Boolean(dto.isForwarded),
       createdAt: new Date(),
       updatedAt: null,
       deletedAt: null,
@@ -1093,9 +1100,13 @@ export class ConversationsService implements OnModuleInit {
     await this.persistConversationState(conversation, [message]);
     this.messages.get(conversation.id)?.push(message);
     this.metricsService.recordMessageCreated();
-    this.realtimeEventsService.emit({ type: "message.created", data: message });
+    const messageView = this.withReplyReference(message);
+    this.realtimeEventsService.emit({
+      type: "message.created",
+      data: messageView,
+    });
 
-    return message;
+    return messageView;
   }
 
   async createMessageWithAttachments(
@@ -1123,16 +1134,19 @@ export class ConversationsService implements OnModuleInit {
     if (existingMessage) {
       if (
         existingMessage.conversationId !== conversationId ||
-        existingMessage.content !== content
+        existingMessage.content !== content ||
+        existingMessage.replyToMessageId !== (dto.replyToMessageId ?? null) ||
+        existingMessage.isForwarded !== Boolean(dto.isForwarded)
       ) {
         throw new ConflictException(
           "clientMessageId has already been used for another message",
         );
       }
 
-      return existingMessage;
+      return this.withReplyReference(existingMessage);
     }
 
+    this.validateReplyTarget(conversationId, dto.replyToMessageId);
     const createdAt = new Date();
     const attachments = files.map((file) => ({
       id: crypto.randomUUID(),
@@ -1146,8 +1160,10 @@ export class ConversationsService implements OnModuleInit {
       clientMessageId: dto.clientMessageId ?? null,
       conversationId,
       senderId: userId,
+      replyToMessageId: dto.replyToMessageId ?? null,
       content,
       messageType: MessageType.User,
+      isForwarded: Boolean(dto.isForwarded),
       createdAt,
       updatedAt: null,
       deletedAt: null,
@@ -1169,9 +1185,13 @@ export class ConversationsService implements OnModuleInit {
 
     this.messages.get(conversation.id)?.push(message);
     this.metricsService.recordMessageCreated();
-    this.realtimeEventsService.emit({ type: "message.created", data: message });
+    const messageView = this.withReplyReference(message);
+    this.realtimeEventsService.emit({
+      type: "message.created",
+      data: messageView,
+    });
 
-    return message;
+    return messageView;
   }
 
   async getAttachment(
@@ -1252,7 +1272,7 @@ export class ConversationsService implements OnModuleInit {
     const hasMore = filteredMessages.length > pageItems.length;
 
     return {
-      items: pageItems,
+      items: pageItems.map((message) => this.withReplyReference(message)),
       pageInfo: {
         limit,
         before: query.before ?? null,
@@ -1282,7 +1302,7 @@ export class ConversationsService implements OnModuleInit {
       .slice(0, limit);
 
     return {
-      items: matches,
+      items: matches.map((message) => this.withReplyReference(message)),
       pageInfo: {
         limit,
         total: matches.length,
@@ -1307,7 +1327,10 @@ export class ConversationsService implements OnModuleInit {
         throw new NotFoundException("Message not found");
       }
 
-      return { conversation, message };
+      return {
+        conversation,
+        message: this.withReplyReference(message),
+      };
     }
 
     throw new NotFoundException("Message not found");
@@ -1341,6 +1364,47 @@ export class ConversationsService implements OnModuleInit {
     };
   }
 
+  async markAsUnread(
+    conversationId: string,
+    messageId: string,
+    userId: string,
+  ) {
+    const conversation = this.findConversationRecordForUser(
+      conversationId,
+      userId,
+    );
+    const participant = conversation.participants.find(
+      (item) => item.userId === userId && !item.leftAt,
+    );
+
+    if (!participant) {
+      throw new NotFoundException("Participant not found");
+    }
+
+    const selectedMessage = this.findMessageOrThrow(conversationId, messageId);
+    const readAt = new Date(selectedMessage.createdAt.getTime() - 1);
+    participant.lastReadAt = readAt;
+    await this.persistConversationState(conversation);
+
+    const unreadCount = (this.messages.get(conversationId) ?? []).filter(
+      (message) =>
+        !message.deletedAt &&
+        message.senderId !== userId &&
+        message.createdAt > readAt,
+    ).length;
+
+    this.realtimeEventsService.emit({
+      type: "message.read",
+      data: { conversationId, userId, readAt },
+    });
+
+    return {
+      conversationId,
+      readAt,
+      unreadCount,
+    };
+  }
+
   async updateMessage(
     conversationId: string,
     messageId: string,
@@ -1367,9 +1431,13 @@ export class ConversationsService implements OnModuleInit {
     message.updatedAt = now;
     conversation.updatedAt = now;
     await this.persistMessageUpdate(message, conversation.updatedAt);
-    this.realtimeEventsService.emit({ type: "message.updated", data: message });
+    const messageView = this.withReplyReference(message);
+    this.realtimeEventsService.emit({
+      type: "message.updated",
+      data: messageView,
+    });
 
-    return message;
+    return messageView;
   }
 
   async deleteMessage(
@@ -1395,9 +1463,13 @@ export class ConversationsService implements OnModuleInit {
       this.attachmentData.delete(attachment.id);
     }
     message.attachments = [];
-    this.realtimeEventsService.emit({ type: "message.deleted", data: message });
+    const messageView = this.withReplyReference(message);
+    this.realtimeEventsService.emit({
+      type: "message.deleted",
+      data: messageView,
+    });
 
-    return message;
+    return messageView;
   }
 
   async findParticipants(conversationId: string, userId: string) {
@@ -1989,8 +2061,10 @@ export class ConversationsService implements OnModuleInit {
       clientMessageId: null,
       conversationId,
       senderId: null,
+      replyToMessageId: null,
       content,
       messageType: MessageType.System,
+      isForwarded: false,
       createdAt,
       updatedAt: null,
       deletedAt: null,
@@ -2078,9 +2152,11 @@ export class ConversationsService implements OnModuleInit {
                   id: message.id,
                   clientMessageId: message.clientMessageId,
                   senderId: message.senderId,
+                  replyToMessageId: message.replyToMessageId,
                   content: message.content,
                   messageType:
                     message.messageType as unknown as PrismaMessageType,
+                  isForwarded: message.isForwarded,
                   createdAt: message.createdAt,
                   updatedAt: message.updatedAt,
                   deletedAt: message.deletedAt,
@@ -2217,8 +2293,10 @@ export class ConversationsService implements OnModuleInit {
       clientMessageId: message.clientMessageId,
       conversationId: message.conversationId,
       senderId: message.senderId,
+      replyToMessageId: message.replyToMessageId,
       content: message.content,
       messageType: message.messageType as unknown as PrismaMessageType,
+      isForwarded: message.isForwarded,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
       deletedAt: message.deletedAt,
@@ -2339,6 +2417,46 @@ export class ConversationsService implements OnModuleInit {
     }
 
     return message;
+  }
+
+  private validateReplyTarget(
+    conversationId: string,
+    replyToMessageId?: string,
+  ) {
+    if (!replyToMessageId) {
+      return;
+    }
+
+    const replyTo = this.findMessageOrThrow(conversationId, replyToMessageId);
+
+    if (replyTo.deletedAt) {
+      throw new BadRequestException("Cannot reply to a deleted message");
+    }
+  }
+
+  private withReplyReference(message: MessageRecord) {
+    const replyTo = message.replyToMessageId
+      ? (this.messages.get(message.conversationId) ?? []).find(
+          (candidate) => candidate.id === message.replyToMessageId,
+        )
+      : null;
+
+    return {
+      ...message,
+      replyTo: replyTo
+        ? {
+            id: replyTo.id,
+            conversationId: replyTo.conversationId,
+            senderId: replyTo.senderId,
+            content: replyTo.content,
+            messageType: replyTo.messageType,
+            isForwarded: replyTo.isForwarded,
+            createdAt: replyTo.createdAt,
+            deletedAt: replyTo.deletedAt,
+            attachments: replyTo.attachments ?? [],
+          }
+        : null,
+    };
   }
 
   private findMessageByClientId(userId: string, clientMessageId: string) {
@@ -2469,7 +2587,7 @@ export class ConversationsService implements OnModuleInit {
     const lastMessage = messages.at(-1) ?? null;
     const lastReadAt = participant?.lastReadAt ?? null;
     const unreadCount = messages.filter((message) => {
-      if (message.senderId === userId) {
+      if (message.deletedAt || message.senderId === userId) {
         return false;
       }
 

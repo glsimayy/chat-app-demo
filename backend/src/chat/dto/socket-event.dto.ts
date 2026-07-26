@@ -27,6 +27,10 @@ export class SendMessagePayloadDto extends ConversationEventPayloadDto {
   @IsOptional()
   @IsUUID("4")
   clientMessageId?: string;
+
+  @IsOptional()
+  @IsUUID("4")
+  replyToMessageId?: string;
 }
 
 export class UpdateMessagePayloadDto extends SendMessagePayloadDto {

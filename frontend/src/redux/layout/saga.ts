@@ -3,6 +3,7 @@ import { all, call, fork, takeEvery } from "redux-saga/effects";
 
 import { LayoutActionTypes } from "./types";
 import { LAYOUT_MODES } from "../../constants/index";
+import { storeLayoutMode } from "../../utils/layoutMode";
 
 /**
  * Changes the body attribute
@@ -20,10 +21,12 @@ function* changelayoutMode({ payload: { layoutMode } }: any) {
   try {
     if (layoutMode === LAYOUT_MODES.LIGHT) {
       yield call(changeBodyAttribute, "data-bs-theme", layoutMode);
+      yield call(storeLayoutMode, layoutMode);
     } else if (layoutMode === LAYOUT_MODES.DARK) {
       yield call(changeBodyAttribute, "data-bs-theme", layoutMode);
+      yield call(storeLayoutMode, layoutMode);
     }
-  } catch (error) { }
+  } catch (error) {}
 }
 
 /**
@@ -34,9 +37,7 @@ export function* watchChangelayoutMode() {
 }
 
 function* LayoutSaga() {
-  yield all([
-    fork(watchChangelayoutMode),
-  ]);
+  yield all([fork(watchChangelayoutMode)]);
 }
 
 export default LayoutSaga;

@@ -7,55 +7,34 @@ import { MessagesTypes } from "../../../data/messages";
 import { useProfile } from "../../../hooks";
 
 interface RepliedMessageProps {
-  isFromMe: boolean;
   message: MessagesTypes;
   fullName: string;
 }
-function RepliedMessage({ isFromMe, message, fullName }: RepliedMessageProps) {
+function RepliedMessage({ message, fullName }: RepliedMessageProps) {
   const { userProfile } = useProfile();
+  const reply = message.replyOf;
+  const imageCount = reply?.image?.length || 0;
+  const fileCount = reply?.attachments?.length || 0;
+  const attachmentSummary = [
+    imageCount ? `${imageCount} Images` : "",
+    fileCount ? `${fileCount} Files` : "",
+  ]
+    .filter(Boolean)
+    .join(" & ");
 
-  const isReplyFromMe = message.meta.sender + "" === userProfile.uid + "";
+  const isReplyFromMe = reply?.meta.sender + "" === userProfile.uid + "";
+  const replySenderName = reply?.meta.userData?.firstName
+    ? `${reply.meta.userData.firstName} ${reply.meta.userData.lastName}`.trim()
+    : fullName;
+
   return (
-    <div className="">
-      <div className="replymessage-block mb-2 d-flex align-items-start">
-        <div className="flex-grow-1">
-          <h5 className="conversation-name">
-            {isReplyFromMe ? "You" : fullName}
-          </h5>
-
-          {message.replyOf?.text && (
-            <p className="mb-0">{message.replyOf?.text}</p>
-          )}
-
-          {(message.replyOf?.attachments) && (
-            <p className="mb-0">
-              {message.replyOf?.attachments &&
-                !message.replyOf?.image &&
-                `${message.replyOf?.attachments.length} Files`}
-              {message.replyOf?.image &&
-                !message.replyOf?.attachments &&
-                `${message.replyOf?.image.length} Images`}
-              {message.replyOf?.image &&
-                message.replyOf?.attachments &&
-                `${message.replyOf?.attachments.length} Files & ${message.replyOf?.image.length} Images`}
-            </p>
-          )}
-
-          {(message.replyOf?.newimage) && (
-            <div className="ctext-wrap">
-              <div className="message-img mb-0">
-                <div className="message-img-list">
-                  <div>
-                    <a className="popup-img d-inline-block" href="/dashboard">
-                      <img src={message.replyOf?.newimage[0].downloadLink} alt="" className="rounded border" />
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          
-        </div>
+    <div className="replymessage-block mb-2 d-flex align-items-start">
+      <div className="flex-grow-1">
+        <h5 className="conversation-name">
+          {isReplyFromMe ? "You" : replySenderName}
+        </h5>
+        {reply?.text && <p className="mb-0">{reply.text}</p>}
+        {attachmentSummary && <p className="mb-0">{attachmentSummary}</p>}
       </div>
     </div>
   );

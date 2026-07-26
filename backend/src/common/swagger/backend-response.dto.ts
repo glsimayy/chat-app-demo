@@ -135,6 +135,35 @@ export class MessageAttachmentResponseDto {
   createdAt!: string;
 }
 
+export class MessageReplyResponseDto {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty({ format: "uuid" })
+  conversationId!: string;
+
+  @ApiPropertyOptional({ format: "uuid", nullable: true })
+  senderId!: string | null;
+
+  @ApiProperty({ example: "Toplanti saat 14.00'te." })
+  content!: string;
+
+  @ApiProperty({ enum: MessageType })
+  messageType!: MessageType;
+
+  @ApiProperty({ default: false })
+  isForwarded!: boolean;
+
+  @ApiProperty({ format: "date-time" })
+  createdAt!: string;
+
+  @ApiPropertyOptional({ format: "date-time", nullable: true })
+  deletedAt!: string | null;
+
+  @ApiProperty({ type: [MessageAttachmentResponseDto] })
+  attachments!: MessageAttachmentResponseDto[];
+}
+
 export class MessageResponseDto {
   @ApiProperty({ format: "uuid" })
   id!: string;
@@ -148,11 +177,20 @@ export class MessageResponseDto {
   @ApiPropertyOptional({ format: "uuid", nullable: true })
   senderId!: string | null;
 
+  @ApiPropertyOptional({ format: "uuid", nullable: true })
+  replyToMessageId!: string | null;
+
+  @ApiPropertyOptional({ type: MessageReplyResponseDto, nullable: true })
+  replyTo!: MessageReplyResponseDto | null;
+
   @ApiProperty({ example: "Selam, nasilsin?" })
   content!: string;
 
   @ApiProperty({ enum: MessageType })
   messageType!: MessageType;
+
+  @ApiProperty({ default: false })
+  isForwarded!: boolean;
 
   @ApiProperty({ format: "date-time" })
   createdAt!: string;

@@ -235,6 +235,64 @@ test("invalid sessions are cleared before the dashboard renders", async ({
     .toBeNull();
 });
 
+test("theme mode is applied and survives a page reload", async ({
+  browser,
+}) => {
+  const user = await createAuthenticatedPage(browser, sessions.user1);
+
+  try {
+    await user.page
+      .getByRole("link", { name: "Settings", exact: true })
+      .click();
+    await user.page
+      .getByRole("button", { name: "Themes", exact: true })
+      .click();
+
+    const darkTheme = user.page.getByRole("radio", {
+      name: "Dark",
+      exact: true,
+    });
+    await user.page
+      .getByRole("radiogroup", { name: "Color mode" })
+      .getByText("Dark", { exact: true })
+      .click();
+    await expect(darkTheme).toBeChecked();
+    await expect(user.page.locator("body")).toHaveAttribute(
+      "data-bs-theme",
+      "dark",
+    );
+    await expect
+      .poll(() =>
+        user.page.evaluate(() =>
+          window.localStorage.getItem("ello-layout-mode"),
+        ),
+      )
+      .toBe("dark");
+
+    await user.page.reload({ waitUntil: "domcontentloaded" });
+    await expect(user.page.locator("body")).toHaveAttribute(
+      "data-bs-theme",
+      "dark",
+    );
+    await user.page
+      .getByRole("link", { name: "Settings", exact: true })
+      .click();
+    await user.page
+      .getByRole("button", { name: "Themes", exact: true })
+      .click();
+    await expect(
+      user.page.getByRole("radio", { name: "Dark", exact: true }),
+    ).toBeChecked();
+
+    await user.page
+      .getByRole("radiogroup", { name: "Color mode" })
+      .getByText("Light", { exact: true })
+      .click();
+  } finally {
+    await user.context.close();
+  }
+});
+
 test("login shows an actionable error while the backend is unreachable", async ({
   page,
 }) => {
@@ -968,9 +1026,9 @@ test("messages can be searched, bookmarked, reopened, and removed", async ({
     await expect(messageItem).toHaveClass(/message-search-highlight/);
     const inputBounds = await user.page.locator("#chat-input").boundingBox();
     expect(inputBounds).not.toBeNull();
-    expect((inputBounds?.y || 0) + (inputBounds?.height || 0)).toBeLessThanOrEqual(
-      620,
-    );
+    expect(
+      (inputBounds?.y || 0) + (inputBounds?.height || 0),
+    ).toBeLessThanOrEqual(620);
     expect(inputBounds?.y || 0).toBeGreaterThan(450);
     expect(await user.page.evaluate(() => window.scrollY)).toBe(0);
     await messageItem.hover();
@@ -1039,6 +1097,183 @@ test("image attachments upload and render from the chat composer", async ({
     const image = user.page.locator(`img[alt="${fileName}"]`);
     await expect(image).toBeVisible();
     await expect(image).toHaveAttribute("src", /^blob:/);
+  } finally {
+    await user.context.close();
+  }
+});
+
+test("copy and mark unread actions update browser and conversation state", async ({
+  browser,
+  request,
+}) => {
+  const directResponse = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+    data: { participantId: sessions.user2.user.id },
+  });
+  expect(directResponse.ok(), await directResponse.text()).toBeTruthy();
+  const conversationId = (await directResponse.json()).data.id;
+  const message = `copy-unread-e2e-${Date.now()}`;
+  const messageResponse = await request.post(
+    `${apiUrl}/conversations/${conversationId}/messages`,
+    {
+      headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+      data: { content: message },
+    },
+  );
+  expect(messageResponse.ok(), await messageResponse.text()).toBeTruthy();
+  const messageId = (await messageResponse.json()).data.id;
+
+  const user = await createAuthenticatedPage(browser, sessions.user2, {
+    permissions: ["clipboard-read", "clipboard-write"],
+  });
+
+  try {
+    await openConversation(user.page, sessions.user1.user.username);
+    const messageRow = user.page
+      .locator("li.chat-list")
+      .filter({ hasText: message })
+      .last();
+    await expect(messageRow).toBeVisible();
+
+    await messageRow.hover();
+    await messageRow.getByLabel("Message actions").click();
+    await user.page
+      .locator(".message-actions-menu.show")
+      .getByText("Copy", { exact: true })
+      .click();
+    await expect(
+      user.page.getByText("Message copied", { exact: true }),
+    ).toBeVisible();
+    await expect
+      .poll(() =>
+        user.page.evaluate(() => window.navigator.clipboard.readText()),
+      )
+      .toBe(message);
+
+    await messageRow.hover();
+    await messageRow.getByLabel("Message actions").click();
+    const unreadResponsePromise = user.page.waitForResponse(
+      apiResponse =>
+        apiResponse.request().method() === "PATCH" &&
+        apiResponse
+          .url()
+          .endsWith(
+            `/api/conversations/${conversationId}/messages/${messageId}/unread`,
+          ),
+    );
+    await user.page
+      .locator(".message-actions-menu.show")
+      .getByText("Mark as Unread", { exact: true })
+      .click();
+    const unreadResponse = await unreadResponsePromise;
+    expect(unreadResponse.status()).toBe(200);
+    await expect(
+      user.page.getByText("Conversation marked as unread", { exact: true }),
+    ).toBeVisible();
+
+    const conversationItem = user.page
+      .locator(".chat-user-list li")
+      .filter({ hasText: sessions.user1.user.username })
+      .first();
+    await expect(conversationItem.locator(".badge")).toHaveText(/^[1-9]\d*$/);
+  } finally {
+    await user.context.close();
+  }
+});
+
+test("image forwarding keeps its attachment and forwarded label", async ({
+  browser,
+  request,
+}) => {
+  const sourceResponse = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+    data: { participantId: sessions.user2.user.id },
+  });
+  expect(sourceResponse.ok(), await sourceResponse.text()).toBeTruthy();
+  const targetResponse = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+    data: { participantId: sessions.admin.user.id },
+  });
+  expect(targetResponse.ok(), await targetResponse.text()).toBeTruthy();
+  const targetConversationId = (await targetResponse.json()).data.id;
+  const user = await createAuthenticatedPage(browser, sessions.user1);
+  const fileName = `forwarded-image-${Date.now()}.png`;
+
+  try {
+    await openConversation(user.page, sessions.user2.user.username);
+    await user.page
+      .getByRole("button", { name: "More message options" })
+      .click();
+    await user.page.locator("#attached-image-input").setInputFiles({
+      name: fileName,
+      mimeType: "image/png",
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nXQAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    });
+    const uploadResponsePromise = user.page.waitForResponse(
+      apiResponse =>
+        apiResponse.request().method() === "POST" &&
+        apiResponse.url().includes("/messages/attachments"),
+    );
+    await user.page.getByRole("button", { name: "Send message" }).click();
+    expect((await uploadResponsePromise).status()).toBe(201);
+
+    const sourceImage = user.page.locator(`img[alt="${fileName}"]`);
+    await expect(sourceImage).toBeVisible();
+    const sourceRow = user.page
+      .locator("li.chat-list")
+      .filter({ has: sourceImage });
+    await sourceRow.hover();
+    await sourceRow.getByLabel("Image actions").click();
+    const imageActions = user.page.locator(".message-actions-menu.show");
+    await expect(
+      imageActions.getByText("Delete message", { exact: true }),
+    ).toBeVisible();
+    await imageActions.getByText("Forward", { exact: true }).click();
+
+    const forwardModal = user.page.getByRole("dialog");
+    await expect(
+      forwardModal.getByText("Share this Message", { exact: true }),
+    ).toBeVisible();
+    const adminContact = forwardModal
+      .locator(".contact-list li")
+      .filter({ hasText: sessions.admin.user.username });
+    await expect(adminContact).toHaveCount(1);
+    const forwardResponsePromise = user.page.waitForResponse(
+      apiResponse =>
+        apiResponse.request().method() === "POST" &&
+        apiResponse
+          .url()
+          .endsWith(
+            `/api/conversations/${targetConversationId}/messages/attachments`,
+          ),
+    );
+    await adminContact.getByRole("button", { name: "Send" }).click();
+    expect((await forwardResponsePromise).status()).toBe(201);
+    await expect(
+      user.page.getByText("Message forwarded", { exact: true }),
+    ).toBeVisible();
+
+    await openConversation(user.page, sessions.admin.user.username);
+    const forwardedRow = user.page
+      .locator("li.chat-list")
+      .filter({ has: user.page.locator(`img[alt="${fileName}"]`) });
+    await expect(forwardedRow).toHaveCount(1);
+    await expect(
+      forwardedRow.getByText("Forwarded", { exact: true }),
+    ).toBeVisible();
+
+    await user.page.reload({ waitUntil: "domcontentloaded" });
+    await openConversation(user.page, sessions.admin.user.username);
+    const persistedForward = user.page
+      .locator("li.chat-list")
+      .filter({ has: user.page.locator(`img[alt="${fileName}"]`) });
+    await expect(persistedForward).toHaveCount(1);
+    await expect(
+      persistedForward.getByText("Forwarded", { exact: true }),
+    ).toBeVisible();
   } finally {
     await user.context.close();
   }
@@ -1420,6 +1655,74 @@ test("message owners can edit and delete for both open clients", async ({
         .locator(".message-actions-menu.show")
         .getByText("Delete", { exact: true }),
     ).toHaveCount(0);
+  } finally {
+    await closeContexts(user1Context, user2Context);
+  }
+});
+
+test("replies remain linked for both users after refresh", async ({
+  browser,
+  request,
+}) => {
+  const response = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+    data: { participantId: sessions.user2.user.id },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+
+  const { user1Context, user2Context, user1Page, user2Page } =
+    await createUserPages(browser);
+
+  try {
+    await openConversation(user1Page, "aslıuser");
+    await openConversation(user2Page, "emiruser");
+
+    const originalText = `reply-original-${Date.now()}`;
+    const replyText = `reply-response-${Date.now()}`;
+    await user1Page.locator("#chat-input").fill(originalText);
+    await user1Page.locator("#chat-input").press("Enter");
+
+    const originalRow = user2Page
+      .locator("li.chat-list")
+      .filter({ hasText: originalText });
+    await expect(originalRow).toHaveCount(1);
+    await originalRow.hover();
+    await originalRow.getByLabel("Message actions").click();
+    await user2Page
+      .locator(".message-actions-menu.show")
+      .getByText("Reply", { exact: true })
+      .click();
+
+    const replyComposer = user2Page.locator(".replyCollapse");
+    await expect(
+      replyComposer.getByText(originalText, { exact: true }),
+    ).toBeVisible();
+    await user2Page.locator("#chat-input").fill(replyText);
+    await user2Page.locator("#chat-input").press("Enter");
+
+    for (const page of [user1Page, user2Page]) {
+      const replyRow = page
+        .locator("li.chat-list")
+        .filter({ hasText: replyText });
+      await expect(replyRow).toHaveCount(1);
+      await expect(
+        replyRow
+          .locator(".replymessage-block")
+          .getByText(originalText, { exact: true }),
+      ).toBeVisible();
+    }
+
+    await user2Page.reload({ waitUntil: "domcontentloaded" });
+    await openConversation(user2Page, "emiruser");
+    const persistedReply = user2Page
+      .locator("li.chat-list")
+      .filter({ hasText: replyText });
+    await expect(persistedReply).toHaveCount(1);
+    await expect(
+      persistedReply
+        .locator(".replymessage-block")
+        .getByText(originalText, { exact: true }),
+    ).toBeVisible();
   } finally {
     await closeContexts(user1Context, user2Context);
   }

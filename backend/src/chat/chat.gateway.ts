@@ -313,6 +313,7 @@ export class ChatGateway
       {
         content: payload.content,
         clientMessageId: payload.clientMessageId,
+        replyToMessageId: payload.replyToMessageId,
       } satisfies CreateMessageDto,
     );
 

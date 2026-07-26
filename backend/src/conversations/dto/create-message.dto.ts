@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Transform } from "class-transformer";
 import {
+  IsBoolean,
   IsOptional,
   IsString,
   IsUUID,
@@ -21,4 +23,21 @@ export class CreateMessageDto {
   @IsOptional()
   @IsUUID("4")
   clientMessageId?: string;
+
+  @ApiPropertyOptional({
+    description: "Message in this conversation being replied to",
+    example: "ab4d782f-112a-4b6c-9a35-d5a6674f89e3",
+  })
+  @IsOptional()
+  @IsUUID("4")
+  replyToMessageId?: string;
+
+  @ApiPropertyOptional({
+    description: "Marks a message created by forwarding another message",
+    default: false,
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === "true")
+  @IsBoolean()
+  isForwarded?: boolean;
 }

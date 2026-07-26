@@ -218,6 +218,7 @@ const searchConversationMessages = async (
 const sendMessage = (data: any) => {
   const conversationId = data?.meta?.receiver;
   const content = data?.text || "";
+  const replyToMessageId = data?.replyOf?.mId;
 
   if (data?.files?.length) {
     return api.createWithFile(
@@ -225,6 +226,7 @@ const sendMessage = (data: any) => {
       {
         content,
         clientMessageId: data?.clientMessageId,
+        replyToMessageId,
         files: data.files,
       },
     );
@@ -233,6 +235,7 @@ const sendMessage = (data: any) => {
   return api.create(`/conversations/${conversationId}/messages`, {
     content,
     clientMessageId: data?.clientMessageId,
+    replyToMessageId,
   });
 };
 
@@ -244,6 +247,11 @@ const readMessage = async (id: string | number) => {
   await api.patch(`/conversations/${id}/read`);
   return getChatUserConversations(id);
 };
+
+const markMessageAsUnread = (
+  conversationId: string | number,
+  messageId: string | number,
+) => api.patch(`/conversations/${conversationId}/messages/${messageId}/unread`);
 
 const receiveMessageFromUser = (id: string | number) =>
   getChatUserConversations(id);
@@ -267,13 +275,38 @@ const deleteMessage = async (
 
 const forwardMessage = async (data: any) => {
   const content = data?.forwardedMessage?.text || data?.message || "";
+  const attachments = [
+    ...(data?.forwardedMessage?.image || []),
+    ...(data?.forwardedMessage?.attachments || []),
+  ];
+  const files = await Promise.all(
+    attachments.map(async (attachment: any, index: number) => {
+      const blob = await getAttachmentBlob(attachment.downloadLink);
+      return new File(
+        [blob],
+        attachment.name || `forwarded-attachment-${index + 1}`,
+        { type: attachment.mimeType || blob.type },
+      );
+    }),
+  );
+
   await Promise.all(
-    (data.contacts || []).map((conversationId: string | number) =>
-      api.create(`/conversations/${conversationId}/messages`, {
+    (data.contacts || []).map(async (participantId: string | number) => {
+      const conversation: any = await createDirectConversation(participantId);
+      const conversationId = conversation.id;
+      const payload = {
         content,
         clientMessageId: createClientMessageId(),
-      }),
-    ),
+        isForwarded: true,
+      };
+
+      return files.length
+        ? api.createWithFile(
+            `/conversations/${conversationId}/messages/attachments`,
+            { ...payload, files },
+          )
+        : api.create(`/conversations/${conversationId}/messages`, payload);
+    }),
   );
 
   return "Message forwarded";
@@ -366,6 +399,7 @@ export {
   getAttachmentBlob,
   receiveMessage,
   readMessage,
+  markMessageAsUnread,
   receiveMessageFromUser,
   updateMessage,
   deleteMessage,

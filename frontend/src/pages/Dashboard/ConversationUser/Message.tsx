@@ -38,6 +38,10 @@ import { formateDate } from "../../../utils";
 import RepliedMessage from "./RepliedMessage";
 import { getAttachmentBlob } from "../../../api/chats";
 import { parseSharedContactMessage } from "../../../utils/sharedContact";
+import {
+  showErrorNotification,
+  showSuccessNotification,
+} from "../../../helpers/notifications";
 
 interface MenuProps {
   canModify: boolean;
@@ -47,6 +51,9 @@ interface MenuProps {
   onDelete: () => void;
   onReply: () => any;
   onForward: () => void;
+  onCopy: () => void;
+  onMarkUnread: () => void;
+  markUnreadLoading: boolean;
   onToggleBookmark: () => void;
 }
 
@@ -58,6 +65,9 @@ const Menu = ({
   onDelete,
   onReply,
   onForward,
+  onCopy,
+  onMarkUnread,
+  markUnreadLoading,
   onToggleBookmark,
 }: MenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -105,7 +115,7 @@ const Menu = ({
         )}
         <DropdownItem
           className="d-flex align-items-center justify-content-between"
-          to="#"
+          onClick={onCopy}
         >
           Copy <i className="bx bx-copy text-muted ms-2"></i>
         </DropdownItem>
@@ -124,7 +134,8 @@ const Menu = ({
         </DropdownItem>
         <DropdownItem
           className="d-flex align-items-center justify-content-between"
-          to="#"
+          disabled={markUnreadLoading}
+          onClick={onMarkUnread}
         >
           Mark as Unread <i className="bx bx-message-error text-muted ms-2"></i>
         </DropdownItem>
@@ -146,6 +157,7 @@ interface ImageMoreMenuProps {
   isBookmarked: boolean;
   bookmarkLoading: boolean;
   onReply: () => any;
+  onForward: () => void;
   onDelete: () => void;
   onToggleBookmark: () => void;
 }
@@ -155,6 +167,7 @@ const ImageMoreMenu = ({
   isBookmarked,
   bookmarkLoading,
   onReply,
+  onForward,
   onDelete,
   onToggleBookmark,
 }: ImageMoreMenuProps) => {
@@ -170,7 +183,12 @@ const ImageMoreMenu = ({
           color="none"
           className="list-inline-item dropdown"
         >
-          <DropdownToggle tag="button" type="button" className="btn btn-toggle">
+          <DropdownToggle
+            aria-label="Image actions"
+            tag="button"
+            type="button"
+            className="btn btn-toggle"
+          >
             <i className="bx bx-dots-horizontal-rounded"></i>
           </DropdownToggle>
           <DropdownMenu
@@ -194,11 +212,8 @@ const ImageMoreMenu = ({
               Reply <i className="bx bx-share ms-2 text-muted"></i>
             </DropdownItem>
             <DropdownItem
-              tag="a"
               className=" d-flex align-items-center justify-content-between"
-              href="#"
-              data-bs-toggle="modal"
-              data-bs-target=".forwardModal"
+              onClick={onForward}
             >
               Forward <i className="bx bx-share-alt ms-2 text-muted"></i>
             </DropdownItem>
@@ -223,7 +238,7 @@ const ImageMoreMenu = ({
                 href="#"
                 onClick={onDelete}
               >
-                Delete <i className="bx bx-trash ms-2 text-muted"></i>
+                Delete message <i className="bx bx-trash ms-2 text-muted"></i>
               </DropdownItem>
             )}
           </DropdownMenu>
@@ -240,6 +255,7 @@ interface ImageProps {
   onImageClick: (id: number) => void;
   index: number;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
+  onForward: () => void;
   onDeleteImg: (imageId: string | number) => void;
   isBookmarked: boolean;
   bookmarkLoading: boolean;
@@ -252,6 +268,7 @@ const Image = ({
   onImageClick,
   index,
   onSetReplyData,
+  onForward,
   onDeleteImg,
   isBookmarked,
   bookmarkLoading,
@@ -300,6 +317,7 @@ const Image = ({
             isBookmarked={isBookmarked}
             bookmarkLoading={bookmarkLoading}
             onReply={onClickReply}
+            onForward={onForward}
             onDelete={onDelete}
             onToggleBookmark={onToggleBookmark}
           />
@@ -313,6 +331,7 @@ interface ImagesProps {
   images: ImageTypes[];
   canModify: boolean;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
+  onForward: () => void;
   onDeleteImg: (imageId: string | number) => void;
   isBookmarked: boolean;
   bookmarkLoading: boolean;
@@ -323,6 +342,7 @@ const Images = ({
   images,
   canModify,
   onSetReplyData,
+  onForward,
   onDeleteImg,
   isBookmarked,
   bookmarkLoading,
@@ -389,6 +409,7 @@ const Images = ({
             index={key}
             onImageClick={onImageClick}
             onSetReplyData={onSetReplyData}
+            onForward={onForward}
             onDeleteImg={onDeleteImg}
             isBookmarked={isBookmarked}
             bookmarkLoading={bookmarkLoading}
@@ -511,6 +532,7 @@ interface MessageProps {
   chatUserDetails: any;
   onEdit: (messageId: string | number, content: string) => Promise<void>;
   onDelete: (messageId: string | number) => Promise<void>;
+  onMarkUnread: (messageId: string | number) => Promise<void>;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   isFromMe: boolean;
   onOpenForward: (message: MessagesTypes) => void;
@@ -524,6 +546,7 @@ const Message = ({
   chatUserDetails,
   onEdit,
   onDelete,
+  onMarkUnread,
   onSetReplyData,
   isFromMe,
   onOpenForward,
@@ -539,6 +562,7 @@ const Message = ({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isBookmarkSaving, setIsBookmarkSaving] = useState(false);
+  const [isMarkingUnread, setIsMarkingUnread] = useState(false);
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const hasImages = Boolean(message.image?.length);
   const hasAttachments = Boolean(message.attachments?.length);
@@ -627,6 +651,36 @@ const Message = ({
 
   const onForwardMessage = () => {
     onOpenForward(message);
+  };
+  const onCopyMessage = async () => {
+    const content =
+      message.text ||
+      [
+        ...(message.image || []).map(image => image.name),
+        ...(message.attachments || []).map(attachment => attachment.name),
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+    if (!content) {
+      showErrorNotification("There is no message content to copy");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(content);
+      showSuccessNotification("Message copied");
+    } catch {
+      showErrorNotification("Message could not be copied");
+    }
+  };
+  const markAsUnread = async () => {
+    try {
+      setIsMarkingUnread(true);
+      await onMarkUnread(message.mId);
+    } finally {
+      setIsMarkingUnread(false);
+    }
   };
 
   const onDeleteImg = (_imageId: number | string) => {
@@ -718,6 +772,7 @@ const Message = ({
                   message={message}
                   canModify={canModify}
                   onSetReplyData={onSetReplyData}
+                  onForward={onForwardMessage}
                   onDeleteImg={onDeleteImg}
                   isBookmarked={isBookmarked}
                   bookmarkLoading={isBookmarkSaving}
@@ -728,11 +783,7 @@ const Message = ({
               <>
                 <div className="ctext-wrap-content">
                   {isRepliedMessage && (
-                    <RepliedMessage
-                      fullName={fullName}
-                      message={message}
-                      isFromMe={isFromMe}
-                    />
+                    <RepliedMessage fullName={fullName} message={message} />
                   )}
 
                   {isEditing ? (
@@ -801,6 +852,9 @@ const Message = ({
                   onForward={onForwardMessage}
                   onDelete={() => setIsDeleteConfirmOpen(true)}
                   onReply={onClickReply}
+                  onCopy={() => void onCopyMessage()}
+                  onMarkUnread={() => void markAsUnread()}
+                  markUnreadLoading={isMarkingUnread}
                   isBookmarked={isBookmarked}
                   bookmarkLoading={isBookmarkSaving}
                   onToggleBookmark={() => void toggleBookmark()}

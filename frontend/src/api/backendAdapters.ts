@@ -173,7 +173,7 @@ export const mapConversationDetails = (
   };
 };
 
-export const mapMessage = (message: any, users: Array<any> = []) => {
+export const mapMessage = (message: any, users: Array<any> = []): any => {
   const currentUserId = getCurrentUserId();
   const isDeleted = Boolean(message.deletedAt);
   const sender = users.find((user: any) => user.id === message.senderId);
@@ -222,6 +222,7 @@ export const mapMessage = (message: any, users: Array<any> = []) => {
     messageType: message.messageType,
     image: images,
     attachments: files,
+    replyOf: message.replyTo ? mapMessage(message.replyTo, users) : undefined,
     meta: {
       receiver: message.conversationId,
       sender: message.senderId || "system",
@@ -229,6 +230,7 @@ export const mapMessage = (message: any, users: Array<any> = []) => {
       sent: message.senderId === currentUserId,
       received: true,
       read: true,
+      isForwarded: Boolean(message.isForwarded),
     },
   };
 };

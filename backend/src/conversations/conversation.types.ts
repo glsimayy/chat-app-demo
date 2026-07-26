@@ -39,8 +39,10 @@ export interface MessageRecord {
   clientMessageId: string | null;
   conversationId: string;
   senderId: string | null;
+  replyToMessageId: string | null;
   content: string;
   messageType: MessageType;
+  isForwarded: boolean;
   createdAt: Date;
   updatedAt: Date | null;
   deletedAt: Date | null;
