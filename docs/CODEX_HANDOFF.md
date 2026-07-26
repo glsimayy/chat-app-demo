@@ -1,295 +1,302 @@
 # ellO Codex Handoff
 
-Last updated: 2026-07-24
+Last updated: 2026-07-27
 Source setup: desktop
-Target setup: any
+Next setup: laptop
 
-This file is the persistent source of truth when changing machines, Codex
-threads, or models. On a new setup, pull `main`, ask Codex to read this file,
-and continue from the "Next Work" section.
+This file is the source of truth for continuing ellO work on another machine or
+in another Codex task. The next session must continue from the feature branch
+below, not from `main`.
 
 ## Repository State
 
 - Repository: `https://github.com/glsimayy/chat-app-demo.git`
-- Canonical branch: `main`
-- Verified audio-call implementation commit: `098d07f`
-- Verified merge commit on `main`: `94ad86e`
-- Feature backup branch: `codex/webrtc-audio-calls`
-- Feature commit: `2296360`
-- The incorrect standalone presence experiment was reverted before the
-  verified implementation was merged into `main`.
-- `output/` is user-owned, untracked local output. Never stage, delete, move,
-  or overwrite it unless the user explicitly requests it.
+- Continue branch: `codex/post-handoff-demo-fixes`
+- Remote tracking branch: `origin/codex/post-handoff-demo-fixes`
+- Canonical `main` remains unchanged at `cd47d1d`.
+- Latest code commit before this handoff/PDF delivery:
+  `31bfd72 test: align demo stack defaults`
+- Important commits on the continue branch:
+  - `1ed7119 feat: complete post-handoff demo workflows`
+  - `8cbdb60 security: harden compose secrets and exposed ports`
+  - `31bfd72 test: align demo stack defaults`
+- The newest branch commit also contains this updated handoff and the technical
+  PDF. Verify its hash with `git log -1 --oneline` after pulling.
+- Do not switch back to `emir_frontend`; its work is already included in the
+  current history.
 
-The handoff commit is newer than the code baseline above. After pulling on the
-desktop, `git status` should be clean apart from any machine-local untracked
-files.
+The only intended tracked artifact under `output/` is:
 
-## Desktop Bootstrap
+```text
+output/pdf/ello-teknik-dokumani.pdf
+```
 
-Run these commands from the repository root:
+Do not stage, delete, move, or overwrite any other user-owned output files
+unless the user explicitly requests it.
+
+## Exact Laptop Start
+
+Run from the laptop repository:
 
 ```powershell
 git fetch origin
-git switch main
-git pull --ff-only origin main
+git switch codex/post-handoff-demo-fixes
+git pull --ff-only origin codex/post-handoff-demo-fixes
 git status --short --branch
-git log -1 --oneline
+git log -4 --oneline
+```
+
+Expected result:
+
+- Branch is `codex/post-handoff-demo-fixes`.
+- Branch and origin are aligned.
+- Worktree is clean apart from machine-local ignored files.
+- The last four commits include this handoff/PDF commit followed by
+  `31bfd72`, `8cbdb60`, and `1ed7119`.
+
+Give the next Codex task this exact prompt:
+
+```text
+SETUP: laptop
+Read docs/CODEX_HANDOFF.md, switch/pull codex/post-handoff-demo-fixes,
+verify the root .env without exposing secrets, start Docker, and continue from
+Next Work. Do not touch unrelated output files.
+```
+
+## Root Environment File
+
+The root `.env` is intentionally not tracked. Docker Compose now refuses to
+start without these values:
+
+- `JWT_SECRET`
+- `BOT_WEBHOOK_SECRET`
+- `WEBHOOK_SECRET`
+
+Each value must be a different random secret of at least 32 characters.
+Production validation rejects documented placeholders and values beginning
+with:
+
+- `change-me`
+- `replace-with`
+- `local-compose-`
+
+Do not print or commit the active values. On the laptop, ask Codex to inspect
+only whether the variables exist and meet the length/placeholder rules. If the
+laptop still has old Compose defaults, replace them with new random secrets.
+
+Optional values can be copied from `.env.compose.example`, but its secret
+placeholders must be replaced before Docker starts.
+
+## Docker Start And Verification
+
+```powershell
+docker compose config --quiet
 docker compose up -d --build
 docker compose ps
 ```
 
-Expected services:
+Expected long-running services:
 
-- Frontend: `http://localhost:5173`
-- Backend health: `http://localhost:3000/api/health`
-- Swagger: `http://localhost:3000/api/docs`
-- Java webhook health: `http://localhost:8080/health`
-- PostgreSQL: port `5432`
+| Service | URL or port | Expected |
+| --- | --- | --- |
+| Frontend | `http://localhost:5173` | healthy |
+| Backend | `http://localhost:3000/api/health` | healthy |
+| Java webhook | `http://localhost:8080/health` | healthy |
+| PostgreSQL | `127.0.0.1:5432` | healthy |
 
-All four long-running Docker services should report `healthy`.
+Port exposure is intentional:
 
-To give Codex the context on the desktop, use this exact message:
+- Frontend `5173` is reachable from the LAN for second-device testing.
+- Backend `3000`, Java `8080`, and PostgreSQL `5432` bind only to
+  `127.0.0.1`.
+- Frontend Nginx proxies `/api` and Socket.IO traffic to the backend.
+- Swagger is enabled by default for this demo:
+  `http://localhost:3000/api/docs`.
 
-```text
-SETUP: desktop
-Read docs/CODEX_HANDOFF.md, verify main and Docker, then continue from Next Work.
-Do not touch the untracked output/ directory.
-```
+The startup jobs must finish successfully:
 
-## Implemented And Verified
+- `migrate`: applies Prisma migrations and runs the database audit.
+- `built-in-users-bootstrap`: preserves/creates the six fixed test users and
+  the Automation Bot.
 
-- NestJS backend, React frontend, PostgreSQL persistence, and Java webhook run
-  together with Docker Compose.
-- Authentication, admin/user authorization, persistent sessions, direct
-  messaging, group messaging, group management, manager chat, automation bot
-  groups, support tickets, attachments, profiles, message search, bookmarks,
-  archive/delete preferences, and contact invitations are integrated.
-- Socket.IO provides realtime messages, edits, deletes, group changes,
-  presence, typing, and WebRTC signaling.
-- Audio calling has a WebRTC UI, signaling, persisted call history, call
-  status/duration, and redial support.
-- Audio calls tolerate short Socket.IO outages, resynchronize the server call
-  session after reconnect, and attempt ICE recovery before failing.
-- Call signaling logs include lifecycle metadata without SDP or ICE contents.
-- Calls page uses real backend data instead of template data.
-- Presence is based on authenticated active sockets and supports multiple tabs.
-- Contacts no longer render every user in PostgreSQL. They are derived from
-  active direct-conversation participants.
-- The backend exposes those direct-conversation contacts through
-  `GET /api/conversations/contacts`, independently of chat pagination or
-  per-user archive/delete preferences.
-- Existing direct-conversation participants are available in the group member
-  picker, and their profile is shown as an existing contact instead of offering
-  a duplicate invitation.
-- Incoming messages no longer create popup notifications. Socket-driven
-  in-chat updates, unread state/badges, list refreshes, and hidden-tab title
-  notifications remain active.
-- Bot group creation responses expose `created` and `reused` metadata while
-  preserving the existing flat conversation response and retry-safe
-  `externalRef` behavior.
-- Saved Messages menus stay inside the viewport.
-- Opening a bookmarked message scrolls only the conversation container and does
-  not move the page or composer.
-- Playwright starts isolated frontend/backend servers on ports `5273` and
-  `3100` with an in-memory backend database, so Docker can remain running
-  without polluting the local PostgreSQL database.
+## Current Verified State
 
-Last complete verification:
+The desktop verification completed on 2026-07-27:
 
-- Backend unit tests: `55/55`
-- Backend E2E tests: `11/11`
+- Backend unit tests: `58/58`
+- Backend API E2E tests: `13/13`
 - Frontend unit tests: `18/18`
-- Playwright E2E tests: `29/29`
+- Playwright E2E tests: `33/33`
+- Backend and frontend typechecks passed.
 - Backend and frontend production builds passed.
-- Full Docker Compose build, migration, and health checks passed.
+- Production security test passed.
+- Full-stack Docker test passed, including:
+  - frontend and same-origin API proxy
+  - backend health
+  - Swagger UI and OpenAPI JSON
+  - Java health and readiness
+  - admin login and role checks
+  - regular-user authorization boundary
+  - support ticket assignment/conflict/resolution
+  - direct Socket.IO delivery and retry idempotency
+  - persistent attachment upload/delivery/download
+  - Java webhook authentication
+  - ticket webhook group idempotency
+  - read-only automation group policy
+  - group Socket.IO delivery and persistence
+- Database audit passed with 34 indexes and 13 foreign keys.
+- Manual two-browser group chat test passed without refresh.
+- The user previously verified that audio calls connect and transmit sound.
 
-## Open Bugs
+## Implemented Product Scope
 
-No known open bugs remain from the four-item user test report.
+### Authentication And Users
 
-## Resolved Bugs
+- Register, login, current user, logout, protected routes, and password change.
+- JWT authentication and global admin/user roles.
+- Login/register throttling and frontend Retry-After countdown.
+- User search and persistent profile fields.
+- Profile image compression and validation.
+- Six stable built-in demo accounts plus the Automation Bot.
 
-### BUG-3: Bot API idempotency response is unclear
+### Conversations And Contacts
 
-Resolved on `codex/bot-group-idempotency`:
+- Idempotent direct conversations.
+- Contacts derived from active direct-conversation relationships.
+- Contact invitations with accept/decline and duplicate protection.
+- Admin-created groups with owner/manager/member roles.
+- Group rename, description, status, member message policy, and leave policy.
+- Participant add/remove, manager role changes, owner transfer, and group leave.
+- Private management conversation visible only to owner/managers.
+- User-specific conversation bookmark, archive, and delete preferences.
 
-- `POST /api/bot/groups` and the legacy `/api/bot/create-group` alias preserve
-  the flat conversation response while adding `created` and `reused` booleans.
-- A new group returns `created: true`, `reused: false`.
-- Any retry with the same normalized `externalRef`, including a materially
-  different payload, returns the original group with `created: false`,
-  `reused: true`.
-- Retry payload changes are not silently applied; callers must use the bot
-  group update endpoints to mutate the existing group.
-- Backend E2E coverage verifies one group and one initial bot message across
-  identical and materially different retries.
+### Messaging
 
-### BUG-1: Duplicate popup notifications
+- Persistent text messages with cursor pagination.
+- Realtime create, edit, delete, typing, read receipt, and unread badges.
+- Conversation message search and focused-message navigation.
+- Persistent replies linked through `replyToMessageId`.
+- Persistent forwarded labels and attachment forwarding.
+- Copy and mark-unread message actions.
+- User-specific persistent message bookmarks/Saved Messages.
+- Shared contacts, emoji, camera/file composer actions.
+- Up to five persistent 5 MB attachments per message.
+- Participant-only authenticated attachment preview/download.
+- `clientMessageId` retry idempotency and REST fallback when Socket.IO is down.
 
-Resolved on `codex/disable-message-popups`:
+### Realtime And Calls
 
-- Removed the dedicated incoming-message toast, its click-to-open behavior, and
-  its custom styling.
-- `message:new` still refreshes conversation lists so unread state and badges
-  update immediately.
-- Messages still appear in an open conversation without refresh, and hidden
-  tabs still temporarily identify the sender in the document title.
-- Playwright verifies the unread badge, popup absence, and realtime
-  bidirectional direct messaging.
-- The mobile viewport E2E assertion now waits for the chat panel transition to
-  settle before measuring the composer.
+- JWT-authenticated Socket.IO namespace `/chat`.
+- User and conversation rooms.
+- Multi-tab online/offline presence.
+- Reconnect conversation sync.
+- Direct WebRTC audio calls with mute, end, reject, missed, and history.
+- 15-second socket disconnect grace period.
+- Call sync/recover and ICE recovery after transient disconnects.
+- SDP and ICE content are not written to logs.
 
-### BUG-2: Direct message and Contact relationship gap
+### Support And Automation
 
-Resolved on `codex/contact-dm-sync`:
+- User-created support tickets visible only to the requester and admins.
+- Admin ticket pool with All/Mine/Unassigned filters.
+- Claim, assign, transfer, unassign, status, priority, and admin note flows.
+- Optimistic ticket versioning with `409 Conflict` protection.
+- Persistent ticket activity history.
+- Shared-secret bot API for external groups, participants, messages, settings,
+  and manager roles.
+- Idempotent `externalRef` behavior with `created` and `reused` metadata.
+- Spring Boot Java ticket webhook adapter with validation, timeout, retry,
+  health/readiness, and controlled 502 behavior.
 
-- Active direct conversations are the single Contact relationship source; no
-  duplicate Contact table or direct conversation is created.
-- `GET /api/conversations/contacts` returns the authenticated user's unique
-  non-bot direct contacts even when the chat is hidden from that user's list.
-- The frontend loads contacts on the Chats screen and refreshes them before
-  opening the group member picker.
-- User profiles recognize existing direct contacts and no longer offer a
-  duplicate invitation.
-- Contact invitation conflicts now clearly report that the users are already
-  contacts.
-- Unit and Playwright coverage includes idempotent direct conversations,
-  hidden chats, duplicate invitations, and DM-before-group selection.
+### Frontend And Demo
 
-### BUG-4: Audio call ends before connection
+- Chats, Contacts, Calls, Saved Messages, Support, Settings, and Profile tabs.
+- Responsive desktop/mobile chat and group detail views.
+- Light/dark mode persisted in localStorage.
+- Working Help modals for FAQ, Contact, and Terms & Privacy.
+- Incoming message popups are intentionally disabled; unread state, open-chat
+  updates, badges, and hidden-tab title notifications remain.
+- Swagger is intentionally on by default for the demo.
 
-Originally observed during testing through a Cloudflare Quick Tunnel from
-different networks:
+## Latest Post-Handoff Work
 
-- The call closes almost immediately before the receiver can establish the
-  connection.
-- The UI can show `Call ended` while the incoming-call presentation is still
-  visible.
+Commit `1ed7119` completed previously non-working demo actions:
 
-Implemented in `098d07f` and merged into `main`:
+- Reply persistence in PostgreSQL.
+- Forwarded-message persistence.
+- Attachment forwarding.
+- Copy and mark-unread actions.
+- Help menu modals.
+- Light/dark theme persistence.
+- Additional backend and Playwright coverage.
 
-- A 15-second backend disconnect grace period keeps ringing/active sessions
-  alive during transient socket reconnects.
-- `call:sync` restores session state after reconnect and `call:recover`
-  requests a fresh caller offer when the recipient needs ICE recovery.
-- The frontend shows a reconnecting state, retries ICE, and sends terminal call
-  events once.
-- Structured lifecycle/signaling logs omit SDP and ICE payload contents.
-- Backend unit tests and Playwright now cover the reconnecting ringing call.
+Commit `8cbdb60` fixed the highest-priority security exposure:
 
-User validation completed:
+- Removed known default JWT and webhook secrets from Compose.
+- Required local random secrets.
+- Rejected documented secret placeholders in production.
+- Bound backend, Java, and PostgreSQL host ports to loopback.
+- Kept only frontend `5173` externally reachable.
 
-- The call connects successfully and audio is transmitted.
-- BUG-4 is closed. TURN is not required for the tested path; it remains a
-  future compatibility option for network combinations where public STUN
-  cannot establish media.
+Commit `31bfd72` restored demo-friendly defaults:
 
-## Next Work
+- Swagger is open by default in Docker Compose.
+- Built-in test users remain available.
+- Full-stack test uses `emiradmin` instead of the obsolete
+  `admin@example.com` assumption.
 
-Recommended priority on the desktop:
+## Technical PDF
 
-1. Optionally validate the BUG-3 response manually through Swagger or Postman.
-2. Review the product backlog and choose the next feature or newly reported
-   defect.
-3. Keep `main` and the four Docker services healthy before starting new work.
-
-## Test Accounts
-
-All built-in account passwords are `123456`.
-
-| Automation ID | Username | Email | Global role |
-| --- | --- | --- | --- |
-| `1` | `emiradmin` | `emiradmin@ello.com` | admin |
-| `2` | `emiruser` | `emiruser@ello.com` | user |
-| `3` | `aslıadmin` | `asliadmin@ello.com` | admin |
-| `4` | `aslıuser` | `asliuser@ello.com` | user |
-| `5` | `gülsimaadmin` | `gulsimaadmin@ello.com` | admin |
-| `6` | `gülsimauser` | `gulsimauser@ello.com` | user |
-
-The database also contains the required `ellO Automation Bot` system account.
-Do not expose normal direct messaging to the bot unless that product decision
-is revisited.
-
-## Bot API Test
-
-Swagger:
-
-```text
-http://localhost:3000/api/docs
-```
-
-Bot endpoints use the `x-bot-secret` header. Read the active local value without
-writing it into this document:
-
-```powershell
-docker inspect chat-app-demo-backend-1 --format '{{range .Config.Env}}{{println .}}{{end}}' |
-  Select-String '^BOT_WEBHOOK_SECRET='
-```
-
-Useful flow:
-
-1. `POST /api/bot/groups`
-2. Copy the returned conversation ID.
-3. `POST /api/bot/groups/{conversationId}/participants`
-4. `POST /api/bot/groups/{conversationId}/messages`
-5. Confirm group/message updates appear without refresh.
-
-## Database State And Transfer
-
-Git does not carry PostgreSQL data. Each machine has a separate Docker volume.
-The laptop database was cleaned to the six built-in test accounts plus the
-Automation Bot before the latest manual tests. Groups/messages created after
-that cleanup are laptop-local.
-
-If only code and fresh test accounts are needed, do not transfer the database.
-`docker compose up -d --build` bootstraps the built-in users.
-
-To move the exact laptop database to the desktop, create a fresh custom-format
-dump on the laptop:
-
-```powershell
-docker exec chat-app-demo-postgres pg_dump `
-  -U postgres -d chat_app_demo -Fc `
-  -f /tmp/ello-desktop-handoff.dump
-
-docker cp chat-app-demo-postgres:/tmp/ello-desktop-handoff.dump `
-  "$HOME\Desktop\ello-desktop-handoff.dump"
-```
-
-Restore only after taking a backup of any existing desktop database. Stop the
-backend/frontend/Java services during restore so they cannot write concurrently.
-
-An older laptop backup made before a cleanup exists only on the laptop at:
+The repository includes a 25-page Turkish technical report:
 
 ```text
-C:\Users\emovi\AppData\Local\Temp\ello-before-demo-only-cleanup-20260724-155816.dump
+output/pdf/ello-teknik-dokumani.pdf
 ```
+
+It documents:
+
+- all application features
+- architecture and repository structure
+- technology choices and why they were selected
+- backend modules and global request pipeline
+- PostgreSQL models, enums, relations, and indexes
+- complete REST and Socket.IO references
+- frontend architecture and UI behavior
+- Java webhook flow
+- security, Docker, testing, and operations
+- development timeline and resolved bugs
+- known limitations and recommended roadmap
+
+The PDF was rendered page by page and visually checked. It contains no secret
+values.
+
+## Known Limitations
+
+These are not blockers for the demo, but must not be presented as completed
+production features:
+
+- Email password reset is not implemented.
+- Lock screen is a theme placeholder.
+- Video calling is not implemented; an unused template modal exists.
+- Privacy/security and theme color/background controls are not persisted to the
+  backend. Light/dark mode is persistent.
+- Password changes do not revoke already issued JWTs.
+- JWT is stored in frontend localStorage.
+- Nginx does not yet define a strict application CSP/Permissions-Policy.
+- Public STUN works for tested audio paths; production cross-network
+  reliability requires authenticated TURN and HTTPS.
+- Attachments are stored as PostgreSQL bytes; object storage is preferable at
+  larger scale.
+- Presence and active call sessions are process-local; horizontal scaling
+  requires a shared realtime adapter/state.
+- The Create React App dependency chain has audit debt and should be migrated
+  deliberately rather than with a forced audit fix.
+- Demo passwords are weak by design.
 
 ## Temporary Internet Testing
 
-The laptop currently has a Docker-based Cloudflare Quick Tunnel container named
-`ello-quick-tunnel`. It exposes the frontend, proxied API, and Socket.IO through
-one temporary HTTPS URL.
-
-Inspect the current laptop URL:
-
-```powershell
-docker logs ello-quick-tunnel 2>&1 |
-  Select-String 'https://.*trycloudflare.com'
-```
-
-Stop public access before leaving the laptop:
-
-```powershell
-docker stop ello-quick-tunnel
-```
-
-The container restart policy is intentionally `no`, so it should not expose the
-application automatically after Docker restarts. The URL is temporary and will
-change when a new Quick Tunnel is created on the desktop.
-
-Create a new desktop tunnel after the application is healthy:
+If laptop-to-desktop or different-network testing is needed, expose only the
+frontend through a temporary Cloudflare Quick Tunnel:
 
 ```powershell
 docker run -d --name ello-quick-tunnel `
@@ -299,11 +306,56 @@ docker run -d --name ello-quick-tunnel `
 docker logs ello-quick-tunnel
 ```
 
-The public link should be shared only with the intended testers. The demo
-accounts use weak test passwords, and a Quick Tunnel is not a production
-deployment.
+Do not expose backend `3000`, Java `8080`, or PostgreSQL `5432` directly.
 
-## Final Desktop Sanity Check
+Stop public access immediately after testing:
+
+```powershell
+docker stop ello-quick-tunnel
+```
+
+The public link is temporary. Demo users have weak passwords, so share the URL
+only with intended testers.
+
+## Test Accounts
+
+All built-in account passwords are `123456`.
+
+| Automation ID | Username | Email | Global role |
+| --- | --- | --- | --- |
+| `1` | `emiradmin` | `emiradmin@ello.com` | admin |
+| `2` | `emiruser` | `emiruser@ello.com` | user |
+| `3` | `asliadmin` | `asliadmin@ello.com` | admin |
+| `4` | `asliuser` | `asliuser@ello.com` | user |
+| `5` | `gulsimaadmin` | `gulsimaadmin@ello.com` | admin |
+| `6` | `gulsimauser` | `gulsimauser@ello.com` | user |
+
+## Next Work
+
+Recommended order on the laptop:
+
+1. Pull `codex/post-handoff-demo-fixes`, not `main`.
+2. Verify the ignored root `.env` without printing secrets.
+3. Start Docker and wait for all four long-running services to become healthy.
+4. Run:
+
+   ```powershell
+   npm.cmd run test:full-stack
+   ```
+
+5. Manually verify one direct and one group message in two independent browser
+   sessions without refresh.
+6. Open the technical PDF and confirm it is available for the presentation.
+7. Prepare the presentation/demo sequence and a short failure-recovery
+   checklist.
+8. After the laptop verification, decide whether to open a PR/merge this branch
+   into `main`.
+
+Do not start a broad CRA migration, attachment storage rewrite, or distributed
+realtime refactor before the presentation unless the user explicitly changes
+priority.
+
+## Final Sanity Commands
 
 ```powershell
 git status --short --branch
@@ -311,12 +363,5 @@ docker compose ps
 Invoke-RestMethod http://localhost:3000/api/health
 Invoke-WebRequest -UseBasicParsing http://localhost:5173/healthz
 Invoke-RestMethod http://localhost:8080/health
+Invoke-WebRequest -UseBasicParsing http://localhost:3000/api/docs
 ```
-
-Then manually verify:
-
-- Login with one admin and two users.
-- Direct and group messages update without refresh.
-- Presence becomes online/offline correctly.
-- Bot group creation and bot messages appear in realtime.
-- Reproduce the four open bugs before changing code.
