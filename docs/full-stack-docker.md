@@ -21,6 +21,9 @@ Copy-Item .env.compose.example .env
 - `ADMIN_PASSWORD`
 
 `POSTGRES_PASSWORD` ile `DATABASE_URL` icindeki parola ayni olmalidir.
+Compose, `JWT_SECRET`, `BOT_WEBHOOK_SECRET` ve `WEBHOOK_SECRET` eksikse
+baslamaz. Backend de ornek dosyadaki placeholder secret'lari production
+profilinde reddeder.
 
 ## Baslatma
 
@@ -42,12 +45,16 @@ Adresler:
 - Backend health: `http://localhost:3000/api/health`
 - Java health: `http://localhost:8080/health`
 - Java readiness: `http://localhost:8080/ready`
-- Swagger UI: `http://localhost:3000/api/docs`
+- Swagger UI (yalnizca `SWAGGER_ENABLED=true` ise):
+  `http://localhost:3000/api/docs`
 
-Yerel Compose calismasinda Swagger varsayilan olarak aciktir. Production icin
-hazirlanan `.env.compose.example`, `SWAGGER_ENABLED=false` degeriyle Swagger'i
-kapatir. Demo kullanicilar, dev reset ve demo UI production profilinde
-kapalidir.
+Yerel Compose calismasinda Swagger varsayilan olarak kapalidir. Gerektiginde
+`.env` icinde gecici olarak `SWAGGER_ENABLED=true` yapilabilir. Demo
+kullanicilar, dev reset ve demo UI production profilinde kapalidir.
+
+PostgreSQL, backend ve Java webhook host portlari yalnizca `127.0.0.1`
+adresine baglanir. Ayni agdaki cihazlar ve gecici tunnel yalnizca frontend
+`5173` portuna erisir; API ve Socket.IO trafigi Nginx uzerinden proxy edilir.
 
 Frontend API ve Socket.IO baglantilarini ayni origin uzerinden Nginx ile
 backend'e proxy'ler. Bu nedenle ayni agdaki baska bir cihazda uygulama

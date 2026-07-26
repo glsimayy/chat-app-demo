@@ -93,15 +93,15 @@ export function validateEnv(config: Record<string, unknown>) {
       throw new Error("CORS_ORIGIN cannot be wildcard in production");
     }
 
-    if (jwtSecret.length < 32 || jwtSecret === "dev-secret") {
+    if (isInsecureProductionSecret(jwtSecret, "dev-secret")) {
       throw new Error(
-        "JWT_SECRET must be at least 32 characters in production",
+        "JWT_SECRET must be at least 32 random characters in production",
       );
     }
 
-    if (botWebhookSecret.length < 32 || botWebhookSecret === "dev-bot-secret") {
+    if (isInsecureProductionSecret(botWebhookSecret, "dev-bot-secret")) {
       throw new Error(
-        "BOT_WEBHOOK_SECRET must be at least 32 characters in production",
+        "BOT_WEBHOOK_SECRET must be at least 32 random characters in production",
       );
     }
 
@@ -134,6 +134,18 @@ export function validateEnv(config: Record<string, unknown>) {
       ? String(config.DEV_RESET_SECRET)
       : undefined,
   };
+}
+
+function isInsecureProductionSecret(value: string, developmentDefault: string) {
+  const normalized = value.toLowerCase();
+
+  return (
+    value.length < 32 ||
+    value === developmentDefault ||
+    normalized.startsWith("change-me") ||
+    normalized.startsWith("replace-with") ||
+    normalized.startsWith("local-compose-")
+  );
 }
 
 function validateDatabaseUrl(value: string) {

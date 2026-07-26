@@ -48,6 +48,23 @@ describe("validateEnv", () => {
     ).toThrow("DATABASE_URL is required in production");
   });
 
+  it.each([
+    ["JWT_SECRET", "local-compose-jwt-secret-change-before-production"],
+    ["JWT_SECRET", "replace-with-a-random-secret-of-at-least-32-characters"],
+    ["BOT_WEBHOOK_SECRET", "local-compose-bot-secret-change-before-production"],
+  ])("rejects documented %s placeholders in production", (key, value) => {
+    expect(() =>
+      validateEnv({
+        NODE_ENV: "production",
+        CORS_ORIGIN: "https://chat.example.com",
+        DATABASE_URL: "postgresql://postgres:postgres@db:5432/chat",
+        JWT_SECRET: key === "JWT_SECRET" ? value : "j".repeat(32),
+        BOT_WEBHOOK_SECRET:
+          key === "BOT_WEBHOOK_SECRET" ? value : "b".repeat(32),
+      }),
+    ).toThrow(`${key} must be at least 32 random characters in production`);
+  });
+
   it("rejects development-only features in production", () => {
     expect(() =>
       validateEnv({
