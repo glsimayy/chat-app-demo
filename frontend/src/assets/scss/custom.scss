@@ -555,6 +555,10 @@ body[data-bs-theme="light"] .chat-leftsidebar .text-muted {
 
 .profile-settings-cover {
   background-color: #27624f;
+
+  .user-chat-nav {
+    display: block;
+  }
 }
 
 .profile-settings-cover-art,

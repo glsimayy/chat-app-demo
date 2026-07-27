@@ -1,17 +1,17 @@
 # ellO Codex Handoff
 
-Last updated: 2026-07-27
-Source setup: laptop
-Next setup: desktop
+Last updated: 2026-07-28
+Source setup: desktop
+Next setup: not selected
 
-This is the source of truth for resuming ellO work on the desktop. Read the
+This is the source of truth for resuming ellO work on either machine. Read the
 whole file before changing code or Git state.
 
 ## Transfer Note
 
-The user authorized committing and pushing because that makes the desktop
-handoff safer. The branch contains the reply fix, documentation, PDFs,
-temporary-server scripts, and this handoff.
+The laptop-to-desktop transfer completed successfully and current work is on
+the desktop `main` branch. The user authorized committing and pushing the chat
+background picker update and this handoff after local validation.
 
 A separate OneDrive ZIP is retained only as a backup:
 
@@ -25,16 +25,15 @@ Depending on Windows localization, File Explorer may display `Masaüstü` as
 Normal desktop continuation should use Git, not the ZIP. PostgreSQL data lives
 in a machine-local Docker volume and is not included in Git or the backup.
 
-## Exact Prompt For Desktop Codex
+## Exact Prompt For Next Codex
 
-Give the next Codex task this prompt:
+Give the next Codex task this prompt, replacing the setup name if needed:
 
 ```text
 SETUP: desktop
-Open C:\Users\emovi\OneDrive\Documents\GitHub\chat-app-demo, read
-docs/CODEX_HANDOFF.md, switch/pull main, preserve any existing local changes,
-verify the root .env without exposing secrets, start Docker, recreate the
-documented 6-user/3-group demo database, and continue from Next Work.
+Open the existing chat-app-demo checkout, read docs/CODEX_HANDOFF.md,
+preserve any existing local changes, switch/pull main, verify Docker without
+exposing .env values, and continue from Next Work.
 ```
 
 ## Repository State
@@ -47,8 +46,12 @@ documented 6-user/3-group demo database, and continue from Next Work.
 - Reply fix commit: `228babb fix: persist chat replies end to end`
 - Technical reference commit:
   `de585d7 docs: add API and database reference reports`
-- The latest commit contains temporary-server tooling and this desktop
-  handoff. Verify it with `git log -1 --oneline` after pulling.
+- Bot automation and support realtime commit:
+  `c29d359 feat: expand bot automation and realtime support`
+- WebRTC diagnostics commit:
+  `9bd7a79 feat: add WebRTC call diagnostics`
+- The commit containing this handoff also contains the chat background picker
+  update. Verify it with `git log -1 --oneline` after pulling.
 - Do not switch to `emir_frontend`; that work is already in current history.
 
 Desktop preparation:
@@ -157,6 +160,66 @@ Quick Tunnel details:
 - backend `3000`, Java `8080`, and PostgreSQL `5432` stay loopback-only
 - no previous public URL should be assumed valid
 
+### Expanded Bot Automation And Support Realtime
+
+The BOT API now supports the automation group lifecycle beyond group creation:
+
+- create or get an idempotent group
+- inspect and update group settings
+- list, add, remove, and promote/demote participants
+- create, edit, and delete bot-authored messages
+
+Examples are in `docs/bot-api-examples.md`. Bot operations use
+`x-bot-secret`; normal user JWTs are not used for these endpoints.
+
+Support tickets now emit `ticket:created` and `ticket:updated` Socket.IO
+events. The frontend refreshes the relevant ticket state from those events, so
+admin and requester views update without a manual refresh. The cross-session
+Playwright scenario passed.
+
+### WebRTC Diagnostics And Audio Verification
+
+The call overlay now includes a diagnostics panel for:
+
+- peer and ICE connection state
+- microphone sending bytes
+- remote audio receiving bytes
+- selected network path and candidate type
+- actionable recovery messages
+
+Recovery logic can restart ICE or rebuild the peer connection when needed.
+Local audio passed, and two-way audio also passed between phone and desktop
+through the Cloudflare HTTPS URL. The observed successful path was
+`host / host / udp`.
+
+No authenticated TURN service is bundled. The current STUN/host path can work
+on permissive networks, but a production TURN server is still recommended for
+restrictive NAT or firewall combinations.
+
+### Chat Background Picker
+
+The Settings > Themes background selector was replaced with a responsive
+three-column preview grid:
+
+- nine named and keyboard-accessible radio choices
+- stable rectangular previews instead of nearly invisible circles
+- selected border, label color, and check indicator
+- preview-only contrast enhancement for the very pale source PNGs
+- no filter applied to the actual chat background
+
+The mobile settings header overlap was also fixed. Validation completed on
+desktop and a `390px` viewport with no horizontal overflow. The targeted
+Playwright test verifies all nine choices, the default selection, and actual
+chat background switching.
+
+Current frontend verification on 2026-07-28:
+
+- typecheck passed
+- all 23 unit tests passed
+- production build passed
+- targeted theme Playwright test passed
+- Docker frontend was rebuilt and is healthy
+
 ## Root Environment
 
 The root `.env` is intentionally ignored by Git and is not in the repository
@@ -190,8 +253,9 @@ match.
 
 ## Docker State
 
-Docker Desktop and the local stack were running and healthy at the final
-laptop handoff check. No public tunnel should be assumed active.
+Docker Desktop and all four long-running services were healthy on the desktop
+after the final frontend rebuild on 2026-07-28. No public tunnel should be
+assumed active.
 
 Start on desktop:
 
@@ -216,7 +280,7 @@ Swagger:
 http://localhost:3000/api/docs
 ```
 
-## Last Verified Demo Database State
+## Historical Demo Database Baseline
 
 At the final laptop check, the database was reset to:
 
@@ -238,10 +302,10 @@ Visible groups:
 
 Every group contains all six fixed users.
 
-This database state will **not** transfer to desktop automatically because
-Docker volumes are machine-local. The desktop Codex task should recreate this
-state after Docker starts. Do not use `docker compose down -v` unless the user
-explicitly requests complete volume deletion.
+The desktop database has since been used for browser, support, BOT, and call
+tests. Do not assume the counts above are still current. Treat this section as
+the reproducible demo baseline only. Do not use `docker compose down -v` or
+reset demo data unless the user explicitly requests it.
 
 ## Fixed Test Accounts
 
@@ -299,14 +363,16 @@ docker compose stop
 
 ## Next Work
 
-Recommended desktop order:
+Recommended continuation order:
 
 1. Pull `main` and verify a clean worktree.
-2. Verify root `.env` without exposing secrets.
-3. Start Docker and wait for all long-running services to become healthy.
-4. Recreate the documented 6-user/3-group demo database.
-5. Open the application and perform a short manual desktop sanity check.
-6. Continue feature or bug work only after the user selects the next priority.
+2. Start Docker and wait for all long-running services to become healthy.
+3. Open Settings > Themes and confirm the nine visible background previews.
+4. Keep the current database unless the user requests the documented demo
+   reset.
+5. Select the next product priority with the user.
+6. Consider authenticated TURN only if cross-network call reliability becomes
+   a release requirement.
 7. Continue from `main`; push new work only when the user explicitly asks.
 
 ## Final Sanity Commands

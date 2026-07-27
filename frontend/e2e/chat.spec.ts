@@ -297,6 +297,31 @@ test("theme mode is applied and survives a page reload", async ({
       .getByRole("button", { name: "Themes", exact: true })
       .click();
 
+    const backgroundPatterns = user.page.getByRole("radiogroup", {
+      name: "Chat Background",
+    });
+    await expect(backgroundPatterns.getByRole("radio")).toHaveCount(9);
+    await expect(
+      backgroundPatterns.getByRole("radio", {
+        name: "Pattern 5",
+        exact: true,
+      }),
+    ).toBeChecked();
+
+    const secondPattern = backgroundPatterns.getByRole("radio", {
+      name: "Pattern 2",
+      exact: true,
+    });
+    await backgroundPatterns.getByText("Pattern 2", { exact: true }).click();
+    await expect(secondPattern).toBeChecked();
+    await expect
+      .poll(() =>
+        user.page.locator("#user-chat").evaluate(element => {
+          return (element as HTMLElement).style.backgroundImage;
+        }),
+      )
+      .toContain("pattern-02");
+
     const darkTheme = user.page.getByRole("radio", {
       name: "Dark",
       exact: true,
