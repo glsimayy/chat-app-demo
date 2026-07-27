@@ -1,8 +1,8 @@
 # ellO Codex Handoff
 
 Last updated: 2026-07-27
-Source setup: desktop
-Next setup: laptop
+Current verified setup: laptop
+Previous setup: desktop
 
 This file is the source of truth for continuing ellO work on another machine or
 in another Codex task. The next session must continue from the feature branch
@@ -13,15 +13,19 @@ below, not from `main`.
 - Repository: `https://github.com/glsimayy/chat-app-demo.git`
 - Continue branch: `codex/post-handoff-demo-fixes`
 - Remote tracking branch: `origin/codex/post-handoff-demo-fixes`
-- Canonical `main` remains unchanged at `cd47d1d`.
+- Canonical `main` is at `dc89a9a` and already contains the completed product,
+  security, test-alignment, technical PDF, and original handoff commits.
 - Latest code commit before this handoff/PDF delivery:
   `31bfd72 test: align demo stack defaults`
+- Latest branch commit before this handoff refresh:
+  `9008c96 docs: add presentation demo runbook`
 - Important commits on the continue branch:
   - `1ed7119 feat: complete post-handoff demo workflows`
   - `8cbdb60 security: harden compose secrets and exposed ports`
   - `31bfd72 test: align demo stack defaults`
-- The newest branch commit also contains this updated handoff and the technical
-  PDF. Verify its hash with `git log -1 --oneline` after pulling.
+- `origin/main` contains all three commits above. The continue branch is ahead
+  only by the presentation runbook and this refreshed handoff.
+- Verify the newest branch hash with `git log -1 --oneline` after pulling.
 - Do not switch back to `emir_frontend`; its work is already included in the
   current history.
 
@@ -51,8 +55,8 @@ Expected result:
 - Branch is `codex/post-handoff-demo-fixes`.
 - Branch and origin are aligned.
 - Worktree is clean apart from machine-local ignored files.
-- The last four commits include this handoff/PDF commit followed by
-  `31bfd72`, `8cbdb60`, and `1ed7119`.
+- The recent history includes this refreshed handoff, `9008c96`, `dc89a9a`,
+  and `31bfd72`.
 
 Give the next Codex task this exact prompt:
 
@@ -147,6 +151,27 @@ The desktop verification completed on 2026-07-27:
 - Database audit passed with 34 indexes and 13 foreign keys.
 - Manual two-browser group chat test passed without refresh.
 - The user previously verified that audio calls connect and transmit sound.
+
+The laptop verification completed on 2026-07-27:
+
+- Root `.env` was missing and was generated locally from
+  `.env.compose.example`.
+- The three required secrets are present, unique, at least 32 characters, free
+  of documented placeholders, ignored by Git, and were never printed.
+- `docker compose config --quiet` passed.
+- Migration and built-in-user bootstrap jobs exited with code `0`.
+- Frontend, backend, Java webhook, and PostgreSQL are healthy.
+- `npm.cmd run test:full-stack` passed with `"ok": true`.
+- Two independent browser origins were used as separate sessions:
+  - `emiradmin` at `http://localhost:5173`
+  - `asliuser` at `http://127.0.0.1:5173`
+- A direct message and a shared-group message each appeared on the receiving
+  session without refresh and exactly once.
+- Both browser sessions reported zero console errors during that verification.
+- The technical PDF exists, reports 25 A4 pages, and its first and last pages
+  rendered cleanly on the laptop.
+- A presentation and failure-recovery guide was added at
+  `docs/demo-runbook.md`.
 
 ## Implemented Product Scope
 
@@ -332,28 +357,17 @@ All built-in account passwords are `123456`.
 
 ## Next Work
 
-Recommended order on the laptop:
+Laptop verification is complete. Recommended order:
 
-1. Pull `codex/post-handoff-demo-fixes`, not `main`.
-2. Verify the ignored root `.env` without printing secrets.
-3. Start Docker and wait for all four long-running services to become healthy.
-4. Run:
+1. Rehearse the presentation using `docs/demo-runbook.md`.
+2. Keep the Docker stack available for manual user testing.
+3. Merge the documentation-only branch delta into `main` when the user
+   approves. All product/security/test commits are already in `main`.
+4. Do not start a broad CRA migration, attachment storage rewrite, or
+   distributed realtime refactor before the presentation unless the user
+   explicitly changes priority.
 
-   ```powershell
-   npm.cmd run test:full-stack
-   ```
-
-5. Manually verify one direct and one group message in two independent browser
-   sessions without refresh.
-6. Open the technical PDF and confirm it is available for the presentation.
-7. Prepare the presentation/demo sequence and a short failure-recovery
-   checklist.
-8. After the laptop verification, decide whether to open a PR/merge this branch
-   into `main`.
-
-Do not start a broad CRA migration, attachment storage rewrite, or distributed
-realtime refactor before the presentation unless the user explicitly changes
-priority.
+No known demo-blocking failure was found in the laptop handoff verification.
 
 ## Final Sanity Commands
 
