@@ -148,7 +148,12 @@ Java testleri `.github/workflows/java-webhook-ci.yml` ile otomatik calisir.
 ## Takim Dokumanlari
 
 - Backend kontratlari: `docs/backend-contracts.md`
+- Detayli API ve Java webhook referansi: `docs/api-java-webhook-reference.md`
+- API ve Java webhook PDF: `output/pdf/ello-api-java-webhook-dokumani.pdf`
 - Database kurulumu: `docs/database-setup.md`
+- Guncel database veri modeli: `docs/database-data-model.md`
+- Database veri modeli PDF: `output/pdf/ellodb-veri-modeli.pdf`
+- Gecici internet sunucusu: `docs/temporary-public-server.md`
 - Gunluk kayit: `docs/daily-log.md`
 - Postman koleksiyonu: `docs/postman/chat-app-demo.postman_collection.json`
 

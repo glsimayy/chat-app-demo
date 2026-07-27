@@ -1,97 +1,199 @@
 # ellO Codex Handoff
 
 Last updated: 2026-07-27
-Current verified setup: laptop
-Previous setup: desktop
+Source setup: laptop
+Next setup: desktop
 
-This file is the source of truth for continuing ellO work on another machine or
-in another Codex task. The next session must continue from the feature branch
-below, not from `main`.
+This is the source of truth for resuming ellO work on the desktop. Read the
+whole file before changing code or Git state.
+
+## Transfer Note
+
+The user authorized committing and pushing because that makes the desktop
+handoff safer. The branch contains the reply fix, documentation, PDFs,
+temporary-server scripts, and this handoff.
+
+A separate OneDrive ZIP is retained only as a backup:
+
+```text
+C:\Users\emovi\OneDrive\Masaüstü\ello-desktop-handoff-2026-07-27.zip
+```
+
+Depending on Windows localization, File Explorer may display `Masaüstü` as
+`Desktop`; use the actual OneDrive Desktop folder on the target machine.
+
+Normal desktop continuation should use Git, not the ZIP. PostgreSQL data lives
+in a machine-local Docker volume and is not included in Git or the backup.
+
+## Exact Prompt For Desktop Codex
+
+Give the next Codex task this prompt:
+
+```text
+SETUP: desktop
+Open C:\Users\emovi\OneDrive\Documents\GitHub\chat-app-demo, read
+docs/CODEX_HANDOFF.md, switch/pull codex/post-handoff-demo-fixes, preserve any
+existing local changes, verify the root .env without exposing secrets, start
+Docker, recreate the documented 6-user/3-group demo database, and continue
+from Next Work. Do not merge to main until I explicitly ask.
+```
 
 ## Repository State
 
 - Repository: `https://github.com/glsimayy/chat-app-demo.git`
 - Continue branch: `codex/post-handoff-demo-fixes`
 - Remote tracking branch: `origin/codex/post-handoff-demo-fixes`
-- Canonical `main` is at `dc89a9a` and already contains the completed product,
-  security, test-alignment, technical PDF, and original handoff commits.
-- Latest code commit before this handoff/PDF delivery:
-  `31bfd72 test: align demo stack defaults`
-- Latest branch commit before this handoff refresh:
-  `9008c96 docs: add presentation demo runbook`
-- Important commits on the continue branch:
-  - `1ed7119 feat: complete post-handoff demo workflows`
-  - `8cbdb60 security: harden compose secrets and exposed ports`
-  - `31bfd72 test: align demo stack defaults`
-- `origin/main` contains all three commits above. The continue branch is ahead
-  only by the presentation runbook and this refreshed handoff.
-- Verify the newest branch hash with `git log -1 --oneline` after pulling.
-- Do not switch back to `emir_frontend`; its work is already included in the
-  current history.
+- `origin/main`: `dc89a9a`
+- Reply fix commit: `228babb fix: persist chat replies end to end`
+- Technical reference commit:
+  `de585d7 docs: add API and database reference reports`
+- The latest commit contains temporary-server tooling and this desktop
+  handoff. Verify it with `git log -1 --oneline` after pulling.
+- Do not switch to `emir_frontend`; that work is already in current history.
 
-The only intended tracked artifact under `output/` is:
-
-```text
-output/pdf/ello-teknik-dokumani.pdf
-```
-
-Do not stage, delete, move, or overwrite any other user-owned output files
-unless the user explicitly requests it.
-
-## Exact Laptop Start
-
-Run from the laptop repository:
+Desktop preparation:
 
 ```powershell
 git fetch origin
 git switch codex/post-handoff-demo-fixes
 git pull --ff-only origin codex/post-handoff-demo-fixes
+git rev-parse --short HEAD
 git status --short --branch
-git log -4 --oneline
 ```
 
-Expected result:
+The expected result is a clean worktree aligned with
+`origin/codex/post-handoff-demo-fixes`. If the desktop repo already has
+changes, stop and inspect them before pulling. Do not overwrite unknown work.
 
-- Branch is `codex/post-handoff-demo-fixes`.
-- Branch and origin are aligned.
-- Worktree is clean apart from machine-local ignored files.
-- The recent history includes this refreshed handoff, `9008c96`, `dc89a9a`,
-  and `31bfd72`.
+## Latest Branch Work
 
-Give the next Codex task this exact prompt:
+### Reply Fix
 
-```text
-SETUP: laptop
-Read docs/CODEX_HANDOFF.md, switch/pull codex/post-handoff-demo-fixes,
-verify the root .env without exposing secrets, start Docker, and continue from
-Next Work. Do not touch unrelated output files.
-```
+The reply composer previously showed the selected message but the sent message
+did not persist `replyToMessageId`.
 
-## Root Environment File
+The fix:
 
-The root `.env` is intentionally not tracked. Docker Compose now refuses to
-start without these values:
+- passes `replyToMessageId` explicitly from the composer
+- preserves `replyOf` for optimistic rendering
+- sends the same reply target through Socket.IO and REST fallback
+- removes false `0 Files` text from text-only reply previews
+- adds a Playwright regression scenario for replying to a BOT message
+
+Laptop verification:
+
+- frontend typecheck passed
+- all 18 frontend unit tests passed
+- frontend production build passed
+- targeted BOT-message reply Playwright test passed
+
+### Database Model Documentation
+
+Created:
+
+- `docs/database-data-model.md`
+- `output/pdf/ellodb-veri-modeli.pdf`
+- `scripts/generate-database-model-report.py`
+
+Updated the database audit to cover the current schema. Last laptop
+verification:
+
+- 46 expected indexes
+- 22 expected foreign keys
+- 11-page A4 database model PDF
+- all PDF pages rendered and visually checked
+
+### API And Java Webhook Documentation
+
+Created:
+
+- `docs/api-java-webhook-reference.md`
+- `docs/openapi.snapshot.json`
+- `output/pdf/ello-api-java-webhook-dokumani.pdf`
+- `scripts/generate-api-webhook-report.py`
+
+Last laptop verification:
+
+- 45 OpenAPI paths
+- 56 REST operations
+- 57 schemas
+- 20 documented Socket.IO client events
+- 48-page A4 PDF
+- no empty pages, clipped content, or broken Turkish glyphs
+- all 20 Java webhook tests passed with JDK 21
+
+### Temporary Internet Server
+
+Created:
+
+- `scripts/start-temporary-server.ps1`
+- `scripts/stop-temporary-server.ps1`
+- `docs/temporary-public-server.md`
+- root npm commands `server:temporary`, `server:temporary:build`, and
+  `server:temporary:stop`
+
+The start script:
+
+- validates Docker and root `.env`
+- starts Docker Compose
+- waits for frontend health
+- removes a stale tunnel container
+- starts a Cloudflare Quick Tunnel
+- prints the temporary public URL
+
+A Windows PowerShell issue was fixed: `cloudflared` writes normal information
+logs to stderr, so the script now captures those lines without treating them
+as terminating errors.
+
+The script was syntax checked and live tested. Public frontend `/healthz`
+returned `200` and public `/api/health` returned `ok`.
+
+Quick Tunnel details:
+
+- no deployment is created
+- the URL changes on restart
+- city/POP selection is not available
+- only frontend `5173` is tunneled
+- backend `3000`, Java `8080`, and PostgreSQL `5432` stay loopback-only
+- no previous public URL should be assumed valid
+
+## Root Environment
+
+The root `.env` is intentionally ignored by Git and is not in the repository
+or handoff ZIP.
+
+Required values:
 
 - `JWT_SECRET`
 - `BOT_WEBHOOK_SECRET`
 - `WEBHOOK_SECRET`
 
-Each value must be a different random secret of at least 32 characters.
-Production validation rejects documented placeholders and values beginning
-with:
+Laptop verification on 2026-07-27:
 
-- `change-me`
-- `replace-with`
-- `local-compose-`
+- all three values exist
+- all are at least 32 characters
+- none use documented placeholders
+- values were not printed
 
-Do not print or commit the active values. On the laptop, ask Codex to inspect
-only whether the variables exist and meet the length/placeholder rules. If the
-laptop still has old Compose defaults, replace them with new random secrets.
+On desktop, inspect only presence, length, uniqueness, and placeholder status.
+Never print or commit the values.
 
-Optional values can be copied from `.env.compose.example`, but its secret
-placeholders must be replaced before Docker starts.
+If `.env` is missing:
 
-## Docker Start And Verification
+```powershell
+Copy-Item .env.compose.example .env
+```
+
+Then replace every secret placeholder with a unique random value of at least 32
+characters. `POSTGRES_PASSWORD` and the password inside `DATABASE_URL` must
+match.
+
+## Docker State
+
+Docker Desktop and the local stack were running and healthy at the final
+laptop handoff check. No public tunnel should be assumed active.
+
+Start on desktop:
 
 ```powershell
 docker compose config --quiet
@@ -101,281 +203,124 @@ docker compose ps
 
 Expected long-running services:
 
-| Service | URL or port | Expected |
+| Service | URL | Expected |
 | --- | --- | --- |
 | Frontend | `http://localhost:5173` | healthy |
 | Backend | `http://localhost:3000/api/health` | healthy |
 | Java webhook | `http://localhost:8080/health` | healthy |
 | PostgreSQL | `127.0.0.1:5432` | healthy |
 
-Port exposure is intentional:
-
-- Frontend `5173` is reachable from the LAN for second-device testing.
-- Backend `3000`, Java `8080`, and PostgreSQL `5432` bind only to
-  `127.0.0.1`.
-- Frontend Nginx proxies `/api` and Socket.IO traffic to the backend.
-- Swagger is enabled by default for this demo:
-  `http://localhost:3000/api/docs`.
-
-The startup jobs must finish successfully:
-
-- `migrate`: applies Prisma migrations and runs the database audit.
-- `built-in-users-bootstrap`: preserves/creates the six fixed test users and
-  the Automation Bot.
-
-## Current Verified State
-
-The desktop verification completed on 2026-07-27:
-
-- Backend unit tests: `58/58`
-- Backend API E2E tests: `13/13`
-- Frontend unit tests: `18/18`
-- Playwright E2E tests: `33/33`
-- Backend and frontend typechecks passed.
-- Backend and frontend production builds passed.
-- Production security test passed.
-- Full-stack Docker test passed, including:
-  - frontend and same-origin API proxy
-  - backend health
-  - Swagger UI and OpenAPI JSON
-  - Java health and readiness
-  - admin login and role checks
-  - regular-user authorization boundary
-  - support ticket assignment/conflict/resolution
-  - direct Socket.IO delivery and retry idempotency
-  - persistent attachment upload/delivery/download
-  - Java webhook authentication
-  - ticket webhook group idempotency
-  - read-only automation group policy
-  - group Socket.IO delivery and persistence
-- Database audit passed with 34 indexes and 13 foreign keys.
-- Manual two-browser group chat test passed without refresh.
-- The user previously verified that audio calls connect and transmit sound.
-
-The laptop verification completed on 2026-07-27:
-
-- Root `.env` was missing and was generated locally from
-  `.env.compose.example`.
-- The three required secrets are present, unique, at least 32 characters, free
-  of documented placeholders, ignored by Git, and were never printed.
-- `docker compose config --quiet` passed.
-- Migration and built-in-user bootstrap jobs exited with code `0`.
-- Frontend, backend, Java webhook, and PostgreSQL are healthy.
-- `npm.cmd run test:full-stack` passed with `"ok": true`.
-- Two independent browser origins were used as separate sessions:
-  - `emiradmin` at `http://localhost:5173`
-  - `asliuser` at `http://127.0.0.1:5173`
-- A direct message and a shared-group message each appeared on the receiving
-  session without refresh and exactly once.
-- Both browser sessions reported zero console errors during that verification.
-- The technical PDF exists, reports 25 A4 pages, and its first and last pages
-  rendered cleanly on the laptop.
-- A presentation and failure-recovery guide was added at
-  `docs/demo-runbook.md`.
-
-## Implemented Product Scope
-
-### Authentication And Users
-
-- Register, login, current user, logout, protected routes, and password change.
-- JWT authentication and global admin/user roles.
-- Login/register throttling and frontend Retry-After countdown.
-- User search and persistent profile fields.
-- Profile image compression and validation.
-- Six stable built-in demo accounts plus the Automation Bot.
-
-### Conversations And Contacts
-
-- Idempotent direct conversations.
-- Contacts derived from active direct-conversation relationships.
-- Contact invitations with accept/decline and duplicate protection.
-- Admin-created groups with owner/manager/member roles.
-- Group rename, description, status, member message policy, and leave policy.
-- Participant add/remove, manager role changes, owner transfer, and group leave.
-- Private management conversation visible only to owner/managers.
-- User-specific conversation bookmark, archive, and delete preferences.
-
-### Messaging
-
-- Persistent text messages with cursor pagination.
-- Realtime create, edit, delete, typing, read receipt, and unread badges.
-- Conversation message search and focused-message navigation.
-- Persistent replies linked through `replyToMessageId`.
-- Persistent forwarded labels and attachment forwarding.
-- Copy and mark-unread message actions.
-- User-specific persistent message bookmarks/Saved Messages.
-- Shared contacts, emoji, camera/file composer actions.
-- Up to five persistent 5 MB attachments per message.
-- Participant-only authenticated attachment preview/download.
-- `clientMessageId` retry idempotency and REST fallback when Socket.IO is down.
-
-### Realtime And Calls
-
-- JWT-authenticated Socket.IO namespace `/chat`.
-- User and conversation rooms.
-- Multi-tab online/offline presence.
-- Reconnect conversation sync.
-- Direct WebRTC audio calls with mute, end, reject, missed, and history.
-- 15-second socket disconnect grace period.
-- Call sync/recover and ICE recovery after transient disconnects.
-- SDP and ICE content are not written to logs.
-
-### Support And Automation
-
-- User-created support tickets visible only to the requester and admins.
-- Admin ticket pool with All/Mine/Unassigned filters.
-- Claim, assign, transfer, unassign, status, priority, and admin note flows.
-- Optimistic ticket versioning with `409 Conflict` protection.
-- Persistent ticket activity history.
-- Shared-secret bot API for external groups, participants, messages, settings,
-  and manager roles.
-- Idempotent `externalRef` behavior with `created` and `reused` metadata.
-- Spring Boot Java ticket webhook adapter with validation, timeout, retry,
-  health/readiness, and controlled 502 behavior.
-
-### Frontend And Demo
-
-- Chats, Contacts, Calls, Saved Messages, Support, Settings, and Profile tabs.
-- Responsive desktop/mobile chat and group detail views.
-- Light/dark mode persisted in localStorage.
-- Working Help modals for FAQ, Contact, and Terms & Privacy.
-- Incoming message popups are intentionally disabled; unread state, open-chat
-  updates, badges, and hidden-tab title notifications remain.
-- Swagger is intentionally on by default for the demo.
-
-## Latest Post-Handoff Work
-
-Commit `1ed7119` completed previously non-working demo actions:
-
-- Reply persistence in PostgreSQL.
-- Forwarded-message persistence.
-- Attachment forwarding.
-- Copy and mark-unread actions.
-- Help menu modals.
-- Light/dark theme persistence.
-- Additional backend and Playwright coverage.
-
-Commit `8cbdb60` fixed the highest-priority security exposure:
-
-- Removed known default JWT and webhook secrets from Compose.
-- Required local random secrets.
-- Rejected documented secret placeholders in production.
-- Bound backend, Java, and PostgreSQL host ports to loopback.
-- Kept only frontend `5173` externally reachable.
-
-Commit `31bfd72` restored demo-friendly defaults:
-
-- Swagger is open by default in Docker Compose.
-- Built-in test users remain available.
-- Full-stack test uses `emiradmin` instead of the obsolete
-  `admin@example.com` assumption.
-
-## Technical PDF
-
-The repository includes a 25-page Turkish technical report:
+Swagger:
 
 ```text
-output/pdf/ello-teknik-dokumani.pdf
+http://localhost:3000/api/docs
 ```
 
-It documents:
+## Last Verified Demo Database State
 
-- all application features
-- architecture and repository structure
-- technology choices and why they were selected
-- backend modules and global request pipeline
-- PostgreSQL models, enums, relations, and indexes
-- complete REST and Socket.IO references
-- frontend architecture and UI behavior
-- Java webhook flow
-- security, Docker, testing, and operations
-- development timeline and resolved bugs
-- known limitations and recommended roadmap
+At the final laptop check, the database was reset to:
 
-The PDF was rendered page by page and visually checked. It contains no secret
-values.
+- 6 fixed users
+- 3 visible sample groups
+- 3 private management conversations
+- 6 messages total: one system and one welcome message per visible group
+- 0 support tickets
+- 0 contact invitations
+- 0 call records
 
-## Known Limitations
+Visible groups:
 
-These are not blockers for the demo, but must not be presented as completed
-production features:
+| Group | Owner | Managers | Members can send | Members can leave |
+| --- | --- | --- | --- | --- |
+| Staj Proje Ekibi | emiradmin | asliadmin, gulsimaadmin | yes | yes |
+| Backend Koordinasyon | asliadmin | emiradmin | no | no |
+| Demo ve Test Ekibi | gulsimaadmin | emiradmin, asliadmin | yes | yes |
 
-- Email password reset is not implemented.
-- Lock screen is a theme placeholder.
-- Video calling is not implemented; an unused template modal exists.
-- Privacy/security and theme color/background controls are not persisted to the
-  backend. Light/dark mode is persistent.
-- Password changes do not revoke already issued JWTs.
-- JWT is stored in frontend localStorage.
-- Nginx does not yet define a strict application CSP/Permissions-Policy.
-- Public STUN works for tested audio paths; production cross-network
-  reliability requires authenticated TURN and HTTPS.
-- Attachments are stored as PostgreSQL bytes; object storage is preferable at
-  larger scale.
-- Presence and active call sessions are process-local; horizontal scaling
-  requires a shared realtime adapter/state.
-- The Create React App dependency chain has audit debt and should be migrated
-  deliberately rather than with a forced audit fix.
-- Demo passwords are weak by design.
+Every group contains all six fixed users.
 
-## Temporary Internet Testing
+This database state will **not** transfer to desktop automatically because
+Docker volumes are machine-local. The desktop Codex task should recreate this
+state after Docker starts. Do not use `docker compose down -v` unless the user
+explicitly requests complete volume deletion.
 
-If laptop-to-desktop or different-network testing is needed, expose only the
-frontend through a temporary Cloudflare Quick Tunnel:
+## Fixed Test Accounts
 
-```powershell
-docker run -d --name ello-quick-tunnel `
-  cloudflare/cloudflared:latest tunnel --no-autoupdate `
-  --url http://host.docker.internal:5173
+All passwords are `123456`.
 
-docker logs ello-quick-tunnel
-```
-
-Do not expose backend `3000`, Java `8080`, or PostgreSQL `5432` directly.
-
-Stop public access immediately after testing:
-
-```powershell
-docker stop ello-quick-tunnel
-```
-
-The public link is temporary. Demo users have weak passwords, so share the URL
-only with intended testers.
-
-## Test Accounts
-
-All built-in account passwords are `123456`.
-
-| Automation ID | Username | Email | Global role |
+| Automation ID | Username | Email | Role |
 | --- | --- | --- | --- |
-| `1` | `emiradmin` | `emiradmin@ello.com` | admin |
-| `2` | `emiruser` | `emiruser@ello.com` | user |
-| `3` | `asliadmin` | `asliadmin@ello.com` | admin |
-| `4` | `asliuser` | `asliuser@ello.com` | user |
-| `5` | `gulsimaadmin` | `gulsimaadmin@ello.com` | admin |
-| `6` | `gulsimauser` | `gulsimauser@ello.com` | user |
+| 1 | emiradmin | emiradmin@ello.com | admin |
+| 2 | emiruser | emiruser@ello.com | user |
+| 3 | asliadmin | asliadmin@ello.com | admin |
+| 4 | asliuser | asliuser@ello.com | user |
+| 5 | gulsimaadmin | gulsimaadmin@ello.com | admin |
+| 6 | gulsimauser | gulsimauser@ello.com | user |
+
+The Automation Bot is recreated automatically on the first BOT API operation
+and does not need to be part of the initial six-user state.
+
+## Local And Temporary Server Commands
+
+Local-only stack:
+
+```powershell
+docker compose up -d
+```
+
+Open:
+
+```text
+http://localhost:5173
+```
+
+Temporary public test server:
+
+```powershell
+npm.cmd run server:temporary
+```
+
+Rebuild and open:
+
+```powershell
+npm.cmd run server:temporary:build
+```
+
+Stop public access but keep local services:
+
+```powershell
+npm.cmd run server:temporary:stop
+```
+
+Stop local services without deleting PostgreSQL data:
+
+```powershell
+docker compose stop
+```
 
 ## Next Work
 
-Laptop verification is complete. Recommended order:
+Recommended desktop order:
 
-1. Rehearse the presentation using `docs/demo-runbook.md`.
-2. Keep the Docker stack available for manual user testing.
-3. Merge the documentation-only branch delta into `main` when the user
-   approves. All product/security/test commits are already in `main`.
-4. Do not start a broad CRA migration, attachment storage rewrite, or
-   distributed realtime refactor before the presentation unless the user
-   explicitly changes priority.
-
-No known demo-blocking failure was found in the laptop handoff verification.
+1. Pull `codex/post-handoff-demo-fixes` and verify a clean worktree.
+2. Verify root `.env` without exposing secrets.
+3. Start Docker and wait for all long-running services to become healthy.
+4. Recreate the documented 6-user/3-group demo database.
+5. Open the application and perform a short manual desktop sanity check.
+6. Continue feature or bug work only after the user selects the next priority.
+7. Do not merge to `main` until the user explicitly asks.
 
 ## Final Sanity Commands
 
 ```powershell
 git status --short --branch
+git rev-parse --short HEAD
 docker compose ps
 Invoke-RestMethod http://localhost:3000/api/health
 Invoke-WebRequest -UseBasicParsing http://localhost:5173/healthz
 Invoke-RestMethod http://localhost:8080/health
+Invoke-RestMethod http://localhost:8080/ready
 Invoke-WebRequest -UseBasicParsing http://localhost:3000/api/docs
 ```
+
+Do not merge the branch to `main` during handoff restoration unless the user
+explicitly asks.

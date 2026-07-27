@@ -6,6 +6,9 @@
     "dev": "concurrently --kill-others-on-fail --names backend,frontend \"npm --prefix backend run start:dev\" \"npm --prefix frontend start\"",
     "dev:backend": "npm --prefix backend run start:dev",
     "dev:frontend": "npm --prefix frontend start",
+    "server:temporary": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-temporary-server.ps1",
+    "server:temporary:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-temporary-server.ps1 -Build",
+    "server:temporary:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-temporary-server.ps1",
     "test:contract": "npx --yes newman@6.2.2 run docs/postman/chat-app-demo.postman_collection.json",
     "test:full-stack": "docker compose up -d --build && npm --prefix backend run test:full-stack",
     "check:licenses": "node scripts/check-licenses.js"
