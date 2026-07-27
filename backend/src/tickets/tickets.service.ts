@@ -12,6 +12,7 @@ import {
   SupportTicketPriority as PrismaSupportTicketPriority,
   SupportTicketStatus as PrismaSupportTicketStatus,
 } from "@prisma/client";
+import { RealtimeEventsService } from "../conversations/realtime-events.service";
 import { PrismaService } from "../database/prisma.service";
 import { UserRole } from "../users/user-role.enum";
 import { UsersService } from "../users/users.service";
@@ -39,6 +40,7 @@ export class TicketsService implements OnModuleInit {
 
   constructor(
     private readonly usersService: UsersService,
+    private readonly realtimeEventsService: RealtimeEventsService,
     @Optional() private readonly prismaService?: PrismaService,
   ) {}
 
@@ -126,7 +128,9 @@ export class TicketsService implements OnModuleInit {
 
     this.tickets.set(ticket.id, ticket);
     this.activities.set(ticket.id, [activity]);
-    return this.toResponse(ticket);
+    const response = this.toResponse(ticket);
+    this.emitRealtimeEvent("ticket.created", ticket);
+    return response;
   }
 
   findAll(
@@ -413,7 +417,23 @@ export class TicketsService implements OnModuleInit {
     const activities = this.activities.get(persisted.id) ?? [];
     activities.push(...newActivities);
     this.activities.set(persisted.id, activities);
-    return this.toResponse(persisted);
+    const response = this.toResponse(persisted);
+    this.emitRealtimeEvent("ticket.updated", persisted);
+    return response;
+  }
+
+  private emitRealtimeEvent(
+    type: "ticket.created" | "ticket.updated",
+    ticket: SupportTicketRecord,
+  ) {
+    this.realtimeEventsService.emit({
+      type,
+      data: {
+        ticketId: ticket.id,
+        requesterId: ticket.requesterId,
+        version: ticket.version,
+      },
+    });
   }
 
   private assertVersion(ticket: SupportTicketRecord, expectedVersion: number) {

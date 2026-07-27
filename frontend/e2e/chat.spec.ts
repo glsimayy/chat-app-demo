@@ -235,6 +235,55 @@ test("invalid sessions are cleared before the dashboard renders", async ({
     .toBeNull();
 });
 
+test("support tickets reach the admin queue without a refresh", async ({
+  browser,
+}) => {
+  const [admin, requester] = await Promise.all([
+    createAuthenticatedPage(browser, sessions.admin),
+    createAuthenticatedPage(browser, sessions.user1),
+  ]);
+  const subject = `Realtime support ${Date.now()}`;
+
+  try {
+    await admin.page.getByRole("link", { name: "Support" }).click();
+    await requester.page.getByRole("link", { name: "Support" }).click();
+    await expect(
+      admin.page.getByRole("heading", {
+        name: "Support Tickets",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      requester.page.getByRole("heading", { name: "Support", exact: true }),
+    ).toBeVisible();
+
+    await requester.page.getByLabel("Subject").fill(subject);
+    await requester.page
+      .getByRole("textbox", { name: "Message", exact: true })
+      .fill("The admin queue should update through Socket.IO without refresh.");
+    await requester.page.getByRole("button", { name: "Send" }).click();
+
+    const adminTicket = admin.page
+      .locator(".support-ticket-item")
+      .filter({ hasText: subject });
+    const requesterTicket = requester.page
+      .locator(".support-ticket-item")
+      .filter({ hasText: subject });
+
+    await expect(adminTicket).toBeVisible({ timeout: 10_000 });
+    await adminTicket.click();
+    await admin.page
+      .getByRole("button", { name: "Assign to me", exact: true })
+      .click();
+
+    await expect(requesterTicket).toContainText("emiradmin", {
+      timeout: 10_000,
+    });
+  } finally {
+    await closeContexts(admin.context, requester.context);
+  }
+});
+
 test("theme mode is applied and survives a page reload", async ({
   browser,
 }) => {
@@ -376,6 +425,36 @@ test("external automation groups and bot messages appear realtime", async ({
   });
   expect(created.ok(), await created.text()).toBeTruthy();
   const group = (await created.json()).data;
+
+  const groupDetailResponse = await request.get(
+    `${apiUrl}/bot/groups/${group.id}`,
+    {
+      headers: { "x-bot-secret": botWebhookSecret },
+    },
+  );
+  expect(
+    groupDetailResponse.ok(),
+    await groupDetailResponse.text(),
+  ).toBeTruthy();
+  expect((await groupDetailResponse.json()).data).toMatchObject({
+    id: group.id,
+    name: groupName,
+    status: "active",
+    isBotManaged: true,
+  });
+
+  const participantsResponse = await request.get(
+    `${apiUrl}/bot/groups/${group.id}/participants`,
+    {
+      headers: { "x-bot-secret": botWebhookSecret },
+    },
+  );
+  expect(
+    participantsResponse.ok(),
+    await participantsResponse.text(),
+  ).toBeTruthy();
+  expect((await participantsResponse.json()).data).toHaveLength(3);
+
   const admin = await createAuthenticatedPage(browser, sessions.admin);
 
   try {
@@ -403,9 +482,9 @@ test("external automation groups and bot messages appear realtime", async ({
     await expect(
       replyComposer.getByText("Automated group is ready.", { exact: true }),
     ).toBeVisible();
-    await expect(replyComposer.getByText("0 Files", { exact: true })).toHaveCount(
-      0,
-    );
+    await expect(
+      replyComposer.getByText("0 Files", { exact: true }),
+    ).toHaveCount(0);
     await admin.page.locator("#chat-input").fill(replyText);
     await admin.page.locator("#chat-input").press("Enter");
 
@@ -432,12 +511,49 @@ test("external automation groups and bot messages appear realtime", async ({
       },
     );
     expect(update.ok(), await update.text()).toBeTruthy();
+    const createdBotMessage = (await update.json()).data;
 
     await expect(
       admin.page.getByText("Monitoring status changed to critical.", {
         exact: true,
       }),
     ).toBeVisible();
+
+    const correctedContent = "Monitoring status corrected to high.";
+    const corrected = await request.patch(
+      `${apiUrl}/bot/groups/${group.id}/messages/${createdBotMessage.id}`,
+      {
+        headers: {
+          "x-bot-secret": botWebhookSecret,
+        },
+        data: { content: correctedContent },
+      },
+    );
+    expect(corrected.ok(), await corrected.text()).toBeTruthy();
+
+    const updatedBotMessage = admin.page.locator(
+      `li.chat-list[data-message-id="${createdBotMessage.id}"]`,
+    );
+    await expect(
+      updatedBotMessage.getByText(correctedContent, { exact: true }),
+    ).toBeVisible();
+    await expect(
+      updatedBotMessage.getByText("edited", { exact: true }),
+    ).toBeVisible();
+
+    const deleted = await request.delete(
+      `${apiUrl}/bot/groups/${group.id}/messages/${createdBotMessage.id}`,
+      {
+        headers: {
+          "x-bot-secret": botWebhookSecret,
+        },
+      },
+    );
+    expect(deleted.ok(), await deleted.text()).toBeTruthy();
+    await expect(
+      updatedBotMessage.getByText("This message was deleted", { exact: true }),
+    ).toBeVisible();
+
     await expect(
       admin.page.getByRole("button", {
         name: "Remove ellO Automation Bot",

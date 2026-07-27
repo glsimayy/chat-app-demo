@@ -108,8 +108,15 @@ Java adapter start together through Docker Compose.
 5. Copy the returned conversation ID.
 6. Use `POST /api/bot/groups/{conversationId}/messages`.
 7. Confirm the bot group and message appear without refresh.
-8. Repeat the create request with the same `externalRef` and explain the
+8. Edit and delete that message with the matching `PATCH` and `DELETE`
+   endpoints; confirm both changes appear without refresh.
+9. Add and remove a participant, then close and reopen the group with
+   `PATCH /api/bot/groups/{conversationId}`.
+10. Repeat the create request with the same `externalRef` and explain the
    `created` / `reused` idempotency result.
+
+The same flow is available as copyable PowerShell commands in
+`docs/bot-api-examples.md`.
 
 ### G. Support Ticket Coordination - 90 seconds
 

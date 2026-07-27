@@ -45,7 +45,7 @@ controller, DTO, service ve gateway kodudur.
 | OpenAPI JSON | `http://localhost:3000/api/docs-json` |
 | Socket.IO | `http://localhost:3000/chat` |
 | Java webhook | `http://localhost:8080` |
-| OpenAPI path / operasyon | 45 path / 56 operasyon |
+| OpenAPI path / operasyon | 47 path / 61 operasyon |
 | OpenAPI component şeması | 57 |
 | Client -> server socket olayı | 20 |
 | Kalıcı veritabanı | PostgreSQL 16 + Prisma |
@@ -1753,9 +1753,14 @@ Bu bölüm `docs/openapi.snapshot.json` dosyasından otomatik üretilir.
 | --- | --- | --- | --- | --- | --- |
 | `POST` | `/api/bot/create-group` | x-bot-secret | `CreateBotGroupDto` | 201 | Legacy alias used by the Java ticket webhook |
 | `POST` | `/api/bot/groups` | x-bot-secret | `CreateBotGroupDto` | 201 | Create or return an idempotent automation group |
+| `GET` | `/api/bot/groups/{conversationId}` | x-bot-secret | `-` | 200 | Get an automation group and its current settings |
 | `PATCH` | `/api/bot/groups/{conversationId}` | x-bot-secret | `UpdateGroupConversationDto` | 200 | Update automation group settings |
 | `POST` | `/api/bot/groups/{conversationId}/messages` | x-bot-secret | `CreateBotMessageDto` | 201 | Send a persistent realtime message as the bot |
+| `DELETE` | `/api/bot/groups/{conversationId}/messages/{messageId}` | x-bot-secret | `-` | 200 | Delete a message previously sent by the bot |
+| `PATCH` | `/api/bot/groups/{conversationId}/messages/{messageId}` | x-bot-secret | `UpdateMessageDto` | 200 | Edit a message previously sent by the bot |
+| `GET` | `/api/bot/groups/{conversationId}/participants` | x-bot-secret | `-` | 200 | List active automation group participants |
 | `POST` | `/api/bot/groups/{conversationId}/participants` | x-bot-secret | `AddBotGroupParticipantsDto` | 201 | Add users to an automation group |
+| `DELETE` | `/api/bot/groups/{conversationId}/participants/{userId}` | x-bot-secret | `-` | 200 | Remove a user from an automation group |
 | `PATCH` | `/api/bot/groups/{conversationId}/participants/{userId}/role` | x-bot-secret | `UpdateParticipantRoleDto` | 200 | Promote or demote an automation group manager |
 
 ### Dev

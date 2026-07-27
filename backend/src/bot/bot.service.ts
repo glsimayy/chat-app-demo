@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { ConversationsService } from "../conversations/conversations.service";
 import { UsersService } from "../users/users.service";
 import { UpdateGroupConversationDto } from "../conversations/dto/update-group-conversation.dto";
+import { UpdateMessageDto } from "../conversations/dto/update-message.dto";
 import { UpdateParticipantRoleDto } from "../conversations/dto/update-participant-role.dto";
 import { AddBotGroupParticipantsDto } from "./dto/add-bot-group-participants.dto";
 import { CreateBotGroupDto } from "./dto/create-bot-group.dto";
@@ -20,9 +21,7 @@ export class BotService {
       ...(dto.managerIds ?? []),
       ...(dto.ownerId ? [dto.ownerId] : []),
     ]);
-    const managerIds = Array.from(
-      new Set(requestedManagerIds),
-    );
+    const managerIds = Array.from(new Set(requestedManagerIds));
     const requestedParticipantIds =
       await this.usersService.resolveUserReferences(dto.participantIds);
     const participantIds = Array.from(
@@ -65,6 +64,29 @@ export class BotService {
     );
   }
 
+  async findGroup(conversationId: string) {
+    const bot = await this.usersService.ensureAutomationBot();
+    return this.conversationsService.findExternalGroup(conversationId, bot.id);
+  }
+
+  async findParticipants(conversationId: string) {
+    const bot = await this.usersService.ensureAutomationBot();
+    return this.conversationsService.findExternalParticipants(
+      conversationId,
+      bot.id,
+    );
+  }
+
+  async removeParticipant(conversationId: string, userId: string) {
+    const bot = await this.usersService.ensureAutomationBot();
+    const resolvedUserId = await this.usersService.resolveUserReference(userId);
+    return this.conversationsService.removeExternalParticipant(
+      conversationId,
+      bot.id,
+      resolvedUserId,
+    );
+  }
+
   async createMessage(conversationId: string, dto: CreateBotMessageDto) {
     const bot = await this.usersService.ensureAutomationBot();
 
@@ -72,6 +94,29 @@ export class BotService {
       conversationId,
       bot.id,
       dto,
+    );
+  }
+
+  async updateMessage(
+    conversationId: string,
+    messageId: string,
+    dto: UpdateMessageDto,
+  ) {
+    const bot = await this.usersService.ensureAutomationBot();
+    return this.conversationsService.updateExternalMessage(
+      conversationId,
+      messageId,
+      bot.id,
+      dto,
+    );
+  }
+
+  async deleteMessage(conversationId: string, messageId: string) {
+    const bot = await this.usersService.ensureAutomationBot();
+    return this.conversationsService.deleteExternalMessage(
+      conversationId,
+      messageId,
+      bot.id,
     );
   }
 

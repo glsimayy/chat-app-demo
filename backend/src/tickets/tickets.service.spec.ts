@@ -1,4 +1,5 @@
 import { ConflictException, ForbiddenException } from "@nestjs/common";
+import { RealtimeEventsService } from "../conversations/realtime-events.service";
 import { UserRole } from "../users/user-role.enum";
 import { UsersService } from "../users/users.service";
 import { SupportTicketActivityAction } from "./support-ticket-activity-action.enum";
@@ -38,6 +39,7 @@ const requester = users[0];
 const otherUser = users[1];
 const adminOne = users[2];
 const adminTwo = users[3];
+const emitRealtimeEvent = jest.fn();
 
 function createService() {
   const usersService = {
@@ -47,7 +49,11 @@ function createService() {
     findByIdSync: jest.fn((id: string) => users.find((user) => user.id === id)),
   } as unknown as UsersService;
 
-  return new TicketsService(usersService);
+  const realtimeEventsService = {
+    emit: emitRealtimeEvent,
+  } as unknown as RealtimeEventsService;
+
+  return new TicketsService(usersService, realtimeEventsService);
 }
 
 async function createTicket(service: TicketsService) {
@@ -59,6 +65,10 @@ async function createTicket(service: TicketsService) {
 }
 
 describe("TicketsService", () => {
+  beforeEach(() => {
+    emitRealtimeEvent.mockClear();
+  });
+
   it("creates an unassigned ticket visible only to its requester and admins", async () => {
     const service = createService();
     const created = await createTicket(service);
@@ -73,6 +83,14 @@ describe("TicketsService", () => {
     expect(created.activities[0]).toMatchObject({
       action: SupportTicketActivityAction.Created,
       actorId: requester.id,
+    });
+    expect(emitRealtimeEvent).toHaveBeenCalledWith({
+      type: "ticket.created",
+      data: {
+        ticketId: created.id,
+        requesterId: requester.id,
+        version: 1,
+      },
     });
     expect(service.findAll(requester.id, UserRole.User, {}).items).toHaveLength(
       1,
@@ -130,6 +148,22 @@ describe("TicketsService", () => {
         SupportTicketActivityAction.NoteUpdated,
       ]),
     );
+    expect(emitRealtimeEvent).toHaveBeenNthCalledWith(2, {
+      type: "ticket.updated",
+      data: {
+        ticketId: created.id,
+        requesterId: requester.id,
+        version: 2,
+      },
+    });
+    expect(emitRealtimeEvent).toHaveBeenNthCalledWith(3, {
+      type: "ticket.updated",
+      data: {
+        ticketId: created.id,
+        requesterId: requester.id,
+        version: 3,
+      },
+    });
   });
 
   it("transfers ownership and rejects stale or non-owner updates", async () => {

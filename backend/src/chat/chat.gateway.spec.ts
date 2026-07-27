@@ -177,6 +177,23 @@ describe("ChatGateway audio calls", () => {
     );
   });
 
+  it("broadcasts ticket changes to admins and the requester", () => {
+    const event = {
+      ticketId: "00000000-0000-4000-8000-000000000200",
+      requesterId: recipientId,
+      version: 2,
+    };
+
+    (gateway as any).broadcastRealtimeEvent({
+      type: "ticket.updated",
+      data: event,
+    });
+
+    expect(server.to).toHaveBeenCalledWith("role:admin");
+    expect(server.to).toHaveBeenCalledWith(`user:${recipientId}`);
+    expect(server.emit).toHaveBeenCalledWith("ticket:updated", event);
+  });
+
   it("rejects audio calls for group conversations", async () => {
     conversationsService.findOneForUser.mockResolvedValue({
       ...directConversation,

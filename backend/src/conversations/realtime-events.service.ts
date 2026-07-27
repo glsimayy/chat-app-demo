@@ -8,6 +8,14 @@ const REALTIME_EVENT = "conversation.realtime";
 export type ConversationRealtimeEvent =
   | { type: "contact.invitation.created"; data: ContactInvitationView }
   | { type: "contact.invitation.updated"; data: ContactInvitationView }
+  | {
+      type: "ticket.created";
+      data: { ticketId: string; requesterId: string; version: number };
+    }
+  | {
+      type: "ticket.updated";
+      data: { ticketId: string; requesterId: string; version: number };
+    }
   | { type: "conversation.created"; data: ConversationRecord }
   | { type: "conversation.updated"; data: ConversationRecord }
   | { type: "message.created"; data: MessageRecord }

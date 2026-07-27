@@ -632,6 +632,15 @@ Tekrar gonderilen kullanici id'leri grupta ikinci bir uyelik olusturmaz. Daha
 once gruptan ayrilmis bir kullanici yeniden aktif edilir. Islem katilimcilara
 realtime olarak yansir.
 
+Aktif grup uyelerini okumak ve cikarmak icin:
+
+- `GET /api/bot/groups/{conversationId}`
+- `GET /api/bot/groups/{conversationId}/participants`
+- `DELETE /api/bot/groups/{conversationId}/participants/{userId}`
+
+`userId` normal kullanicilar icin UUID, built-in demo kullanicilari icin `1`
+ile `6` arasindaki kisa ID olabilir. Otomasyon botu gruptan cikarilamaz.
+
 ### Bot adina mesaj gonderme
 
 `POST /api/bot/groups/{conversationId}/messages`
@@ -647,9 +656,28 @@ realtime olarak yansir.
 tekrarlanan istek mevcut mesaji dondurur. Mesaj PostgreSQL'e yazilir ve acik
 istemcilere `message:new` Socket.IO eventiyle iletilir.
 
+Botun daha once gonderdigi bir mesaji yonetmek icin:
+
+- `PATCH /api/bot/groups/{conversationId}/messages/{messageId}`
+- `DELETE /api/bot/groups/{conversationId}/messages/{messageId}`
+
+Duzenleme body ornegi:
+
+```json
+{
+  "content": "Talep onceligi kritik olarak duzeltildi."
+}
+```
+
+Bot yalnizca kendi gonderdigi ve henuz silinmemis mesajlari
+duzenleyebilir/silebilir. Degisiklikler acik istemcilere realtime yansir.
+
 `PATCH /api/bot/groups/{conversationId}` grup politikasini, aciklamasini veya
 durumunu degistirir. `PATCH /api/bot/groups/{conversationId}/participants/{userId}/role`
 ise bir kullaniciyi manager/member yapar.
+
+Tum endpointlerin sirali PowerShell ornekleri `docs/bot-api-examples.md`
+dosyasindadir.
 
 Postman koleksiyonu calistirildiginda uygulamada su ornekler olusur:
 

@@ -148,6 +148,7 @@ Java testleri `.github/workflows/java-webhook-ci.yml` ile otomatik calisir.
 ## Takim Dokumanlari
 
 - Backend kontratlari: `docs/backend-contracts.md`
+- Bot API PowerShell ornekleri: `docs/bot-api-examples.md`
 - Detayli API ve Java webhook referansi: `docs/api-java-webhook-reference.md`
 - API ve Java webhook PDF: `output/pdf/ello-api-java-webhook-dokumani.pdf`
 - Database kurulumu: `docs/database-setup.md`
@@ -227,8 +228,11 @@ akislarini gercek frontend, backend ve Socket.IO uzerinde kontrol eder.
 - Ticket guncellemelerinde optimistic version ile `409 Conflict` korumasi
 - Structured HTTP ve Socket.IO loglari
 - Dis uygulamadan bot grubu olusturma: `POST /api/bot/groups`
+- Otomasyon grubunu ve uyelerini okuma: `GET /api/bot/groups/:conversationId`
 - Otomasyon grubuna uye ekleme: `POST /api/bot/groups/:conversationId/participants`
+- Otomasyon grubundan uye cikarma: `DELETE /api/bot/groups/:conversationId/participants/:userId`
 - Bot adina mesaj gonderme: `POST /api/bot/groups/:conversationId/messages`
+- Bot mesajini duzenleme/silme: `PATCH|DELETE /api/bot/groups/:conversationId/messages/:messageId`
 - Bot grubu ayarlarini degistirme: `PATCH /api/bot/groups/:conversationId`
 - Bot grubunda manager atama: `PATCH /api/bot/groups/:conversationId/participants/:userId/role`
 - Java ticket webhook alias'i: `POST /api/bot/create-group`

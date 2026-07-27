@@ -641,6 +641,25 @@ describe("App e2e", () => {
       ]),
     );
 
+    const groupDetail = await request(app.getHttpServer())
+      .get(`/api/bot/groups/${created.body.data.id}`)
+      .set("x-bot-secret", secret)
+      .expect(200);
+    const listedParticipants = await request(app.getHttpServer())
+      .get(`/api/bot/groups/${created.body.data.id}/participants`)
+      .set("x-bot-secret", secret)
+      .expect(200);
+
+    expect(groupDetail.body.data).toMatchObject({
+      id: created.body.data.id,
+      externalRef: groupPayload.externalRef,
+      status: "active",
+      isBotManaged: true,
+    });
+    expect(listedParticipants.body.data).toHaveLength(
+      created.body.data.participants.length,
+    );
+
     await request(app.getHttpServer())
       .post(`/api/conversations/${created.body.data.id}/messages`)
       .set("authorization", `Bearer ${member.accessToken}`)
@@ -653,7 +672,7 @@ describe("App e2e", () => {
       .send({ memberCanSendMessages: true })
       .expect(200);
 
-    await request(app.getHttpServer())
+    const memberMessage = await request(app.getHttpServer())
       .post(`/api/conversations/${created.body.data.id}/messages`)
       .set("authorization", `Bearer ${member.accessToken}`)
       .send({ content: "BOT group member messaging enabled" })
@@ -704,6 +723,41 @@ describe("App e2e", () => {
       messageType: "user",
     });
     expect(retriedMessage.body.data.id).toBe(message.body.data.id);
+    const updatedMessage = await request(app.getHttpServer())
+      .patch(
+        `/api/bot/groups/${created.body.data.id}/messages/${message.body.data.id}`,
+      )
+      .set("x-bot-secret", secret)
+      .send({ content: "Severity corrected to high." })
+      .expect(200);
+
+    expect(updatedMessage.body.data).toMatchObject({
+      id: message.body.data.id,
+      senderId: botUser.id,
+      content: "Severity corrected to high.",
+    });
+
+    await request(app.getHttpServer())
+      .patch(
+        `/api/bot/groups/${created.body.data.id}/messages/${memberMessage.body.data.id}`,
+      )
+      .set("x-bot-secret", secret)
+      .send({ content: "The bot cannot edit a member message." })
+      .expect(403);
+
+    const deletedMessage = await request(app.getHttpServer())
+      .delete(
+        `/api/bot/groups/${created.body.data.id}/messages/${message.body.data.id}`,
+      )
+      .set("x-bot-secret", secret)
+      .expect(200);
+
+    expect(deletedMessage.body.data).toMatchObject({
+      id: message.body.data.id,
+      content: "",
+    });
+    expect(deletedMessage.body.data.deletedAt).toEqual(expect.any(String));
+
     expect(
       history.body.data.items.filter(
         (item: { clientMessageId: string }) =>
@@ -723,6 +777,53 @@ describe("App e2e", () => {
       ),
     ).toHaveLength(0);
 
+    const remainingParticipants = await request(app.getHttpServer())
+      .delete(
+        `/api/bot/groups/${created.body.data.id}/participants/${laterMember.id}`,
+      )
+      .set("x-bot-secret", secret)
+      .expect(200);
+
+    expect(
+      remainingParticipants.body.data.some(
+        (participant: { userId: string }) =>
+          participant.userId === laterMember.id,
+      ),
+    ).toBe(false);
+
+    const closed = await request(app.getHttpServer())
+      .patch(`/api/bot/groups/${created.body.data.id}`)
+      .set("x-bot-secret", secret)
+      .send({ status: "closed" })
+      .expect(200);
+    expect(closed.body.data.status).toBe("closed");
+
+    await request(app.getHttpServer())
+      .post(`/api/bot/groups/${created.body.data.id}/messages`)
+      .set("x-bot-secret", secret)
+      .send({ content: "Closed groups reject new messages." })
+      .expect(403);
+
+    const reopened = await request(app.getHttpServer())
+      .patch(`/api/bot/groups/${created.body.data.id}`)
+      .set("x-bot-secret", secret)
+      .send({ status: "active" })
+      .expect(200);
+    expect(reopened.body.data.status).toBe("active");
+
+    const archived = await request(app.getHttpServer())
+      .patch(`/api/bot/groups/${created.body.data.id}`)
+      .set("x-bot-secret", secret)
+      .send({ status: "archived" })
+      .expect(200);
+    expect(archived.body.data.status).toBe("archived");
+
+    await request(app.getHttpServer())
+      .patch(`/api/bot/groups/${created.body.data.id}`)
+      .set("x-bot-secret", secret)
+      .send({ status: "active" })
+      .expect(200);
+
     await request(app.getHttpServer())
       .patch(`/api/conversations/${created.body.data.id}/owner`)
       .set("authorization", `Bearer ${admin.accessToken}`)
@@ -733,6 +834,12 @@ describe("App e2e", () => {
         `/api/conversations/${created.body.data.id}/participants/${botUser.id}`,
       )
       .set("authorization", `Bearer ${admin.accessToken}`)
+      .expect(400);
+    await request(app.getHttpServer())
+      .delete(
+        `/api/bot/groups/${created.body.data.id}/participants/${botUser.id}`,
+      )
+      .set("x-bot-secret", secret)
       .expect(400);
 
     const regularGroup = await request(app.getHttpServer())
@@ -751,6 +858,10 @@ describe("App e2e", () => {
       .post(`/api/bot/groups/${regularGroup.body.data.id}/messages`)
       .set("x-bot-secret", secret)
       .send({ content: "Must not be delivered" })
+      .expect(403);
+    await request(app.getHttpServer())
+      .get(`/api/bot/groups/${regularGroup.body.data.id}`)
+      .set("x-bot-secret", secret)
       .expect(403);
   });
 

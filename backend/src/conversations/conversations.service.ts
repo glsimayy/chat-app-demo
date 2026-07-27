@@ -552,6 +552,30 @@ export class ConversationsService implements OnModuleInit {
     );
   }
 
+  async findExternalGroup(conversationId: string, botUserId: string) {
+    this.findAutomationGroup(conversationId, botUserId);
+    return this.findOneForUser(conversationId, botUserId);
+  }
+
+  async findExternalParticipants(conversationId: string, botUserId: string) {
+    this.findAutomationGroup(conversationId, botUserId);
+    return this.findParticipants(conversationId, botUserId);
+  }
+
+  async removeExternalParticipant(
+    conversationId: string,
+    botUserId: string,
+    targetUserId: string,
+  ) {
+    this.findAutomationGroup(conversationId, botUserId);
+    return this.removeParticipant(
+      conversationId,
+      botUserId,
+      UserRole.Admin,
+      targetUserId,
+    );
+  }
+
   async createExternalMessage(
     conversationId: string,
     botUserId: string,
@@ -559,6 +583,25 @@ export class ConversationsService implements OnModuleInit {
   ) {
     this.findAutomationGroup(conversationId, botUserId);
     return this.createMessage(conversationId, botUserId, dto);
+  }
+
+  async updateExternalMessage(
+    conversationId: string,
+    messageId: string,
+    botUserId: string,
+    dto: UpdateMessageDto,
+  ) {
+    this.findAutomationGroup(conversationId, botUserId);
+    return this.updateMessage(conversationId, messageId, botUserId, dto);
+  }
+
+  async deleteExternalMessage(
+    conversationId: string,
+    messageId: string,
+    botUserId: string,
+  ) {
+    this.findAutomationGroup(conversationId, botUserId);
+    return this.deleteMessage(conversationId, messageId, botUserId);
   }
 
   async updateExternalGroup(

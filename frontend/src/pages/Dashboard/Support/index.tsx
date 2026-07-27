@@ -29,6 +29,7 @@ import {
 } from "../../../api/tickets";
 import { getCurrentAuthUser } from "../../../api/backendAdapters";
 import { getUsers } from "../../../api/chats";
+import { getChatSocket } from "../../../api/realtime";
 import AppSimpleBar from "../../../components/AppSimpleBar";
 import LeftbarTitle from "../../../components/LeftbarTitle";
 import {
@@ -68,6 +69,12 @@ const getAdminName = (adminId: string | null, admins: SupportTicketUser[]) => {
   }
   return admins.find(admin => admin.id === adminId)?.username || "Former admin";
 };
+
+interface TicketRealtimeEvent {
+  ticketId: string;
+  requesterId: string;
+  version: number;
+}
 
 const describeActivity = (
   activity: SupportTicketActivity,
@@ -123,30 +130,42 @@ const Support = () => {
   const [saving, setSaving] = useState(false);
   const [assignmentSaving, setAssignmentSaving] = useState(false);
 
-  const loadTickets = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await getSupportTickets({
-        status: statusFilter
-          ? (statusFilter as SupportTicketStatus)
-          : undefined,
-        priority: priorityFilter
-          ? (priorityFilter as SupportTicketPriority)
-          : undefined,
-        assignment: isAdmin ? assignmentFilter : undefined,
-        search: search.trim() || undefined,
-      });
-      setTickets(response.items || []);
-    } catch (requestError: any) {
-      setError(String(requestError || "Support tickets could not be loaded."));
-    } finally {
-      setLoading(false);
-    }
-  }, [assignmentFilter, isAdmin, priorityFilter, search, statusFilter]);
+  const loadTickets = useCallback(
+    async (showLoading = true) => {
+      if (showLoading) {
+        setLoading(true);
+      }
+      setError("");
+      try {
+        const response = await getSupportTickets({
+          status: statusFilter
+            ? (statusFilter as SupportTicketStatus)
+            : undefined,
+          priority: priorityFilter
+            ? (priorityFilter as SupportTicketPriority)
+            : undefined,
+          assignment: isAdmin ? assignmentFilter : undefined,
+          search: search.trim() || undefined,
+        });
+        setTickets(response.items || []);
+      } catch (requestError: any) {
+        setError(
+          String(requestError || "Support tickets could not be loaded."),
+        );
+      } finally {
+        if (showLoading) {
+          setLoading(false);
+        }
+      }
+    },
+    [assignmentFilter, isAdmin, priorityFilter, search, statusFilter],
+  );
 
   useEffect(() => {
-    const timeout = window.setTimeout(loadTickets, search ? 250 : 0);
+    const timeout = window.setTimeout(
+      () => void loadTickets(),
+      search ? 250 : 0,
+    );
     return () => window.clearTimeout(timeout);
   }, [loadTickets, search]);
 
@@ -169,7 +188,7 @@ const Support = () => {
       .catch(() => setAdmins([]));
   }, [isAdmin]);
 
-  const syncTicket = (ticket: SupportTicket) => {
+  const syncTicket = useCallback((ticket: SupportTicket) => {
     setSelectedTicket(ticket);
     setEditStatus(ticket.status);
     setEditPriority(ticket.priority);
@@ -178,15 +197,43 @@ const Support = () => {
     setTickets(items =>
       items.map(item => (item.id === ticket.id ? ticket : item)),
     );
-  };
+  }, []);
 
-  const refreshTicket = async (ticketId: string) => {
-    try {
-      syncTicket(await getSupportTicket(ticketId));
-    } catch {
-      setSelectedTicket(null);
+  const refreshTicket = useCallback(
+    async (ticketId: string) => {
+      try {
+        syncTicket(await getSupportTicket(ticketId));
+      } catch {
+        setSelectedTicket(null);
+      }
+    },
+    [syncTicket],
+  );
+
+  useEffect(() => {
+    const socket = getChatSocket();
+    if (!socket) {
+      return;
     }
-  };
+
+    const refreshFromRealtime = (event: TicketRealtimeEvent) => {
+      void loadTickets(false);
+      if (selectedTicket?.id === event.ticketId) {
+        void refreshTicket(event.ticketId);
+      }
+    };
+
+    socket.on("ticket:created", refreshFromRealtime);
+    socket.on("ticket:updated", refreshFromRealtime);
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    return () => {
+      socket.off("ticket:created", refreshFromRealtime);
+      socket.off("ticket:updated", refreshFromRealtime);
+    };
+  }, [loadTickets, refreshTicket, selectedTicket?.id]);
 
   const handleActionError = async (requestError: any, ticketId: string) => {
     showErrorNotification(String(requestError || "Ticket update failed."));
@@ -373,7 +420,7 @@ const Support = () => {
                 color="light"
                 size="sm"
                 className="support-refresh-button"
-                onClick={loadTickets}
+                onClick={() => void loadTickets()}
                 aria-label="Refresh support tickets"
                 title="Refresh"
               >

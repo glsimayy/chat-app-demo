@@ -49,6 +49,7 @@ import {
 } from "./dto/socket-event.dto";
 import { SocketExceptionFilter } from "./socket-exception.filter";
 import { SocketRateLimiterService } from "./socket-rate-limiter.service";
+import { UserRole } from "../users/user-role.enum";
 import { UsersService } from "../users/users.service";
 
 interface AuthenticatedSocket extends Socket {
@@ -180,6 +181,9 @@ export class ChatGateway
         }),
       );
       await client.join(this.userRoom(payload.sub));
+      if (payload.role === UserRole.Admin) {
+        await client.join(this.adminRoom());
+      }
       client.emit("session:ready", {
         userId: payload.sub,
         conversationIds:
@@ -1186,6 +1190,12 @@ export class ChatGateway
           .to(this.userRoom(event.data.recipientId))
           .emit("contact:invitation:updated", event.data);
         return;
+      case "ticket.created":
+        this.emitTicketEvent("ticket:created", event.data);
+        return;
+      case "ticket.updated":
+        this.emitTicketEvent("ticket:updated", event.data);
+        return;
       case "conversation.created":
         this.emitToConversationAudience(
           event.data.id,
@@ -1318,5 +1328,19 @@ export class ChatGateway
 
   private userRoom(userId: string) {
     return `user:${userId}`;
+  }
+
+  private adminRoom() {
+    return "role:admin";
+  }
+
+  private emitTicketEvent(
+    eventName: "ticket:created" | "ticket:updated",
+    event: { ticketId: string; requesterId: string; version: number },
+  ) {
+    this.server
+      .to(this.adminRoom())
+      .to(this.userRoom(event.requesterId))
+      .emit(eventName, event);
   }
 }
