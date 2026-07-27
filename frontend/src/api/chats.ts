@@ -218,7 +218,8 @@ const searchConversationMessages = async (
 const sendMessage = (data: any) => {
   const conversationId = data?.meta?.receiver;
   const content = data?.text || "";
-  const replyToMessageId = data?.replyOf?.mId;
+  const replyToMessageId =
+    data?.replyToMessageId || data?.replyOf?.mId;
 
   if (data?.files?.length) {
     return api.createWithFile(

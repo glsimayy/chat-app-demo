@@ -387,6 +387,38 @@ test("external automation groups and bot messages appear realtime", async ({
       admin.page.getByText("Automated group is ready.", { exact: true }),
     ).toBeVisible();
 
+    const botMessage = admin.page
+      .locator("li.chat-list")
+      .filter({ hasText: "Automated group is ready." });
+    await expect(botMessage).toHaveCount(1);
+    await botMessage.hover();
+    await botMessage.getByLabel("Message actions").click();
+    await admin.page
+      .locator(".message-actions-menu.show")
+      .getByText("Reply", { exact: true })
+      .click();
+
+    const replyText = `bot-reply-${suffix}`;
+    const replyComposer = admin.page.locator(".replyCollapse");
+    await expect(
+      replyComposer.getByText("Automated group is ready.", { exact: true }),
+    ).toBeVisible();
+    await expect(replyComposer.getByText("0 Files", { exact: true })).toHaveCount(
+      0,
+    );
+    await admin.page.locator("#chat-input").fill(replyText);
+    await admin.page.locator("#chat-input").press("Enter");
+
+    const replyRow = admin.page
+      .locator("li.chat-list")
+      .filter({ hasText: replyText });
+    await expect(replyRow).toHaveCount(1);
+    await expect(
+      replyRow
+        .locator(".replymessage-block")
+        .getByText("Automated group is ready.", { exact: true }),
+    ).toBeVisible();
+
     const update = await request.post(
       `${apiUrl}/bot/groups/${group.id}/messages`,
       {

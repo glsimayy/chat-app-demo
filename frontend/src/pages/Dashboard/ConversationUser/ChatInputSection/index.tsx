@@ -151,6 +151,10 @@ const Index = ({
     if (selectedFiles.length) {
       data["files"] = selectedFiles;
     }
+    if (replyData?.mId) {
+      data["replyToMessageId"] = String(replyData.mId);
+      data["replyOf"] = replyData;
+    }
 
     setText("");
     onTyping("");

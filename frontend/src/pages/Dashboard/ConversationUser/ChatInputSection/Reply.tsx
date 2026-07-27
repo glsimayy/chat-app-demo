@@ -33,6 +33,14 @@ const Reply = ({ reply, onSetReplyData, chatUserDetails }: ReplyProps) => {
     : reply && reply.meta.userData?.firstName;
   const isReplyFromMe =
     reply && reply.meta.sender + "" === userProfile.uid + "";
+  const imageCount = reply?.newimage?.length || reply?.image?.length || 0;
+  const fileCount = reply?.attachments?.length || 0;
+  const attachmentSummary = [
+    imageCount ? `${imageCount} Images` : "",
+    fileCount ? `${fileCount} Files` : "",
+  ]
+    .filter(Boolean)
+    .join(" & ");
 
   return (
     <Collapse isOpen={isOpen} className="chat-input-collapse replyCollapse">
@@ -44,19 +52,8 @@ const Reply = ({ reply, onSetReplyData, chatUserDetails }: ReplyProps) => {
                 {isReplyFromMe ? "You" : replyUserName}
               </h5>
               {reply?.text && <p className="mb-0">{reply?.text}</p>}
-
-              {(reply?.image || reply?.attachments) && (
-                <p className="mb-0">
-                  {reply?.attachments &&
-                    !reply?.newimage &&
-                    `${reply?.attachments.length} Files`}
-                  {reply?.newimage &&
-                    !reply?.attachments &&
-                    `${reply?.newimage.length} Images`}
-                  {reply?.newimage &&
-                    reply?.attachments &&
-                    `${reply?.attachments.length} Files & ${reply?.newimage.length} Images`}
-                </p>
+              {attachmentSummary && (
+                <p className="mb-0">{attachmentSummary}</p>
               )}
             </div>
             <div className="flex-shrink-0">

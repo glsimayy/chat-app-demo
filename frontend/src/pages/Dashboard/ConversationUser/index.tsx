@@ -226,6 +226,10 @@ const Index = ({ isChannel }: IndexProps) => {
 
   const onSend = (data: any) => {
     const clientMessageId = createClientMessageId();
+    const replyTarget = data.replyOf || replyData;
+    const replyToMessageId =
+      data.replyToMessageId ||
+      (replyTarget?.mId ? String(replyTarget.mId) : undefined);
     let params: any = {
       text: data.text && data.text,
       time: new Date().toISOString(),
@@ -234,14 +238,15 @@ const Index = ({ isChannel }: IndexProps) => {
       attachments: data.attachments && data.attachments,
       files: data.files && data.files,
       clientMessageId,
+      replyToMessageId,
       meta: {
         receiver: activeConversationId,
         sender: userProfile.uid,
       },
     };
 
-    if (replyData && replyData !== null) {
-      params["replyOf"] = replyData;
+    if (replyTarget) {
+      params["replyOf"] = replyTarget;
     }
 
     const content = data.text || "";
@@ -260,7 +265,7 @@ const Index = ({ isChannel }: IndexProps) => {
           conversationId: activeConversationId,
           content,
           clientMessageId,
-          replyToMessageId: replyData?.mId,
+          replyToMessageId,
         },
         (timeoutError: Error | null, response: any) => {
           if (timeoutError) {
