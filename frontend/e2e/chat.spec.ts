@@ -2071,6 +2071,53 @@ test("users can answer, mute, and end a direct audio call", async ({
       recipient.page.getByText("Connected", { exact: true }),
     ).toBeVisible({ timeout: 15_000 });
 
+    const callerDialog = caller.page.getByRole("dialog");
+    await callerDialog
+      .getByRole("button", { name: "Call diagnostics", exact: true })
+      .click();
+    await expect(
+      callerDialog.getByRole("heading", {
+        name: "Call diagnostics",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      callerDialog.getByTestId("call-diagnostics-connection"),
+    ).toContainText("Connected");
+    await expect(
+      callerDialog.getByTestId("call-diagnostics-microphone"),
+    ).not.toContainText("Unavailable");
+    await expect(
+      callerDialog.getByTestId("call-diagnostics-remote-audio"),
+    ).not.toContainText("No remote track");
+    await expect(
+      callerDialog.getByRole("button", {
+        name: "Copy call diagnostics",
+        exact: true,
+      }),
+    ).toBeEnabled();
+
+    const recipientDialog = recipient.page.getByRole("dialog");
+    await recipientDialog
+      .getByRole("button", { name: "Call diagnostics", exact: true })
+      .click();
+    await expect(
+      recipientDialog.getByTestId("call-diagnostics-connection"),
+    ).toContainText("Connected");
+    const mobileLayout = await recipient.page.evaluate(() => ({
+      viewportWidth: window.innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+    }));
+    expect(mobileLayout.documentWidth).toBeLessThanOrEqual(
+      mobileLayout.viewportWidth + 1,
+    );
+    const recipientDialogBox = await recipientDialog.boundingBox();
+    expect(recipientDialogBox).not.toBeNull();
+    expect(recipientDialogBox?.x ?? -1).toBeGreaterThanOrEqual(0);
+    expect(
+      (recipientDialogBox?.x ?? 0) + (recipientDialogBox?.width ?? 0),
+    ).toBeLessThanOrEqual(390);
+
     const muteButton = caller.page.getByRole("button", {
       name: "Mute microphone",
       exact: true,

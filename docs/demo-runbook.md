@@ -228,10 +228,16 @@ The frontend itself is `http://localhost:5173`.
 ### Audio call does not connect
 
 1. Confirm both users are online and the browser has microphone permission.
-2. End the call cleanly and retry once.
-3. Use the same-LAN verified path for the live presentation.
-4. Do not repeatedly retry a failing cross-network path; explain the documented
-   TURN requirement and continue with Calls history.
+2. Open the information button in the call window on both clients.
+3. Use the copy button to capture each call diagnostics report.
+4. Interpret the report:
+   - `Connection` or ICE failed: inspect the network path and TURN requirement.
+   - Microphone unavailable or no outgoing data: inspect the PC input device,
+     browser permission, and Windows microphone settings.
+   - Incoming data exists but playback is blocked: use `Play remote audio`.
+5. End the call cleanly and retry once.
+6. Do not repeatedly retry an unexplained failing path; keep both reports and
+   continue with Calls history.
 
 ### Docker Desktop is unavailable
 

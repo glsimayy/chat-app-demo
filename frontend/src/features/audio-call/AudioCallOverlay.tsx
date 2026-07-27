@@ -23,16 +23,36 @@ const formatDuration = (seconds: number) => {
   )}`;
 };
 
+const formatBytes = (bytes: number) => {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const formatState = (state: string) =>
+  state ? `${state.charAt(0).toUpperCase()}${state.slice(1)}` : "Unknown";
+
 const AudioCallOverlay = ({
   call,
+  diagnostics,
   startCall: _startCall,
   acceptCall,
   rejectCall,
   endCall,
   toggleMute,
   dismissCall,
+  refreshDiagnostics,
+  resumeRemoteAudio,
 }: AudioCallOverlayProps) => {
   const [durationSeconds, setDurationSeconds] = useState(0);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">(
+    "idle",
+  );
 
   useEffect(() => {
     if (call?.status !== "active" || !call.connectedAt) {
@@ -49,6 +69,11 @@ const AudioCallOverlay = ({
     const interval = window.setInterval(updateDuration, 1000);
     return () => window.clearInterval(interval);
   }, [call?.connectedAt, call?.status]);
+
+  useEffect(() => {
+    setShowDiagnostics(false);
+    setCopyStatus("idle");
+  }, [call?.callId]);
 
   const initials = useMemo(
     () =>
@@ -71,6 +96,65 @@ const AudioCallOverlay = ({
     call.status === "connecting" ||
     call.status === "reconnecting";
   const isComplete = call.status === "ended" || call.status === "failed";
+  const microphoneStatus = !diagnostics?.localTrack.available
+    ? "Unavailable"
+    : diagnostics.localTrack.readyState === "ended"
+      ? "Ended"
+      : !diagnostics.localTrack.enabled
+        ? "Muted"
+        : diagnostics.outbound.bytes > 0
+          ? `Sending (${formatBytes(diagnostics.outbound.bytes)})`
+          : "No outgoing data";
+  const remoteAudioStatus =
+    diagnostics?.playbackState === "blocked"
+      ? "Playback blocked"
+      : !diagnostics?.remoteTrack.available
+        ? "No remote track"
+        : diagnostics.inbound.bytes > 0
+          ? `Receiving (${formatBytes(diagnostics.inbound.bytes)})`
+          : "No incoming data";
+  const networkPath = diagnostics?.candidatePair
+    ? [
+        diagnostics.candidatePair.localCandidateType || "unknown",
+        diagnostics.candidatePair.remoteCandidateType || "unknown",
+        diagnostics.candidatePair.protocol || "unknown",
+        diagnostics.candidatePair.relayProtocol,
+      ]
+        .filter(Boolean)
+        .join(" / ")
+    : "Waiting for candidate pair";
+
+  const copyDiagnostics = async () => {
+    if (!diagnostics || !navigator.clipboard) {
+      setCopyStatus("failed");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(
+        JSON.stringify(
+          {
+            generatedAt: new Date().toISOString(),
+            origin: window.location.origin,
+            secureContext: window.isSecureContext,
+            userAgent: navigator.userAgent,
+            call: {
+              callId: call.callId,
+              conversationId: call.conversationId,
+              direction: call.direction,
+              status: call.status,
+            },
+            diagnostics,
+          },
+          null,
+          2,
+        ),
+      );
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("failed");
+    }
+  };
 
   return (
     <Modal
@@ -84,6 +168,21 @@ const AudioCallOverlay = ({
     >
       <ModalBody className="p-0">
         <div className="audio-call-surface text-center">
+          <Button
+            type="button"
+            color="link"
+            className="audio-call-diagnostics-toggle"
+            onClick={() => {
+              setShowDiagnostics(current => !current);
+              void refreshDiagnostics();
+            }}
+            aria-label="Call diagnostics"
+            aria-expanded={showDiagnostics}
+            title="Call diagnostics"
+          >
+            <i className="bx bx-info-circle" aria-hidden="true"></i>
+          </Button>
+
           <div className="audio-call-status" aria-live="polite">
             {isWaiting && <Spinner size="sm" className="me-2" />}
             <span>{call.statusMessage || statusLabels[call.status]}</span>
@@ -107,6 +206,102 @@ const AudioCallOverlay = ({
                 ? "Wants to talk with you"
                 : "Audio call"}
           </p>
+
+          {showDiagnostics && (
+            <section
+              className="audio-call-diagnostics text-start"
+              aria-labelledby="audio-call-diagnostics-title"
+            >
+              <div className="audio-call-diagnostics-header">
+                <h3 id="audio-call-diagnostics-title">Call diagnostics</h3>
+                <div>
+                  <Button
+                    type="button"
+                    color="link"
+                    onClick={() => void refreshDiagnostics()}
+                    aria-label="Refresh call diagnostics"
+                    title="Refresh"
+                  >
+                    <i className="bx bx-refresh" aria-hidden="true"></i>
+                  </Button>
+                  <Button
+                    type="button"
+                    color="link"
+                    onClick={() => void copyDiagnostics()}
+                    aria-label="Copy call diagnostics"
+                    title="Copy report"
+                    disabled={!diagnostics}
+                  >
+                    <i className="bx bx-copy" aria-hidden="true"></i>
+                  </Button>
+                </div>
+              </div>
+
+              {diagnostics ? (
+                <>
+                  <p
+                    className={`audio-call-diagnostics-summary is-${diagnostics.level}`}
+                    aria-live="polite"
+                  >
+                    {diagnostics.summary}
+                  </p>
+                  <dl>
+                    <div>
+                      <dt>Connection</dt>
+                      <dd data-testid="call-diagnostics-connection">
+                        {formatState(diagnostics.connectionState)} /{" "}
+                        {formatState(diagnostics.iceConnectionState)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Microphone</dt>
+                      <dd data-testid="call-diagnostics-microphone">
+                        {microphoneStatus}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Remote audio</dt>
+                      <dd data-testid="call-diagnostics-remote-audio">
+                        {remoteAudioStatus}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Network path</dt>
+                      <dd data-testid="call-diagnostics-network">
+                        {networkPath}
+                      </dd>
+                    </div>
+                  </dl>
+                  {diagnostics.playbackState === "blocked" && (
+                    <Button
+                      type="button"
+                      color="primary"
+                      size="sm"
+                      className="audio-call-resume-button"
+                      onClick={() => void resumeRemoteAudio()}
+                    >
+                      <i className="bx bx-play me-1" aria-hidden="true"></i>
+                      Play remote audio
+                    </Button>
+                  )}
+                  {copyStatus !== "idle" && (
+                    <span
+                      className={`audio-call-copy-status is-${copyStatus}`}
+                      role="status"
+                    >
+                      {copyStatus === "copied"
+                        ? "Report copied"
+                        : "Report could not be copied"}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <p className="audio-call-diagnostics-empty mb-0">
+                  Collecting connection data...
+                </p>
+              )}
+            </section>
+          )}
 
           <div className="audio-call-actions">
             {isIncoming ? (

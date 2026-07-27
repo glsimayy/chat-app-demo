@@ -901,7 +901,7 @@ body[data-bs-theme="light"] .chat-leftsidebar .text-muted {
 
 .audio-call-modal {
   .modal-dialog {
-    width: min(420px, calc(100vw - 24px));
+    width: min(460px, calc(100vw - 24px));
     margin-right: auto;
     margin-left: auto;
   }
@@ -914,8 +914,25 @@ body[data-bs-theme="light"] .chat-leftsidebar .text-muted {
 }
 
 .audio-call-surface {
+  position: relative;
   padding: 30px 24px 28px;
   border-top: 5px solid var(--bs-primary);
+}
+
+.audio-call-diagnostics-toggle {
+  position: absolute;
+  top: 11px;
+  right: 12px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: var(--bs-secondary-color);
+  place-items: center;
+
+  i {
+    font-size: 21px;
+  }
 }
 
 .audio-call-status {
@@ -967,6 +984,119 @@ body[data-bs-theme="light"] .chat-leftsidebar .text-muted {
   font-variant-numeric: tabular-nums;
 }
 
+.audio-call-diagnostics {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid var(--bs-border-color);
+}
+
+.audio-call-diagnostics-header {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+
+  h3 {
+    margin: 0;
+    color: var(--bs-heading-color);
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  > div {
+    display: flex;
+    gap: 2px;
+  }
+
+  .btn {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    color: var(--bs-secondary-color);
+    place-items: center;
+
+    i {
+      font-size: 19px;
+    }
+  }
+}
+
+.audio-call-diagnostics-summary {
+  margin: 8px 0 10px;
+  padding-left: 10px;
+  border-left: 3px solid var(--bs-secondary-color);
+  color: var(--bs-secondary-color);
+  font-size: 12px;
+  line-height: 1.45;
+
+  &.is-healthy {
+    border-color: var(--bs-success);
+    color: var(--bs-success-text-emphasis);
+  }
+
+  &.is-warning {
+    border-color: var(--bs-warning);
+    color: var(--bs-warning-text-emphasis);
+  }
+
+  &.is-error {
+    border-color: var(--bs-danger);
+    color: var(--bs-danger-text-emphasis);
+  }
+}
+
+.audio-call-diagnostics dl {
+  display: grid;
+  margin: 0;
+  gap: 7px;
+
+  > div {
+    display: grid;
+    grid-template-columns: minmax(90px, 0.8fr) minmax(0, 1.6fr);
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  dt,
+  dd {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  dt {
+    color: var(--bs-secondary-color);
+    font-weight: 600;
+  }
+
+  dd {
+    overflow-wrap: anywhere;
+    color: var(--bs-body-color);
+    text-align: right;
+  }
+}
+
+.audio-call-resume-button {
+  margin-top: 12px;
+}
+
+.audio-call-copy-status {
+  display: block;
+  margin-top: 9px;
+  color: var(--bs-success-text-emphasis);
+  font-size: 11px;
+
+  &.is-failed {
+    color: var(--bs-danger-text-emphasis);
+  }
+}
+
+.audio-call-diagnostics-empty {
+  color: var(--bs-secondary-color);
+  font-size: 12px;
+}
+
 .audio-call-actions {
   display: flex;
   min-height: 82px;
@@ -984,6 +1114,10 @@ body[data-bs-theme="light"] .chat-leftsidebar .text-muted {
     font-weight: 600;
     text-transform: uppercase;
   }
+}
+
+.audio-call-diagnostics + .audio-call-actions {
+  margin-top: 20px;
 }
 
 .audio-call-action {

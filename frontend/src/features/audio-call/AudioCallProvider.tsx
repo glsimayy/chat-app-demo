@@ -11,8 +11,10 @@ import { Socket } from "socket.io-client";
 import { getChatSocket } from "../../api/realtime";
 import AudioCallOverlay from "./AudioCallOverlay";
 import {
+  AudioCallDiagnostics,
   AudioCallContextValue,
   AudioCallState,
+  RemoteAudioPlaybackState,
   StartAudioCallInput,
 } from "./types";
 import {
@@ -20,6 +22,7 @@ import {
   CALL_SOCKET_RECOVERY_MS,
   getPeerConnectionAction,
 } from "./callRecovery";
+import { collectAudioCallDiagnostics } from "./callDiagnostics";
 
 interface SocketAck<T> {
   success: boolean;
@@ -179,11 +182,17 @@ const microphoneErrorMessage = (error: unknown) => {
 
 export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
   const [call, setCall] = useState<AudioCallState | null>(null);
+  const [diagnostics, setDiagnostics] = useState<AudioCallDiagnostics | null>(
+    null,
+  );
   const callRef = useRef<AudioCallState | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const playbackStateRef = useRef<RemoteAudioPlaybackState>("idle");
+  const playbackErrorRef = useRef<string | null>(null);
+  const diagnosticsFingerprintRef = useRef("");
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const socketRecoveryTimerRef = useRef<number | null>(null);
   const peerRecoveryTimerRef = useRef<number | null>(null);
@@ -193,6 +202,53 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
   const updateCall = useCallback((next: AudioCallState | null) => {
     callRef.current = next;
     setCall(next);
+  }, []);
+
+  const resetDiagnostics = useCallback(() => {
+    playbackStateRef.current = "idle";
+    playbackErrorRef.current = null;
+    diagnosticsFingerprintRef.current = "";
+    setDiagnostics(null);
+  }, []);
+
+  const refreshDiagnostics = useCallback(async () => {
+    const current = callRef.current;
+
+    try {
+      const next = await collectAudioCallDiagnostics({
+        peer: peerConnectionRef.current,
+        localStream: localStreamRef.current,
+        remoteStream: remoteStreamRef.current,
+        playbackState: playbackStateRef.current,
+        playbackError: playbackErrorRef.current,
+      });
+      setDiagnostics(next);
+
+      const fingerprint = JSON.stringify({
+        connectionState: next.connectionState,
+        iceConnectionState: next.iceConnectionState,
+        localTrack: next.localTrack,
+        remoteTrack: next.remoteTrack,
+        candidatePair: next.candidatePair,
+        playbackState: next.playbackState,
+        level: next.level,
+        summary: next.summary,
+      });
+      if (fingerprint !== diagnosticsFingerprintRef.current) {
+        diagnosticsFingerprintRef.current = fingerprint;
+        console.info("[audio-call-diagnostics]", {
+          callId: current?.callId ?? null,
+          direction: current?.direction ?? null,
+          ...next,
+        });
+      }
+    } catch (error) {
+      logCallEvent(
+        "call_diagnostics_failed",
+        current,
+        error instanceof Error ? error.message : "Unknown diagnostics error",
+      );
+    }
   }, []);
 
   const clearSocketRecoveryTimer = useCallback(() => {
@@ -211,11 +267,29 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
 
   const releaseMedia = useCallback(() => {
     clearPeerRecoveryTimer();
-    peerConnectionRef.current?.close();
+    const peer = peerConnectionRef.current;
+    if (peer) {
+      peer.onconnectionstatechange = null;
+      peer.oniceconnectionstatechange = null;
+      peer.onsignalingstatechange = null;
+      peer.onicecandidate = null;
+      peer.ontrack = null;
+      peer.close();
+    }
     peerConnectionRef.current = null;
-    localStreamRef.current?.getTracks().forEach(track => track.stop());
+    localStreamRef.current?.getTracks().forEach(track => {
+      track.onended = null;
+      track.onmute = null;
+      track.onunmute = null;
+      track.stop();
+    });
     localStreamRef.current = null;
-    remoteStreamRef.current?.getTracks().forEach(track => track.stop());
+    remoteStreamRef.current?.getTracks().forEach(track => {
+      track.onended = null;
+      track.onmute = null;
+      track.onunmute = null;
+      track.stop();
+    });
     remoteStreamRef.current = null;
     pendingCandidatesRef.current = [];
 
@@ -293,8 +367,14 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
       video: false,
     });
     localStreamRef.current = stream;
+    for (const track of stream.getAudioTracks()) {
+      track.onended = () => void refreshDiagnostics();
+      track.onmute = () => void refreshDiagnostics();
+      track.onunmute = () => void refreshDiagnostics();
+    }
+    void refreshDiagnostics();
     return stream;
-  }, []);
+  }, [refreshDiagnostics]);
 
   const sendSignal = useCallback((signal: Omit<CallSignalEvent, "callId">) => {
     const socket = getChatSocket();
@@ -358,6 +438,7 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
     for (const track of localStreamRef.current?.getTracks() ?? []) {
       peer.addTrack(track, localStreamRef.current!);
     }
+    void refreshDiagnostics();
 
     peer.onicecandidate = event => {
       if (!event.candidate) {
@@ -378,12 +459,37 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
         if (!remoteStream.getTracks().some(item => item.id === track.id)) {
           remoteStream.addTrack(track);
         }
+        track.onended = () => void refreshDiagnostics();
+        track.onmute = () => void refreshDiagnostics();
+        track.onunmute = () => void refreshDiagnostics();
       }
 
       if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = remoteStream;
-        void remoteAudioRef.current.play().catch(() => undefined);
+        playbackStateRef.current = "waiting";
+        playbackErrorRef.current = null;
+        void remoteAudioRef.current
+          .play()
+          .then(() => {
+            playbackStateRef.current = "playing";
+            playbackErrorRef.current = null;
+            void refreshDiagnostics();
+          })
+          .catch(error => {
+            playbackStateRef.current = "blocked";
+            playbackErrorRef.current =
+              error instanceof Error
+                ? error.message
+                : "Remote audio playback failed";
+            logCallEvent(
+              "remote_audio_playback_failed",
+              callRef.current,
+              playbackErrorRef.current,
+            );
+            void refreshDiagnostics();
+          });
       }
+      void refreshDiagnostics();
     };
     peer.onconnectionstatechange = () => {
       const current = callRef.current;
@@ -393,6 +499,7 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
 
       const action = getPeerConnectionAction(peer.connectionState);
       logCallEvent("peer_connection_state", current, peer.connectionState);
+      void refreshDiagnostics();
 
       if (action === "connected") {
         clearPeerRecoveryTimer();
@@ -406,9 +513,48 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
         beginPeerRecovery(peer.connectionState);
       }
     };
+    peer.oniceconnectionstatechange = () => {
+      logCallEvent(
+        "ice_connection_state",
+        callRef.current,
+        peer.iceConnectionState,
+      );
+      void refreshDiagnostics();
+    };
+    peer.onsignalingstatechange = () => {
+      void refreshDiagnostics();
+    };
 
     return peer;
-  }, [beginPeerRecovery, clearPeerRecoveryTimer, sendSignal, updateCall]);
+  }, [
+    beginPeerRecovery,
+    clearPeerRecoveryTimer,
+    refreshDiagnostics,
+    sendSignal,
+    updateCall,
+  ]);
+
+  const resumeRemoteAudio = useCallback(async () => {
+    const remoteAudio = remoteAudioRef.current;
+    if (!remoteAudio?.srcObject) {
+      playbackStateRef.current = "idle";
+      playbackErrorRef.current = "No remote audio stream is available";
+      await refreshDiagnostics();
+      return;
+    }
+
+    playbackStateRef.current = "waiting";
+    playbackErrorRef.current = null;
+    try {
+      await remoteAudio.play();
+      playbackStateRef.current = "playing";
+    } catch (error) {
+      playbackStateRef.current = "blocked";
+      playbackErrorRef.current =
+        error instanceof Error ? error.message : "Remote audio playback failed";
+    }
+    await refreshDiagnostics();
+  }, [refreshDiagnostics]);
 
   const restartConnection = useCallback(async () => {
     const current = callRef.current;
@@ -449,6 +595,7 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
+      resetDiagnostics();
       const socket = getChatSocket();
       const initialCall: AudioCallState = {
         callId: null,
@@ -508,7 +655,7 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
         failCall(microphoneErrorMessage(error));
       }
     },
-    [failCall, getMicrophone, updateCall],
+    [failCall, getMicrophone, resetDiagnostics, updateCall],
   );
 
   const acceptCall = useCallback(async () => {
@@ -594,7 +741,8 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
       ?.getAudioTracks()
       .forEach(track => (track.enabled = !nextMuted));
     updateCall({ ...current, isMuted: nextMuted });
-  }, [updateCall]);
+    void refreshDiagnostics();
+  }, [refreshDiagnostics, updateCall]);
 
   const dismissCall = useCallback(() => {
     clearSocketRecoveryTimer();
@@ -752,6 +900,7 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
         status: "incoming",
         isMuted: false,
       };
+      resetDiagnostics();
       logCallEvent("call_incoming", incomingCall);
       updateCall(incomingCall);
     };
@@ -964,20 +1113,36 @@ export const AudioCallProvider = ({ children }: { children: ReactNode }) => {
     finishCallLocally,
     getMicrophone,
     releaseMedia,
+    resetDiagnostics,
     restartConnection,
     sendSignal,
     syncCallState,
     updateCall,
   ]);
 
+  useEffect(() => {
+    if (!call) {
+      return;
+    }
+
+    void refreshDiagnostics();
+    const interval = window.setInterval(() => {
+      void refreshDiagnostics();
+    }, 2000);
+    return () => window.clearInterval(interval);
+  }, [call, refreshDiagnostics]);
+
   const value: AudioCallContextValue = {
     call,
+    diagnostics,
     startCall,
     acceptCall,
     rejectCall,
     endCall,
     toggleMute,
     dismissCall,
+    refreshDiagnostics,
+    resumeRemoteAudio,
   };
 
   return (

@@ -33,12 +33,60 @@ export interface StartAudioCallInput {
   profileImage?: string | null;
 }
 
+export type AudioCallDiagnosticLevel =
+  "healthy" | "pending" | "warning" | "error";
+
+export type RemoteAudioPlaybackState =
+  "idle" | "waiting" | "playing" | "blocked";
+
+export interface AudioTrackDiagnostics {
+  available: boolean;
+  enabled: boolean;
+  muted: boolean;
+  readyState: MediaStreamTrackState | "unavailable";
+  label: string | null;
+}
+
+export interface AudioCandidatePairDiagnostics {
+  state: string;
+  localCandidateType: string | null;
+  remoteCandidateType: string | null;
+  protocol: string | null;
+  relayProtocol: string | null;
+}
+
+export interface AudioRtpDiagnostics {
+  bytes: number;
+  packets: number;
+  packetsLost: number;
+  jitter: number | null;
+}
+
+export interface AudioCallDiagnostics {
+  capturedAt: string;
+  level: AudioCallDiagnosticLevel;
+  summary: string;
+  connectionState: RTCPeerConnectionState | "new";
+  iceConnectionState: RTCIceConnectionState | "new";
+  signalingState: RTCSignalingState | "stable";
+  localTrack: AudioTrackDiagnostics;
+  remoteTrack: AudioTrackDiagnostics;
+  candidatePair: AudioCandidatePairDiagnostics | null;
+  outbound: AudioRtpDiagnostics;
+  inbound: AudioRtpDiagnostics;
+  playbackState: RemoteAudioPlaybackState;
+  playbackError: string | null;
+}
+
 export interface AudioCallContextValue {
   call: AudioCallState | null;
+  diagnostics: AudioCallDiagnostics | null;
   startCall: (input: StartAudioCallInput) => Promise<void>;
   acceptCall: () => Promise<void>;
   rejectCall: () => void;
   endCall: () => void;
   toggleMute: () => void;
   dismissCall: () => void;
+  refreshDiagnostics: () => Promise<void>;
+  resumeRemoteAudio: () => Promise<void>;
 }
