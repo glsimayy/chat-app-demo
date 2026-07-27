@@ -32,18 +32,18 @@ Give the next Codex task this prompt:
 ```text
 SETUP: desktop
 Open C:\Users\emovi\OneDrive\Documents\GitHub\chat-app-demo, read
-docs/CODEX_HANDOFF.md, switch/pull codex/post-handoff-demo-fixes, preserve any
-existing local changes, verify the root .env without exposing secrets, start
-Docker, recreate the documented 6-user/3-group demo database, and continue
-from Next Work. Do not merge to main until I explicitly ask.
+docs/CODEX_HANDOFF.md, switch/pull main, preserve any existing local changes,
+verify the root .env without exposing secrets, start Docker, recreate the
+documented 6-user/3-group demo database, and continue from Next Work.
 ```
 
 ## Repository State
 
 - Repository: `https://github.com/glsimayy/chat-app-demo.git`
-- Continue branch: `codex/post-handoff-demo-fixes`
-- Remote tracking branch: `origin/codex/post-handoff-demo-fixes`
-- `origin/main`: `dc89a9a`
+- Continue branch: `main`
+- Remote tracking branch: `origin/main`
+- Feature branch `codex/post-handoff-demo-fixes` was fast-forward merged into
+  `main` on 2026-07-27.
 - Reply fix commit: `228babb fix: persist chat replies end to end`
 - Technical reference commit:
   `de585d7 docs: add API and database reference reports`
@@ -55,15 +55,15 @@ Desktop preparation:
 
 ```powershell
 git fetch origin
-git switch codex/post-handoff-demo-fixes
-git pull --ff-only origin codex/post-handoff-demo-fixes
+git switch main
+git pull --ff-only origin main
 git rev-parse --short HEAD
 git status --short --branch
 ```
 
 The expected result is a clean worktree aligned with
-`origin/codex/post-handoff-demo-fixes`. If the desktop repo already has
-changes, stop and inspect them before pulling. Do not overwrite unknown work.
+`origin/main`. If the desktop repo already has changes, stop and inspect them
+before pulling. Do not overwrite unknown work.
 
 ## Latest Branch Work
 
@@ -301,13 +301,13 @@ docker compose stop
 
 Recommended desktop order:
 
-1. Pull `codex/post-handoff-demo-fixes` and verify a clean worktree.
+1. Pull `main` and verify a clean worktree.
 2. Verify root `.env` without exposing secrets.
 3. Start Docker and wait for all long-running services to become healthy.
 4. Recreate the documented 6-user/3-group demo database.
 5. Open the application and perform a short manual desktop sanity check.
 6. Continue feature or bug work only after the user selects the next priority.
-7. Do not merge to `main` until the user explicitly asks.
+7. Continue from `main`; push new work only when the user explicitly asks.
 
 ## Final Sanity Commands
 
@@ -322,5 +322,4 @@ Invoke-RestMethod http://localhost:8080/ready
 Invoke-WebRequest -UseBasicParsing http://localhost:3000/api/docs
 ```
 
-Do not merge the branch to `main` during handoff restoration unless the user
-explicitly asks.
+The project now continues from `main`.
