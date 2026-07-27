@@ -1,6 +1,6 @@
 # Database Constraint and Index Audit
 
-Tarih: 22 Temmuz 2026
+Tarih: 27 Temmuz 2026
 
 Bu kontrol Prisma migration'lari ile olusan PostgreSQL semasinin v0.1 veri
 butunlugu ve temel sorgu ihtiyaclarini kapsadigini dogrular. Otomatik kanit:
@@ -36,6 +36,15 @@ edilmis pair key dusunulmelidir.
 | Participant -> User | Cascade | Kullanici silinince uyelik satirlari kalmaz |
 | Message -> Conversation | Cascade | Sohbet silinince mesajlar kalmaz |
 | Message sender -> User | Set null | Kullanici silinse de mesaj gecmisi korunur |
+| Message reply -> Message | Set null | Yanitlanan mesaj silinirse yanit mesaji korunur |
+| Message bookmark -> User | Cascade | Kullanici silinince kaydettigi mesaj baglari temizlenir |
+| Message bookmark -> Message | Cascade | Mesaj silinince bookmark baglari temizlenir |
+| Conversation preference -> User | Cascade | Kullanici silinince kisisel sohbet tercihleri temizlenir |
+| Conversation preference -> Conversation | Cascade | Sohbet silinince kisisel tercihler temizlenir |
+| Call record -> Conversation | Cascade | Sohbet silinince cagri gecmisi temizlenir |
+| Call caller -> User | Cascade | Arayan kullanici silinince ilgili cagri kayitlari temizlenir |
+| Call recipient -> User | Cascade | Alici kullanici silinince ilgili cagri kayitlari temizlenir |
+| Call ended-by -> User | Set null | Islemi yapan kullanici silinse de cagri gecmisi korunur |
 | Attachment -> Message | Cascade | Mesaj fiziksel olarak silinince dosya verisi de temizlenir |
 | Ticket requester -> User | Cascade | Kullanici silinince kendi destek talepleri temizlenir |
 | Ticket assignee -> User | Set null | Admin silinince ticket ortak havuza geri doner |
@@ -50,6 +59,12 @@ edilmis pair key dusunulmelidir.
   sirali gecmis sorgularini destekler.
 - Idempotency: `(senderId, clientMessageId)` unique indexi bulunur.
 - Attachment lookup: `message_attachments.messageId` indexi bulunur.
+- Mesaj bookmark listeleme: `(userId, createdAt)` ve `messageId` indexleri
+  bulunur.
+- Sohbet tercihleri: kullanici bazinda bookmark, archive ve delete durum
+  indexleri bulunur.
+- Cagri gecmisi: arayan, alici ve sohbet icin zaman sirali indexler ile durum
+  indexi bulunur.
 - Soft state filtreleri: participant `leftAt` ve message `deletedAt` indexleri
   bulunur.
 - BOT lookup: `externalRef` unique indexi bulunur.
@@ -64,5 +79,5 @@ kullanimi getirir.
 
 ## Sonuc
 
-Otomatik audit 30 beklenen indexi ve 11 foreign key delete kuralini kontrol eder.
+Otomatik audit 46 beklenen indexi ve 22 foreign key delete kuralini kontrol eder.
 Schema degisikliginde audit listesi ve bu belge ayni PR icinde guncellenmelidir.

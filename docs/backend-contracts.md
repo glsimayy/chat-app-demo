@@ -2,6 +2,12 @@
 
 Bu dokuman Main Backend, Java ve Database tarafinin ayni kontrata gore calismasi icin tutulur.
 
+Guncel ve kapsamli referanslar:
+
+- API ve Java webhook: `docs/api-java-webhook-reference.md`
+- Veritabani veri modeli: `docs/database-data-model.md`
+- Anlik OpenAPI ciktisi: `docs/openapi.snapshot.json`
+
 ## Local URL'ler
 
 - API base URL: `http://localhost:3000/api`
@@ -996,68 +1002,22 @@ Payload:
 }
 ```
 
-## Database Tarafi Icin Beklenen Modeller
+## Database Tarafi
 
-Main Backend su an in-memory calisiyor. Database entegrasyonunda beklenen ana tablolar:
+Backend PostgreSQL ve Prisma ile kalici calisir. Uygulanan model, iliskiler,
+indeksler ve migration akisi icin `docs/database-data-model.md` dosyasina;
+lokal kurulum icin `docs/database-setup.md` dosyasina bakilmalidir.
 
-Prisma taslagi `backend/prisma/schema.prisma` icinde tutulur. Ilk DB gecisinde bu dosya uzerinden migration alinabilir. Local PostgreSQL kurulumu icin `docs/database-setup.md` dosyasina bakilabilir.
-
-### users
-
-- `id`: uuid primary key
-- `email`: unique string
-- `username`: unique string
-- `passwordHash`: string
-- `role`: enum `admin | user`
-- `createdAt`: datetime
-- `updatedAt`: datetime
-
-### conversations
-
-- `id`: uuid primary key
-- `type`: enum `direct | group | management`
-- `name`: nullable string
-- `description`: nullable string
-- `createdBy`: user id
-- `externalRef`: nullable string
-- `isBotManaged`: boolean
-- `sourceName`: nullable string
-- `memberCanSendMessages`: boolean
-- `membersCanLeave`: boolean
-- `status`: enum `active | closed | archived`
-- `parentConversationId`: yonetici sohbetlerinde ana grup id'si
-- `createdAt`: datetime
-- `updatedAt`: datetime
-
-### conversation_participants
-
-- `conversationId`: conversation id
-- `userId`: user id
-- `role`: enum `owner | manager | member`
-- `joinedAt`: datetime
-- `lastReadAt`: nullable datetime
-- `leftAt`: nullable datetime
-
-Unique onerisi:
-
-- Aktif participant icin `conversationId + userId + leftAt` mantigi dusunulmeli.
-
-### messages
-
-- `id`: uuid primary key
-- `clientMessageId`: nullable uuid; sender ile birlikte unique
-- `conversationId`: conversation id
-- `senderId`: nullable user id
-- `content`: string
-- `messageType`: enum `user | system`
-- `createdAt`: datetime
-- `updatedAt`: nullable datetime
-- `deletedAt`: nullable datetime
+Prisma semasinin tek teknik kaynagi `backend/prisma/schema.prisma` dosyasidir.
+Dokuman ile sema arasindaki farklar
+`npm run test:database-audit --prefix backend` komutuyla denetlenir.
 
 ## Su Anki Notlar
 
-- Ilk kayit olan kullanici local/in-memory modda `admin` olur.
-- Sonraki kullanicilar `user` olur.
+- Kullanici rolleri PostgreSQL'de kalici tutulur.
 - Grup olusturma endpointi admin ister.
 - Bot endpointi JWT istemez, `x-bot-secret` ister.
-- Veriler su an server restart edilince sifirlanir.
+- Java webhook servisi dis sistemden `X-Webhook-Token` alir ve NestJS BOT
+  endpointine `x-bot-secret` ile gider.
+- PostgreSQL volume silinmedigi surece server veya container restarti verileri
+  sifirlamaz.
