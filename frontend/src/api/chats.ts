@@ -218,8 +218,7 @@ const searchConversationMessages = async (
 const sendMessage = (data: any) => {
   const conversationId = data?.meta?.receiver;
   const content = data?.text || "";
-  const replyToMessageId =
-    data?.replyToMessageId || data?.replyOf?.mId;
+  const replyToMessageId = data?.replyToMessageId || data?.replyOf?.mId;
 
   if (data?.files?.length) {
     return api.createWithFile(
@@ -323,10 +322,13 @@ const deleteUserMessages = async (conversationId?: string | number) => {
 };
 
 const getChannelDetails = async (id: string | number) => {
-  const conversation = await findConversation(id);
+  const [conversation, users] = await Promise.all([
+    findConversation(id),
+    getUsers(true),
+  ]);
 
   return conversation
-    ? mapConversationDetails(conversation)
+    ? mapConversationDetails(conversation, users)
     : { id, name: "Conversation", isChannel: true, members: [] };
 };
 

@@ -16,6 +16,13 @@ import {
   writeMessageDraft,
 } from "../../../../utils/messageDrafts";
 import { useVoiceRecorder } from "../../../../features/voice-message/useVoiceRecorder";
+import {
+  findActiveMentionQuery,
+  getMentionLabel,
+  getMentionSuggestions,
+  MentionMember,
+  replaceActiveMention,
+} from "../../../../utils/mentions";
 
 // interface
 import { MessagesTypes } from "../../../../data/messages";
@@ -43,6 +50,7 @@ interface IndexProps {
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   chatUserDetails: any;
   draftKey: string;
+  mentionMembers?: MentionMember[];
   canSend?: boolean;
   disabledMessage?: string;
 }
@@ -53,6 +61,7 @@ const Index = ({
   onSetReplyData,
   chatUserDetails,
   draftKey,
+  mentionMembers = [],
   canSend = true,
   disabledMessage = "Messaging is unavailable in this conversation.",
 }: IndexProps) => {
@@ -74,9 +83,15 @@ const Index = ({
   input text
   */
   const [text, setText] = useState("");
+  const [caretPosition, setCaretPosition] = useState(0);
+  const [activeMentionIndex, setActiveMentionIndex] = useState(0);
+  const messageInputRef = useRef<HTMLInputElement>(null);
   const [sharedContact, setSharedContact] = useState<any>(null);
   useEffect(() => {
-    setText(readMessageDraft(draftKey));
+    const draft = readMessageDraft(draftKey);
+    setText(draft);
+    setCaretPosition(draft.length);
+    setActiveMentionIndex(0);
     setSharedContact(null);
   }, [draftKey]);
 
@@ -87,11 +102,94 @@ const Index = ({
       onTyping(value);
     }
   };
-  const onChangeText = (value: string) => {
+  const onChangeText = (value: string, nextCaretPosition = value.length) => {
     if (sharedContact) {
       setSharedContact(null);
     }
+    setCaretPosition(nextCaretPosition);
     updateText(value);
+  };
+  const activeMentionQuery = findActiveMentionQuery(text, caretPosition);
+  const mentionSuggestions = activeMentionQuery
+    ? getMentionSuggestions(activeMentionQuery.query, mentionMembers)
+    : [];
+  const mentionListId = `mention-suggestions-${draftKey.replace(
+    /[^A-Za-z0-9_-]/g,
+    "-",
+  )}`;
+  const activeMentionOptionId =
+    mentionSuggestions.length > 0
+      ? `${mentionListId}-${Math.min(
+          activeMentionIndex,
+          mentionSuggestions.length - 1,
+        )}`
+      : undefined;
+
+  useEffect(() => {
+    setActiveMentionIndex(0);
+  }, [activeMentionQuery?.query, activeMentionQuery?.start, draftKey]);
+
+  const selectMention = (member: MentionMember) => {
+    if (!activeMentionQuery) {
+      return;
+    }
+
+    const replacement = replaceActiveMention(text, activeMentionQuery, member);
+    updateText(replacement.text);
+    setCaretPosition(replacement.caretPosition);
+    setActiveMentionIndex(0);
+
+    window.requestAnimationFrame(() => {
+      messageInputRef.current?.focus();
+      messageInputRef.current?.setSelectionRange(
+        replacement.caretPosition,
+        replacement.caretPosition,
+      );
+    });
+  };
+
+  const onMessageKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!mentionSuggestions.length || event.nativeEvent.isComposing) {
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveMentionIndex(
+        current => (current + 1) % mentionSuggestions.length,
+      );
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveMentionIndex(
+        current =>
+          (current - 1 + mentionSuggestions.length) % mentionSuggestions.length,
+      );
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === "Tab") {
+      event.preventDefault();
+      selectMention(
+        mentionSuggestions[
+          Math.min(activeMentionIndex, mentionSuggestions.length - 1)
+        ],
+      );
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setCaretPosition(-1);
+    }
+  };
+
+  const mentionInitials = (member: MentionMember) => {
+    const label = member.username || member.email || "U";
+    const parts = label.split(/[\s._-]+/).filter(Boolean);
+    return `${parts[0]?.charAt(0) || "U"}${parts[1]?.charAt(0) || ""}`.toUpperCase();
   };
 
   /*
@@ -201,6 +299,7 @@ const Index = ({
     }
 
     updateText("", false);
+    setCaretPosition(0);
     clearMessageDraft(draftKey);
     onTyping("");
     setImages([]);
@@ -324,7 +423,56 @@ const Index = ({
                 </span>
               </div>
             ) : (
-              <InputSection value={text} onChange={onChangeText} />
+              <div className="mention-composer">
+                <InputSection
+                  value={text}
+                  onChange={onChangeText}
+                  inputRef={messageInputRef}
+                  onKeyDown={onMessageKeyDown}
+                  onCaretChange={setCaretPosition}
+                  mentionListId={
+                    mentionSuggestions.length > 0 ? mentionListId : undefined
+                  }
+                  activeMentionOptionId={activeMentionOptionId}
+                />
+                {mentionSuggestions.length > 0 && activeMentionQuery && (
+                  <div
+                    className="mention-suggestions"
+                    id={mentionListId}
+                    role="listbox"
+                    aria-label="Group members"
+                  >
+                    {mentionSuggestions.map((member, index) => (
+                      <button
+                        type="button"
+                        className={`mention-suggestion${
+                          index === activeMentionIndex ? " active" : ""
+                        }`}
+                        id={`${mentionListId}-${index}`}
+                        role="option"
+                        aria-selected={index === activeMentionIndex}
+                        key={member.userId}
+                        onMouseDown={event => event.preventDefault()}
+                        onMouseEnter={() => setActiveMentionIndex(index)}
+                        onClick={() => selectMention(member)}
+                      >
+                        <span
+                          className="mention-suggestion-avatar"
+                          aria-hidden="true"
+                        >
+                          {mentionInitials(member)}
+                        </span>
+                        <span className="mention-suggestion-copy">
+                          <strong>
+                            {getMentionLabel(activeMentionQuery.query, member)}
+                          </strong>
+                          {member.email && <small>{member.email}</small>}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
           <div className="col-auto">

@@ -50,6 +50,34 @@ import {
   showSuccessNotification,
 } from "../../../helpers/notifications";
 import { isMessageReportable } from "../../../utils/messageReporting";
+import { MentionMember, tokenizeMentions } from "../../../utils/mentions";
+
+interface MentionTextProps {
+  text: string;
+  members: MentionMember[];
+}
+
+const MentionText = ({ text, members }: MentionTextProps) => (
+  <>
+    {tokenizeMentions(text, members).map((segment, index) =>
+      segment.isMention ? (
+        <span
+          className="message-mention"
+          title={
+            segment.member?.email || segment.member?.username || "Group member"
+          }
+          key={`${index}-${segment.text}`}
+        >
+          {segment.text}
+        </span>
+      ) : (
+        <React.Fragment key={`${index}-${segment.text}`}>
+          {segment.text}
+        </React.Fragment>
+      ),
+    )}
+  </>
+);
 
 interface MenuProps {
   canModify: boolean;
@@ -699,6 +727,7 @@ interface MessageProps {
   isFromMe: boolean;
   onOpenForward: (message: MessagesTypes) => void;
   isChannel: boolean;
+  mentionMembers: MentionMember[];
   isBookmarked: boolean;
   isHighlighted: boolean;
   onToggleBookmark: (messageId: string | number) => Promise<void>;
@@ -713,6 +742,7 @@ const Message = ({
   isFromMe,
   onOpenForward,
   isChannel,
+  mentionMembers,
   isBookmarked,
   isHighlighted,
   onToggleBookmark,
@@ -941,7 +971,9 @@ const Message = ({
           {hasImages && message.text && (
             <div className="ctext-wrap">
               <div className="ctext-wrap-content">
-                <p className="mb-0 ctext-content">{message.text}</p>
+                <p className="mb-0 ctext-content">
+                  <MentionText text={message.text} members={mentionMembers} />
+                </p>
               </div>
             </div>
           )}
@@ -1041,7 +1073,12 @@ const Message = ({
                   ) : sharedContactUserId ? (
                     <SharedContactCard userId={sharedContactUserId} />
                   ) : hasText ? (
-                    <p className="mb-0 ctext-content">{message.text}</p>
+                    <p className="mb-0 ctext-content">
+                      <MentionText
+                        text={message.text!}
+                        members={mentionMembers}
+                      />
+                    </p>
                   ) : null}
 
                   {/* typing start */}

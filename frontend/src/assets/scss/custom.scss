@@ -439,6 +439,96 @@ body[data-bs-theme="dark"] .conversation-shell-management {
   }
 }
 
+.mention-composer {
+  position: relative;
+  min-width: 0;
+}
+
+.mention-suggestions {
+  position: absolute;
+  z-index: 8;
+  right: 0;
+  bottom: calc(100% + 8px);
+  left: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 6px;
+  background-color: var(--bs-body-bg);
+  box-shadow: 0 10px 28px rgba(20, 28, 38, 0.18);
+}
+
+.mention-suggestion {
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  color: var(--bs-body-color);
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--bs-border-color);
+  background: transparent;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  &:hover,
+  &.active {
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+  }
+}
+
+.mention-suggestion-avatar {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  align-items: center;
+  justify-content: center;
+  color: var(--bs-primary);
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 50%;
+  background-color: rgba(var(--bs-primary-rgb), 0.14);
+}
+
+.mention-suggestion-copy {
+  display: grid;
+  min-width: 0;
+
+  strong,
+  small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  strong {
+    font-size: 13px;
+  }
+
+  small {
+    color: var(--bs-secondary-color);
+    font-size: 11px;
+  }
+}
+
+.message-mention {
+  padding: 0 2px;
+  color: var(--bs-primary);
+  font-weight: 600;
+  border-radius: 3px;
+  background-color: rgba(var(--bs-primary-rgb), 0.12);
+}
+
+.chat-list.right .message-mention {
+  color: inherit;
+  background-color: rgba(255, 255, 255, 0.18);
+}
+
 .catch-up-panel {
   flex-shrink: 0;
   max-height: min(520px, 58vh);

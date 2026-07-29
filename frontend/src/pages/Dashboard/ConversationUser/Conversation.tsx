@@ -31,6 +31,7 @@ import {
   showSuccessNotification,
 } from "../../../helpers/notifications";
 import { BookMarkTypes } from "../../../data/bookmarks";
+import { MentionMember } from "../../../utils/mentions";
 
 // actions
 import { forwardMessage } from "../../../redux/actions";
@@ -42,6 +43,7 @@ interface ConversationProps {
   onMarkUnread: (messageId: string | number) => Promise<void>;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   isChannel: boolean;
+  mentionMembers: MentionMember[];
   focusedMessageId: string | number | null;
 }
 const Conversation = ({
@@ -52,6 +54,7 @@ const Conversation = ({
   onMarkUnread,
   onSetReplyData,
   isChannel,
+  mentionMembers,
   focusedMessageId,
 }: ConversationProps) => {
   // global store
@@ -249,6 +252,7 @@ const Conversation = ({
               isFromMe={isFromMe}
               onOpenForward={onOpenForward}
               isChannel={isChannel}
+              mentionMembers={mentionMembers}
               isBookmarked={bookmarkedMessageIds.has(String(message.mId))}
               isHighlighted={
                 String(focusedMessageId || "") === String(message.mId)

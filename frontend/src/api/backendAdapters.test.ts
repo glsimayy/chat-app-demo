@@ -96,4 +96,33 @@ describe("backend adapters for automation", () => {
 
     expect(details.status).toBe("Offline");
   });
+
+  it("attaches user identities to conversation participants", () => {
+    const details = mapConversationDetails(
+      {
+        id: "group-conversation",
+        type: "group",
+        participants: [
+          { userId: "current-user", role: "owner", leftAt: null },
+          { userId: "other-user", role: "member", leftAt: null },
+        ],
+      },
+      [
+        {
+          id: "other-user",
+          username: "otheruser",
+          email: "other@ello.com",
+        },
+      ],
+    );
+
+    expect(details.members[1]).toMatchObject({
+      userId: "other-user",
+      user: {
+        uid: "other-user",
+        username: "otheruser",
+        email: "other@ello.com",
+      },
+    });
+  });
 });

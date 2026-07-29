@@ -44,6 +44,7 @@ import {
   clearPendingMessageFocus,
   readPendingMessageFocus,
 } from "../../../utils/messageFocus";
+import { buildMentionMembers } from "../../../utils/mentions";
 
 interface IndexProps {
   isChannel: boolean;
@@ -127,9 +128,22 @@ const Index = ({ isChannel }: IndexProps) => {
           ...chatUserDetails,
           id: managementConversation.id,
           name: "Manager Chat",
-          members: managementConversation.participants || [],
+          members: (managementConversation.participants || []).map(
+            (participant: any) => {
+              const groupMember = (chatUserDetails.members || []).find(
+                (member: any) => member.userId === participant.userId,
+              );
+
+              return groupMember?.user
+                ? { ...participant, user: groupMember.user }
+                : participant;
+            },
+          ),
         }
       : chatUserDetails;
+  const mentionMembers = isChannel
+    ? buildMentionMembers(activeChatDetails.members || [])
+    : [];
   const groupIsActive =
     !isChannel ||
     String(chatUserDetails.status || "active").toLowerCase() === "active";
@@ -726,6 +740,7 @@ const Index = ({ isChannel }: IndexProps) => {
         onMarkUnread={onMarkMessageAsUnread}
         onSetReplyData={onSetReplyData}
         isChannel={isChannel}
+        mentionMembers={mentionMembers}
         focusedMessageId={focusedMessageId}
       />
       <ChatInputSection
@@ -734,6 +749,7 @@ const Index = ({ isChannel }: IndexProps) => {
         replyData={replyData}
         onSetReplyData={onSetReplyData}
         chatUserDetails={activeChatDetails}
+        mentionMembers={mentionMembers}
         draftKey={`${currentAuthUser?.id || "anonymous"}:${activeConversationId || "none"}`}
         canSend={canSendMessage}
         disabledMessage={

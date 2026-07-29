@@ -151,11 +151,21 @@ export const mapConversationDetails = (
 ) => {
   const listItem = mapConversationToListItem(conversation, users);
   const isChannel = conversation?.type === "group";
+  const members = (conversation?.participants || []).map((participant: any) => {
+    const user = users.find((item: any) => item.id === participant.userId);
+
+    return user
+      ? {
+          ...participant,
+          user: mapBackendUser(user),
+        }
+      : participant;
+  });
 
   return {
     ...listItem,
     isChannel,
-    members: conversation?.participants || [],
+    members,
     participantCount: conversation?.participantCount,
     automated: Boolean(conversation?.isBotManaged || conversation?.externalRef),
     isBotManaged: Boolean(conversation?.isBotManaged),
