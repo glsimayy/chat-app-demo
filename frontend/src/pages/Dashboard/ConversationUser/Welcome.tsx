@@ -1,7 +1,10 @@
 import React from "react";
 import { Col, Row } from "reactstrap";
+import { useTranslation } from "react-i18next";
 
 const Welcome = () => {
+  const { t } = useTranslation();
+
   return (
     <React.Fragment>
       <div className="chat-welcome-section">
@@ -13,10 +16,10 @@ const Welcome = () => {
                   <i className="bx bxs-message-alt-detail display-4 text-primary m-0"></i>
                 </div>
               </div>
-              <h4>No conversation selected</h4>
-              <p className="text-muted mb-4">Your ellO inbox is ready.</p>
+              <h4>{t("chat.noConversation")}</h4>
+              <p className="text-muted mb-4">{t("chat.inboxReady")}</p>
               <span className="badge bg-primary-subtle text-primary px-3 py-2">
-                Ready
+                {t("chat.ready")}
               </span>
             </div>
           </Col>

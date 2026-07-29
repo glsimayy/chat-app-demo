@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import classnames from "classnames";
 import { Badge } from "reactstrap";
@@ -19,6 +20,7 @@ interface GroupProps {
   member: any;
 }
 const Member = ({ member }: GroupProps) => {
+  const { t } = useTranslation();
   // global store
   const { dispatch } = useRedux();
   const { categorizedContacts } = useContacts();
@@ -101,7 +103,7 @@ const Member = ({ member }: GroupProps) => {
           {member.isAdmin && (
             <div className="ms-auto">
               <Badge className="badge badge-soft-primary rounded p-1">
-                Admin
+                {t("profile.admin")}
               </Badge>
             </div>
           )}
@@ -114,6 +116,7 @@ interface GroupsProps {
   chatUserDetails: any;
 }
 const Members = ({ chatUserDetails }: GroupsProps) => {
+  const { t } = useTranslation();
   const groups =
     chatUserDetails.members &&
     chatUserDetails.members.length &&
@@ -122,7 +125,9 @@ const Members = ({ chatUserDetails }: GroupsProps) => {
     <div>
       <div className="d-flex">
         <div className="flex-grow-1">
-          <h5 className="font-size-11 text-muted text-uppercase">Members</h5>
+          <h5 className="font-size-11 text-muted text-uppercase">
+            {t("profile.members")}
+          </h5>
         </div>
       </div>
 
@@ -133,7 +138,7 @@ const Members = ({ chatUserDetails }: GroupsProps) => {
           ))}
         </ul>
       ) : (
-        <p>No Groups</p>
+        <p>{t("profile.noGroups")}</p>
       )}
     </div>
   );

@@ -2,6 +2,7 @@ import React, { FormEvent, useEffect, useState } from "react";
 import { Button, Form, Input, Label, Spinner } from "reactstrap";
 
 import { BasicDetailsTypes } from "../../../data/settings";
+import { useTranslation } from "react-i18next";
 
 interface PersonalInfoProps {
   basicDetails: BasicDetailsTypes;
@@ -13,6 +14,7 @@ interface PersonalInfoProps {
 }
 
 const PersonalInfo = ({ basicDetails, onSave }: PersonalInfoProps) => {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [username, setUsername] = useState(basicDetails.username);
@@ -48,7 +50,7 @@ const PersonalInfo = ({ basicDetails, onSave }: PersonalInfoProps) => {
     return (
       <Form className="accordion-body profile-info-form" onSubmit={submit}>
         <div className="mb-3">
-          <Label htmlFor="profile-username">Username</Label>
+          <Label htmlFor="profile-username">{t("auth.username")}</Label>
           <Input
             id="profile-username"
             value={username}
@@ -60,7 +62,7 @@ const PersonalInfo = ({ basicDetails, onSave }: PersonalInfoProps) => {
           />
         </div>
         <div className="mb-3">
-          <Label htmlFor="profile-about">About</Label>
+          <Label htmlFor="profile-about">{t("settings.about")}</Label>
           <Input
             id="profile-about"
             type="textarea"
@@ -68,24 +70,24 @@ const PersonalInfo = ({ basicDetails, onSave }: PersonalInfoProps) => {
             value={about}
             onChange={event => setAbout(event.target.value)}
             maxLength={240}
-            placeholder="A short note visible on your profile"
+            placeholder={t("settings.profileNotePlaceholder")}
           />
           <small className="text-muted">{about.length}/240</small>
         </div>
         <div className="mb-3">
-          <Label htmlFor="profile-location">Location</Label>
+          <Label htmlFor="profile-location">{t("settings.location")}</Label>
           <Input
             id="profile-location"
             value={location}
             onChange={event => setLocation(event.target.value)}
             maxLength={100}
-            placeholder="City, country"
+            placeholder={t("settings.locationPlaceholder")}
           />
         </div>
         <div className="d-flex gap-2">
           <Button color="primary" type="submit" disabled={saving}>
             {saving ? <Spinner size="sm" className="me-2" /> : null}
-            Save profile
+            {t("settings.saveProfile")}
           </Button>
           <Button
             color="light"
@@ -93,7 +95,7 @@ const PersonalInfo = ({ basicDetails, onSave }: PersonalInfoProps) => {
             onClick={cancel}
             disabled={saving}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
         </div>
       </Form>
@@ -104,31 +106,35 @@ const PersonalInfo = ({ basicDetails, onSave }: PersonalInfoProps) => {
     <div className="accordion-body profile-info-summary">
       <div className="d-flex justify-content-between align-items-start mb-3">
         <div>
-          <p className="text-muted mb-1">Username</p>
+          <p className="text-muted mb-1">{t("auth.username")}</p>
           <h5 className="font-size-14 mb-0">{basicDetails.username}</h5>
         </div>
         <Button
           color="light"
           size="sm"
           type="button"
-          aria-label="Edit personal info"
-          title="Edit personal info"
+          aria-label={t("settings.editPersonalInfo")}
+          title={t("settings.editPersonalInfo")}
           onClick={() => setEditing(true)}
         >
           <i className="bx bxs-pencil" aria-hidden="true"></i>
         </Button>
       </div>
       <div className="mb-3">
-        <p className="text-muted mb-1">Email</p>
+        <p className="text-muted mb-1">{t("auth.email")}</p>
         <h5 className="font-size-14 mb-0 text-break">{basicDetails.email}</h5>
       </div>
       <div className="mb-3">
-        <p className="text-muted mb-1">About</p>
-        <p className="mb-0">{basicDetails.about || "No profile note yet."}</p>
+        <p className="text-muted mb-1">{t("settings.about")}</p>
+        <p className="mb-0">
+          {basicDetails.about || t("settings.noProfileNote")}
+        </p>
       </div>
       <div>
-        <p className="text-muted mb-1">Location</p>
-        <p className="mb-0">{basicDetails.location || "Not specified"}</p>
+        <p className="text-muted mb-1">{t("settings.location")}</p>
+        <p className="mb-0">
+          {basicDetails.location || t("settings.notSpecified")}
+        </p>
       </div>
     </div>
   );

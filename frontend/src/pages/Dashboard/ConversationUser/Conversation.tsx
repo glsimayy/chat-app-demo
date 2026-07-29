@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 
 // hooks
 import { useRedux } from "../../../hooks/index";
@@ -57,6 +58,7 @@ const Conversation = ({
   mentionMembers,
   focusedMessageId,
 }: ConversationProps) => {
+  const { t } = useTranslation();
   // global store
   const { dispatch, useAppSelector } = useRedux();
 
@@ -132,11 +134,11 @@ const Conversation = ({
       });
       window.dispatchEvent(new Event("ello:bookmarks-updated"));
       showSuccessNotification(
-        isBookmarked ? "Removed from Saved Messages" : "Message saved",
+        t(isBookmarked ? "bookmark.removed" : "bookmark.saved"),
       );
     } catch (bookmarkError: any) {
       showErrorNotification(
-        String(bookmarkError || "Saved message could not be updated"),
+        String(bookmarkError || t("bookmark.updateFailed")),
       );
       throw bookmarkError;
     }

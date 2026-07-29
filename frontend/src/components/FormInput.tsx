@@ -1,5 +1,6 @@
 // @flow
 import React, { useState, InputHTMLAttributes } from "react";
+import { useTranslation } from "react-i18next";
 import { Input, Label, FormFeedback } from "reactstrap";
 import classNames from "classnames";
 
@@ -24,6 +25,7 @@ const PasswordInput: React.FunctionComponent<PasswordInputProps> = ({
   className,
   hidePasswordButton,
 }) => {
+  const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState<boolean>(false);
 
   return (
@@ -54,7 +56,9 @@ const PasswordInput: React.FunctionComponent<PasswordInputProps> = ({
               setShowPassword(!showPassword);
             }}
             data-password={showPassword ? "true" : "false"}
-            aria-label={showPassword ? "Hide password" : "Show password"}
+            aria-label={t(
+              showPassword ? "auth.hidePassword" : "auth.showPassword",
+            )}
             aria-pressed={showPassword}
           >
             <i className="ri-eye-fill align-middle"></i>
@@ -99,6 +103,8 @@ const FormInput: React.FunctionComponent<FormInputProps> = ({
   hidePasswordButton,
   ...otherProps
 }) => {
+  const { t } = useTranslation();
+
   return (
     <>
       {type === "hidden" ? (
@@ -117,7 +123,7 @@ const FormInput: React.FunctionComponent<FormInputProps> = ({
                   {!withoutLabel && (
                     <div className="float-end">
                       <a href="auth-recoverpw" className="text-muted">
-                        Forgot password?
+                        {t("auth.forgotPassword")}
                       </a>
                     </div>
                   )}
@@ -159,7 +165,7 @@ const FormInput: React.FunctionComponent<FormInputProps> = ({
                       className="form-check-label font-size-14"
                       for="remember-check"
                     >
-                      Remember me
+                      {t("auth.rememberMe")}
                     </Label>
                   </div>
                   {errors && errors[name] ? (

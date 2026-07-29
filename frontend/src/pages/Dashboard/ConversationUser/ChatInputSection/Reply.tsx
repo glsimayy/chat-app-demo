@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Collapse, Card, CardBody } from "reactstrap";
 
@@ -14,6 +15,7 @@ interface ReplyProps {
   chatUserDetails: any;
 }
 const Reply = ({ reply, onSetReplyData, chatUserDetails }: ReplyProps) => {
+  const { t } = useTranslation();
   /*
   collapse handeling
   */
@@ -36,8 +38,8 @@ const Reply = ({ reply, onSetReplyData, chatUserDetails }: ReplyProps) => {
   const imageCount = reply?.newimage?.length || reply?.image?.length || 0;
   const fileCount = reply?.attachments?.length || 0;
   const attachmentSummary = [
-    imageCount ? `${imageCount} Images` : "",
-    fileCount ? `${fileCount} Files` : "",
+    imageCount ? t("forward.image", { count: imageCount }) : "",
+    fileCount ? t("forward.file", { count: fileCount }) : "",
   ]
     .filter(Boolean)
     .join(" & ");
@@ -49,18 +51,16 @@ const Reply = ({ reply, onSetReplyData, chatUserDetails }: ReplyProps) => {
           <div className="replymessage-block mb-0 d-flex align-items-start">
             <div className="flex-grow-1">
               <h5 className="conversation-name">
-                {isReplyFromMe ? "You" : replyUserName}
+                {isReplyFromMe ? t("chat.you") : replyUserName}
               </h5>
               {reply?.text && <p className="mb-0">{reply?.text}</p>}
-              {attachmentSummary && (
-                <p className="mb-0">{attachmentSummary}</p>
-              )}
+              {attachmentSummary && <p className="mb-0">{attachmentSummary}</p>}
             </div>
             <div className="flex-shrink-0">
               <button
                 type="button"
                 className="btn btn-sm btn-link mt-n2 me-n3 font-size-18"
-                aria-label="Cancel reply"
+                aria-label={t("chat.cancelReply")}
                 onClick={onClose}
               >
                 <i className="bx bx-x align-middle"></i>

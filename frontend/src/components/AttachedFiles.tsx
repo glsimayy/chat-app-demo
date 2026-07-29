@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Dropdown,
   DropdownToggle,
@@ -18,6 +19,7 @@ interface AttachedFileItemProps {
   attachedFile: AttachedfileItemTypes;
 }
 const AttachedFileItem = ({ attachedFile }: AttachedFileItemProps) => {
+  const { t } = useTranslation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const toggle = () => setDropdownOpen(!dropdownOpen);
@@ -57,20 +59,23 @@ const AttachedFileItem = ({ attachedFile }: AttachedFileItemProps) => {
                   className="dropdown-item d-flex align-items-center justify-content-between"
                   href="#"
                 >
-                  Share <i className="bx bx-share-alt ms-2 text-muted"></i>
+                  {t("profile.share")}{" "}
+                  <i className="bx bx-share-alt ms-2 text-muted"></i>
                 </DropdownItem>
                 <DropdownItem
                   className="dropdown-item d-flex align-items-center justify-content-between"
                   href="#"
                 >
-                  Bookmark <i className="bx bx-bookmarks text-muted ms-2"></i>
+                  {t("profile.bookmark")}{" "}
+                  <i className="bx bx-bookmarks text-muted ms-2"></i>
                 </DropdownItem>
                 <DropdownItem divider />
                 <DropdownItem
                   className="dropdown-item d-flex align-items-center justify-content-between"
                   href="#"
                 >
-                  Delete <i className="bx bx-trash ms-2 text-muted"></i>
+                  {t("chat.delete")}{" "}
+                  <i className="bx bx-trash ms-2 text-muted"></i>
                 </DropdownItem>
               </DropdownMenu>
             </Dropdown>
@@ -85,6 +90,7 @@ interface AttachedFilesProps {
 }
 
 const AttachedFiles = ({ attachedFiles }: AttachedFilesProps) => {
+  const { t } = useTranslation();
   const [files, setFiles] = useState<AttachedfileItemTypes[]>([]);
 
   useEffect(() => {
@@ -93,14 +99,14 @@ const AttachedFiles = ({ attachedFiles }: AttachedFilesProps) => {
 
   return (
     <div>
-      <SectionTitle title="Attached Files" />
+      <SectionTitle title={t("profile.attachedFiles")} />
 
       <div>
         {attachedFiles
           ? files.map((attachedFile: AttachedfileItemTypes, key: number) => (
               <AttachedFileItem attachedFile={attachedFile} key={key} />
             ))
-          : "No Files."}
+          : t("profile.noFiles")}
       </div>
     </div>
   );

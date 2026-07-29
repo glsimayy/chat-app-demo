@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Alert,
   Badge,
@@ -25,6 +26,7 @@ const UserProfileModal = ({
   initialUser,
   onClose,
 }: UserProfileModalProps) => {
+  const { t } = useTranslation();
   const [user, setUser] = useState<any>(initialUser || null);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -55,7 +57,7 @@ const UserProfileModal = ({
       })
       .catch(reason => {
         if (active) {
-          setError(String(reason || "User profile could not be loaded."));
+          setError(String(reason || t("contacts.loadProfileFailed")));
         }
       })
       .finally(() => {
@@ -67,7 +69,7 @@ const UserProfileModal = ({
     return () => {
       active = false;
     };
-  }, [initialUser, isOpen, userId]);
+  }, [initialUser, isOpen, t, userId]);
 
   const sendInvitation = async () => {
     if (!user?.email) {
@@ -79,13 +81,16 @@ const UserProfileModal = ({
       setError("");
       await inviteContact({
         email: user.email,
-        message: "I would like to add you as a contact on ellO.",
+        message: t("contacts.invitationMessage"),
       });
-      setSuccess("Contact invitation sent.");
+      setSuccess(t("contacts.invitationSent"));
     } catch (reason) {
-      const message = String(reason || "Contact invitation could not be sent.");
+      const message = String(reason || t("contacts.invitationFailed"));
 
-      if (message === "Users are already contacts") {
+      if (
+        message === "Users are already contacts" ||
+        message === t("contacts.alreadyContacts")
+      ) {
         setIsContact(true);
       } else {
         setError(message);
@@ -106,7 +111,7 @@ const UserProfileModal = ({
 
   return (
     <Modal isOpen={isOpen} toggle={onClose} centered>
-      <ModalHeader toggle={onClose}>User profile</ModalHeader>
+      <ModalHeader toggle={onClose}>{t("contacts.userProfile")}</ModalHeader>
       <ModalBody>
         {error && <Alert color="danger">{error}</Alert>}
         {success && <Alert color="success">{success}</Alert>}
@@ -120,7 +125,7 @@ const UserProfileModal = ({
               {user.profileImage ? (
                 <img
                   src={user.profileImage}
-                  alt={`${user.username} profile`}
+                  alt={t("profile.profileImage", { name: user.username })}
                   className="avatar-lg rounded-circle img-thumbnail"
                 />
               ) : (
@@ -131,7 +136,7 @@ const UserProfileModal = ({
             </div>
             <h5 className="mb-1">{user.username}</h5>
             <Badge color={user.role === "admin" ? "success" : "secondary"}>
-              {user.role === "admin" ? "Admin" : "User"}
+              {user.role === "admin" ? t("profile.admin") : t("profile.user")}
             </Badge>
             <div className="text-start border-top mt-4 pt-3">
               <p className="mb-2">
@@ -140,11 +145,11 @@ const UserProfileModal = ({
               </p>
               <p className="mb-2">
                 <i className="bx bx-map text-muted me-2"></i>
-                {user.location || "Location not specified"}
+                {user.location || t("contacts.locationNotSpecified")}
               </p>
               <p className="mb-0">
                 <i className="bx bx-info-circle text-muted me-2"></i>
-                {user.about || "No profile note yet."}
+                {user.about || t("profile.noNote")}
               </p>
             </div>
           </div>
@@ -152,12 +157,12 @@ const UserProfileModal = ({
       </ModalBody>
       <ModalFooter>
         <Button type="button" color="light" onClick={onClose}>
-          Close
+          {t("common.close")}
         </Button>
         {isContact && user && user.id !== getCurrentUserId() && !user.isBot && (
           <Button type="button" color="success" outline disabled>
             <i className="bx bx-check me-2" aria-hidden="true"></i>
-            Already a contact
+            {t("contacts.alreadyContact")}
           </Button>
         )}
         {canInvite && (
@@ -172,7 +177,7 @@ const UserProfileModal = ({
             ) : (
               <i className="bx bx-user-plus me-2" aria-hidden="true"></i>
             )}
-            Add contact
+            {t("contacts.add")}
           </Button>
         )}
       </ModalFooter>

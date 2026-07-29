@@ -1,8 +1,9 @@
-  import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import classnames from "classnames";
 
 // interface
 import { ThemeTypes } from "../../../data/settings";
+import { useTranslation } from "react-i18next";
 
 const changeColor = (id: string) => {
   const element = document.getElementById(`color-${id}`);
@@ -15,7 +16,7 @@ const changeColor = (id: string) => {
       userChatOverlay.style.background = color;
       const rgbColor = color.substring(
         color.indexOf("(") + 1,
-        color.indexOf(")")
+        color.indexOf(")"),
       );
       document.documentElement.style.setProperty("--bs-primary-rgb", rgbColor);
     }
@@ -53,7 +54,7 @@ const FormCheck = ({ color, selected, onChange }: FormCheckProps) => {
             "rounded-circle",
             "theme-btn",
             [color.color],
-            [color.id]
+            [color.id],
           )}
           id={`color-${color.id}`}
         ></span>
@@ -68,6 +69,7 @@ interface ThemeColorProps {
 }
 
 const ThemeColor = ({ theme, onChangeData }: ThemeColorProps) => {
+  const { t } = useTranslation();
   const [themeColors] = useState<ThemeColorTypes[]>([
     {
       id: "bgcolor-radio1",
@@ -93,7 +95,6 @@ const ThemeColor = ({ theme, onChangeData }: ThemeColorProps) => {
       id: "bgcolor-radio6",
       color: "bg-secondary",
     },
-   
   ]);
   const [selected, setSelected] = useState<ThemeColorTypes | null>(null);
   const onChangeThemeColor = (color: ThemeColorTypes) => {
@@ -103,7 +104,7 @@ const ThemeColor = ({ theme, onChangeData }: ThemeColorProps) => {
   useEffect(() => {
     if (theme && theme.color) {
       const userTheme = themeColors.find(
-        (c: ThemeColorTypes) => c.id === theme.color
+        (c: ThemeColorTypes) => c.id === theme.color,
       );
       if (userTheme) {
         setSelected(userTheme);
@@ -120,7 +121,7 @@ const ThemeColor = ({ theme, onChangeData }: ThemeColorProps) => {
   return (
     <div>
       <h5 className="mb-3 font-size-11 text-muted text-uppercase">
-        Choose Theme Color :
+        {t("settings.chooseThemeColor")}
       </h5>
       <div className="d-flex align-items-center flex-wrap gap-2 theme-btn-list theme-color-list">
         {(themeColors || []).map((color: ThemeColorTypes, key: number) => (

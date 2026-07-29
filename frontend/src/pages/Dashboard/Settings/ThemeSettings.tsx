@@ -10,12 +10,14 @@ import { useRedux } from "../../../hooks";
 // components
 import ThemeColor from "./ThemeColor";
 import ThemeImage from "./ThemeImage";
+import { useTranslation } from "react-i18next";
 
 interface ThemeSettingsProps {
   theme: ThemeTypes;
   onChangeData: (field: string, value: any) => void;
 }
 const ThemeSettings = ({ theme, onChangeData }: ThemeSettingsProps) => {
+  const { t } = useTranslation();
   const { dispatch, useAppSelector } = useRedux();
   const layoutSelector = createSelector(
     (state: any) => state.Layout,
@@ -33,12 +35,12 @@ const ThemeSettings = ({ theme, onChangeData }: ThemeSettingsProps) => {
     <div className="accordion-body">
       <div className="mb-4">
         <h5 className="mb-3 font-size-11 text-muted text-uppercase">
-          Appearance
+          {t("settings.appearance")}
         </h5>
         <div
           className="btn-group w-100"
           role="radiogroup"
-          aria-label="Color mode"
+          aria-label={t("settings.colorMode")}
         >
           <input
             className="btn-check"
@@ -53,7 +55,7 @@ const ThemeSettings = ({ theme, onChangeData }: ThemeSettingsProps) => {
             htmlFor="settings-theme-light"
           >
             <i className="bx bx-sun me-1" aria-hidden="true"></i>
-            Light
+            {t("settings.light")}
           </label>
 
           <input
@@ -69,7 +71,7 @@ const ThemeSettings = ({ theme, onChangeData }: ThemeSettingsProps) => {
             htmlFor="settings-theme-dark"
           >
             <i className="bx bx-moon me-1" aria-hidden="true"></i>
-            Dark
+            {t("settings.dark")}
           </label>
         </div>
       </div>

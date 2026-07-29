@@ -16,6 +16,7 @@ import { getCurrentAuthUser } from "../../api/backendAdapters";
 
 // menu
 import { MENU_ITEMS, MenuItemType } from "./menu";
+import { useTranslation } from "react-i18next";
 
 const LogoLightSVG = () => {
   return (
@@ -67,6 +68,8 @@ interface MenuNavItemProps {
   onChangeTab: (id: TABS) => void;
 }
 const MenuNavItem = ({ item, selectedTab, onChangeTab }: MenuNavItemProps) => {
+  const { t } = useTranslation();
+  const label = t(item.labelKey);
   const onClick = () => {
     onChangeTab(item.tabId);
   };
@@ -77,7 +80,7 @@ const MenuNavItem = ({ item, selectedTab, onChangeTab }: MenuNavItemProps) => {
           href="#"
           active={selectedTab === item.tabId}
           id={item.key}
-          aria-label={item.tooltipTitle}
+          aria-label={label}
           aria-current={selectedTab === item.tabId ? "page" : undefined}
           onClick={onClick}
         >
@@ -85,7 +88,7 @@ const MenuNavItem = ({ item, selectedTab, onChangeTab }: MenuNavItemProps) => {
         </NavLink>
       </NavItem>
       <UncontrolledTooltip target={`${item.key}-container`} placement="right">
-        {item.tooltipTitle}
+        {label}
       </UncontrolledTooltip>
     </>
   );
@@ -99,6 +102,7 @@ const ProfileMenuButton = ({
   onChangeTab,
   selectedTab,
 }: ProfileMenuButtonProps) => {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState(() => getCurrentAuthUser());
 
   useEffect(() => {
@@ -114,7 +118,7 @@ const ProfileMenuButton = ({
     <NavItem className="profile-user-menu mt-auto" id="profile-user-menu">
       <button
         type="button"
-        aria-label="Open profile menu"
+        aria-label={t("nav.openProfile")}
         className={`nav-link bg-transparent ${
           selectedTab === TABS.USERS ? "active" : ""
         }`}
@@ -133,13 +137,14 @@ const ProfileMenuButton = ({
         )}
       </button>
       <UncontrolledTooltip target="profile-user-menu" placement="right">
-        My profile
+        {t("nav.myProfile")}
       </UncontrolledTooltip>
     </NavItem>
   );
 };
 
 const SideMenu = () => {
+  const { t } = useTranslation();
   // global store
   const { dispatch, useAppSelector } = useRedux();
 
@@ -187,7 +192,7 @@ const SideMenu = () => {
 
       {/* Start side-menu nav */}
       <div className="flex-lg-column my-0 sidemenu-navigation">
-        <Nav pills className="side-menu-nav" aria-label="Primary navigation">
+        <Nav pills className="side-menu-nav" aria-label={t("nav.primary")}>
           {(menuItems || []).map((item: MenuItemType, key: number) => (
             <MenuNavItem
               item={item}

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import classnames from "classnames";
 import { Link } from "react-router-dom";
 import { Col, Row } from "reactstrap";
@@ -26,6 +27,7 @@ const UserHead = ({
   isCatchUpOpen,
   isChannel,
 }: UserHeadProps) => {
+  const { t } = useTranslation();
   const { dispatch } = useRedux();
   const { isOnline: isUserOnline } = usePresence();
   const colors = [
@@ -42,7 +44,7 @@ const UserHead = ({
     ? chatUserDetails.name
     : chatUserDetails.firstName
       ? `${chatUserDetails.firstName} ${chatUserDetails.lastName}`
-      : "Conversation";
+      : t("chat.conversation");
   const shortName = isChannel
     ? chatUserDetails.automated
       ? "BOT"
@@ -68,7 +70,7 @@ const UserHead = ({
                 to="#"
                 onClick={() => dispatch(changeSelectedChat(null))}
                 className="user-chat-remove text-muted font-size-24 p-2"
-                aria-label="Close conversation"
+                aria-label={t("chat.closeConversation")}
               >
                 <i className="bx bx-chevron-left align-middle"></i>
               </Link>
@@ -112,10 +114,18 @@ const UserHead = ({
               <p className="text-truncate text-muted mb-0">
                 <small>
                   {isChannel
-                    ? `${chatUserDetails.automated ? "BOT | " : ""}${memberCount} members${chatUserDetails.status && chatUserDetails.status !== "active" ? ` | ${chatUserDetails.status}` : ""}`
+                    ? `${chatUserDetails.automated ? "BOT | " : ""}${t(
+                        "chat.member",
+                        { count: memberCount },
+                      )}${
+                        chatUserDetails.status &&
+                        chatUserDetails.status !== "active"
+                          ? ` | ${t(`groupManagement.${chatUserDetails.status}`)}`
+                          : ""
+                      }`
                     : isOnline
-                      ? "Online"
-                      : "Offline"}
+                      ? t("chat.online")
+                      : t("chat.offline")}
                 </small>
               </p>
               {isChannel && chatUserDetails.description && (
@@ -133,8 +143,8 @@ const UserHead = ({
             className={classnames("btn nav-btn", {
               active: isCatchUpOpen,
             })}
-            title="Catch up on recent activity"
-            aria-label="Catch up on recent activity"
+            title={t("chat.catchUpRecent")}
+            aria-label={t("chat.catchUpRecent")}
             aria-pressed={isCatchUpOpen}
           >
             <i className="bx bx-history"></i>
@@ -145,8 +155,8 @@ const UserHead = ({
             className={classnames("btn nav-btn", {
               active: isSearchOpen,
             })}
-            title="Search messages"
-            aria-label="Search messages"
+            title={t("chat.searchMessages")}
+            aria-label={t("chat.searchMessages")}
             aria-pressed={isSearchOpen}
           >
             <i className="bx bx-search"></i>
@@ -155,8 +165,8 @@ const UserHead = ({
             onClick={onOpenUserDetails}
             type="button"
             className="btn nav-btn user-profile-show"
-            title="Conversation details"
-            aria-label="Conversation details"
+            title={t("chat.conversationDetails")}
+            aria-label={t("chat.conversationDetails")}
           >
             <i className="bx bxs-info-circle"></i>
           </button>

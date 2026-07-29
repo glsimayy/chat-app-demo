@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export type VoiceRecorderStatus = "idle" | "requesting" | "recording";
 
@@ -46,6 +47,7 @@ interface UseVoiceRecorderOptions {
 }
 
 export const useVoiceRecorder = ({ onRecorded }: UseVoiceRecorderOptions) => {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<VoiceRecorderStatus>("idle");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState("");
@@ -90,7 +92,7 @@ export const useVoiceRecorder = ({ onRecorded }: UseVoiceRecorderOptions) => {
         !navigator.mediaDevices?.getUserMedia ||
         typeof MediaRecorder === "undefined"
       ) {
-        setError("Voice recording is not supported by this browser.");
+        setError(t("chat.voiceUnsupported"));
       }
       return;
     }
@@ -123,7 +125,7 @@ export const useVoiceRecorder = ({ onRecorded }: UseVoiceRecorderOptions) => {
       };
       recorder.onerror = () => {
         cancelledRef.current = true;
-        setError("The voice recording could not be completed.");
+        setError(t("chat.voiceRecordingFailed"));
         reset();
       };
       recorder.onstop = () => {
@@ -140,7 +142,7 @@ export const useVoiceRecorder = ({ onRecorded }: UseVoiceRecorderOptions) => {
 
         const blob = new Blob(chunks, { type: normalizedMimeType });
         if (!blob.size) {
-          setError("The voice recording was empty. Please try again.");
+          setError(t("chat.voiceRecordingEmpty"));
           return;
         }
 
@@ -173,11 +175,11 @@ export const useVoiceRecorder = ({ onRecorded }: UseVoiceRecorderOptions) => {
       setError(
         recordingError instanceof DOMException &&
           recordingError.name === "NotAllowedError"
-          ? "Microphone permission is required to record a voice message."
-          : "The microphone could not be opened.",
+          ? t("chat.microphonePermission")
+          : t("chat.microphoneOpenFailed"),
       );
     }
-  }, [reset, status]);
+  }, [reset, status, t]);
 
   const stop = useCallback(() => {
     const recorder = recorderRef.current;

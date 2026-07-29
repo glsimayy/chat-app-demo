@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button, Modal, ModalHeader, ModalBody } from "reactstrap";
 import classnames from "classnames";
 
@@ -25,6 +26,7 @@ const ForwardMessage = ({
   forwardData,
   chatUserDetails,
 }: ForwardMessageProps) => {
+  const { t } = useTranslation();
   const { userProfile } = useProfile();
 
   const replyUserName = chatUserDetails.firstName
@@ -36,7 +38,7 @@ const ForwardMessage = ({
   return (
     <div className="replymessage-block mb-2">
       <h5 className="conversation-name">
-        {isReplyFromMe ? "You" : replyUserName}
+        {isReplyFromMe ? t("chat.you") : replyUserName}
       </h5>
       {forwardData?.text && <p className="mb-0">{forwardData?.text}</p>}
 
@@ -44,13 +46,20 @@ const ForwardMessage = ({
         <p className="mb-0">
           {forwardData?.attachments &&
             !forwardData?.image &&
-            `${forwardData?.attachments.length} Files`}
+            t("forward.file", { count: forwardData.attachments.length })}
           {forwardData?.image &&
             !forwardData?.attachments &&
-            `${forwardData?.image.length} Images`}
+            t("forward.image", { count: forwardData.image.length })}
           {forwardData?.image &&
             forwardData?.attachments &&
-            `${forwardData?.attachments.length} Files & ${forwardData?.image.length} Images`}
+            t("forward.filesAndImages", {
+              files: t("forward.file", {
+                count: forwardData.attachments.length,
+              }),
+              images: t("forward.image", {
+                count: forwardData.image.length,
+              }),
+            })}
         </p>
       )}
     </div>
@@ -69,6 +78,7 @@ const ContactItem = ({
   onSelectContact,
   onSend,
 }: ContactItemProps) => {
+  const { t } = useTranslation();
   const fullName = `${contact.firstName} ${contact.lastName}`;
   const onClick = () => {
     onSelectContact(contact.id, !selected);
@@ -86,11 +96,11 @@ const ContactItem = ({
         <div className="flex-shrink-0">
           {!selected ? (
             <Button size="sm" color="primary" type="button" onClick={onClick}>
-              Send
+              {t("forward.send")}
             </Button>
           ) : (
             <Button size="sm" color="light" type="button" onClick={onClick}>
-              Undo
+              {t("forward.undo")}
             </Button>
           )}
         </div>
@@ -155,6 +165,7 @@ const ForwardModal = ({
   chatUserDetails,
   onForward,
 }: ForwardModalProps) => {
+  const { t } = useTranslation();
   // global store
   const { useAppSelector } = useRedux();
 
@@ -162,15 +173,14 @@ const ForwardModal = ({
   //   contactsList: state.Contacts.contacts,
   // }));
 
-
   const errorData = createSelector(
-    (state : any) => state.Contacts,
-    (state) => ({
+    (state: any) => state.Contacts,
+    state => ({
       contactsList: state.contacts,
-    })
+    }),
   );
   // Inside your component
-  const { contactsList} = useAppSelector(errorData);
+  const { contactsList } = useAppSelector(errorData);
 
   /*
   contacts hook
@@ -189,14 +199,14 @@ const ForwardModal = ({
     setSearch(value);
     let modifiedContacts = [...contactsList];
     let filteredContacts = (modifiedContacts || []).filter((c: any) =>
-      c["firstName"].toLowerCase().includes(value.toLowerCase())
+      c["firstName"].toLowerCase().includes(value.toLowerCase()),
     );
     const formattedContacts = divideByKey("firstName", filteredContacts);
     setContacts(formattedContacts);
   };
 
   const totalC = (contacts || []).length;
-  
+
   /*
   select contacts
   */
@@ -253,8 +263,11 @@ const ForwardModal = ({
       className="forwardModal"
       tabIndex={-1}
     >
-      <ModalHeader className="modal-title-custom text-white font-size-16" toggle={onClose}>
-      Share this Message
+      <ModalHeader
+        className="modal-title-custom text-white font-size-16"
+        toggle={onClose}
+      >
+        {t("forward.shareMessage")}
       </ModalHeader>
       <ModalBody className="p-4">
         <div>
@@ -264,7 +277,7 @@ const ForwardModal = ({
           />
           <textarea
             className="form-control"
-            placeholder="Type your message..."
+            placeholder={t("chat.typeMessage")}
             rows={2}
             value={message || ""}
             onChange={(e: any) => {
@@ -277,8 +290,8 @@ const ForwardModal = ({
           <input
             type="text"
             className="form-control bg-light border-0 pe-0"
-            placeholder="Search here.."
-            aria-label="Example text with button addon"
+            placeholder={t("forward.search")}
+            aria-label={t("forward.searchAria")}
             aria-describedby="forwardSearchbtn-addon"
             value={search || ""}
             onChange={(e: any) => {
@@ -300,7 +313,7 @@ const ForwardModal = ({
             <div className="d-flex align-items-center px-1">
               <div className="flex-grow-1">
                 <h4 className="mb-0 font-size-11 text-muted text-uppercase">
-                  Contacts
+                  {t("forward.contacts")}
                 </h4>
               </div>
               <div className="flex-shrink-0">
@@ -310,7 +323,7 @@ const ForwardModal = ({
                   type="button"
                   onClick={onShareAll}
                 >
-                  Share All
+                  {t("forward.shareAll")}
                 </Button>
               </div>
             </div>
@@ -326,7 +339,7 @@ const ForwardModal = ({
                     onSelectContact={onSelectContact}
                     onSend={onSend}
                   />
-                )
+                ),
               )}
             </AppSimpleBar>
           </>

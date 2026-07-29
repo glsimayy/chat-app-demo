@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button, Spinner } from "reactstrap";
 import {
   CatchUpMomentKind,
@@ -13,16 +14,16 @@ interface CatchUpPanelProps {
   onSelectMessage: (messageId: string | number) => void;
 }
 
-const windows: Array<{ value: CatchUpWindow; label: string }> = [
-  { value: "2h", label: "2 hours" },
-  { value: "24h", label: "24 hours" },
-  { value: "7d", label: "7 days" },
+const windows: Array<{ value: CatchUpWindow; labelKey: string }> = [
+  { value: "2h", labelKey: "catchUp.twoHours" },
+  { value: "24h", labelKey: "catchUp.twentyFourHours" },
+  { value: "7d", labelKey: "catchUp.sevenDays" },
 ];
 
-const momentLabels: Record<CatchUpMomentKind, string> = {
-  decision: "Decision",
-  action: "Action",
-  highlight: "Highlight",
+const momentLabelKeys: Record<CatchUpMomentKind, string> = {
+  decision: "catchUp.decision",
+  action: "catchUp.action",
+  highlight: "catchUp.highlight",
 };
 
 const CatchUpPanel = ({
@@ -30,6 +31,7 @@ const CatchUpPanel = ({
   onClose,
   onSelectMessage,
 }: CatchUpPanelProps) => {
+  const { t, i18n } = useTranslation();
   const requestIdRef = useRef(0);
   const [timeWindow, setTimeWindow] = useState<CatchUpWindow>("2h");
   const [catchUp, setCatchUp] = useState<ConversationCatchUp | null>(null);
@@ -57,7 +59,7 @@ const CatchUpPanel = ({
       .catch((requestError: any) => {
         if (requestIdRef.current === requestId) {
           setCatchUp(null);
-          setError(String(requestError || "Catch-up could not be generated"));
+          setError(String(requestError || t("catchUp.generationFailed")));
         }
       })
       .finally(() => {
@@ -65,7 +67,7 @@ const CatchUpPanel = ({
           setLoading(false);
         }
       });
-  }, [conversationId, timeWindow]);
+  }, [conversationId, t, timeWindow]);
 
   const selectMessage = (messageId: string) => {
     onClose();
@@ -73,19 +75,22 @@ const CatchUpPanel = ({
   };
 
   return (
-    <section className="catch-up-panel border-bottom" aria-label="Catch-up">
+    <section
+      className="catch-up-panel border-bottom"
+      aria-label={t("catchUp.title")}
+    >
       <div className="catch-up-toolbar">
         <div className="catch-up-title">
           <i className="bx bx-history" aria-hidden="true"></i>
           <div>
-            <strong>Catch-up</strong>
-            <span>Recent activity</span>
+            <strong>{t("catchUp.title")}</strong>
+            <span>{t("catchUp.recentActivity")}</span>
           </div>
         </div>
         <div
           className="btn-group btn-group-sm catch-up-window-picker"
           role="group"
-          aria-label="Catch-up time window"
+          aria-label={t("catchUp.timeWindow")}
         >
           {windows.map(option => (
             <Button
@@ -95,7 +100,7 @@ const CatchUpPanel = ({
               aria-pressed={timeWindow === option.value}
               onClick={() => setTimeWindow(option.value)}
             >
-              {option.label}
+              {t(option.labelKey)}
             </Button>
           ))}
         </div>
@@ -103,8 +108,8 @@ const CatchUpPanel = ({
           type="button"
           color="link"
           className="catch-up-close"
-          aria-label="Close catch-up"
-          title="Close catch-up"
+          aria-label={t("catchUp.close")}
+          title={t("catchUp.close")}
           onClick={onClose}
         >
           <i className="bx bx-x" aria-hidden="true"></i>
@@ -113,8 +118,8 @@ const CatchUpPanel = ({
 
       {loading && (
         <div className="catch-up-status text-muted">
-          <Spinner size="sm" aria-label="Generating catch-up" />
-          <span>Reading recent activity...</span>
+          <Spinner size="sm" aria-label={t("catchUp.generating")} />
+          <span>{t("catchUp.reading")}</span>
         </div>
       )}
 
@@ -131,26 +136,26 @@ const CatchUpPanel = ({
 
           <dl className="catch-up-stats">
             <div>
-              <dt>Messages</dt>
+              <dt>{t("catchUp.messages")}</dt>
               <dd>{catchUp.messageCount}</dd>
             </div>
             <div>
-              <dt>Participants</dt>
+              <dt>{t("catchUp.participants")}</dt>
               <dd>{catchUp.participantCount}</dd>
             </div>
             <div>
-              <dt>Replies</dt>
+              <dt>{t("catchUp.replies")}</dt>
               <dd>{catchUp.replyCount}</dd>
             </div>
             <div>
-              <dt>Files</dt>
+              <dt>{t("catchUp.files")}</dt>
               <dd>{catchUp.attachmentCount}</dd>
             </div>
           </dl>
 
           <div className="catch-up-detail-grid">
             <section aria-labelledby="catch-up-topics-heading">
-              <h3 id="catch-up-topics-heading">Main topics</h3>
+              <h3 id="catch-up-topics-heading">{t("catchUp.mainTopics")}</h3>
               {catchUp.topics.length > 0 ? (
                 <div className="catch-up-topics">
                   {catchUp.topics.map(topic => (
@@ -161,12 +166,16 @@ const CatchUpPanel = ({
                   ))}
                 </div>
               ) : (
-                <p className="catch-up-empty">Not enough text for topics.</p>
+                <p className="catch-up-empty">
+                  {t("catchUp.insufficientTopics")}
+                </p>
               )}
             </section>
 
             <section aria-labelledby="catch-up-participants-heading">
-              <h3 id="catch-up-participants-heading">Most active</h3>
+              <h3 id="catch-up-participants-heading">
+                {t("catchUp.mostActive")}
+              </h3>
               {catchUp.activeParticipants.length > 0 ? (
                 <ul className="catch-up-participants">
                   {catchUp.activeParticipants.map(participant => (
@@ -177,7 +186,9 @@ const CatchUpPanel = ({
                   ))}
                 </ul>
               ) : (
-                <p className="catch-up-empty">No participant activity.</p>
+                <p className="catch-up-empty">
+                  {t("catchUp.noParticipantActivity")}
+                </p>
               )}
             </section>
           </div>
@@ -188,8 +199,10 @@ const CatchUpPanel = ({
               aria-labelledby="catch-up-moments-heading"
             >
               <div className="catch-up-section-heading">
-                <h3 id="catch-up-moments-heading">Key messages</h3>
-                <span>Open in conversation</span>
+                <h3 id="catch-up-moments-heading">
+                  {t("catchUp.keyMessages")}
+                </h3>
+                <span>{t("catchUp.openInConversation")}</span>
               </div>
               <div className="catch-up-moment-list">
                 {catchUp.keyMoments.map(moment => (
@@ -200,13 +213,16 @@ const CatchUpPanel = ({
                     onClick={() => selectMessage(moment.messageId)}
                   >
                     <span className="catch-up-moment-meta">
-                      <strong>{momentLabels[moment.kind]}</strong>
+                      <strong>{t(momentLabelKeys[moment.kind])}</strong>
                       <span>{moment.senderUsername}</span>
                       <time dateTime={moment.createdAt}>
-                        {new Date(moment.createdAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {new Date(moment.createdAt).toLocaleTimeString(
+                          i18n.resolvedLanguage,
+                          {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )}
                       </time>
                     </span>
                     <span className="catch-up-moment-copy">
@@ -221,7 +237,9 @@ const CatchUpPanel = ({
 
           {catchUp.truncated && (
             <p className="catch-up-truncated">
-              The latest {catchUp.analyzedMessageCount} messages were analyzed.
+              {t("catchUp.truncated", {
+                count: catchUp.analyzedMessageCount,
+              })}
             </p>
           )}
         </div>

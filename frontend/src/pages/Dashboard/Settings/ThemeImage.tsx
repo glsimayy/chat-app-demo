@@ -3,6 +3,7 @@ import classnames from "classnames";
 
 // interface
 import { ThemeTypes } from "../../../data/settings";
+import { useTranslation } from "react-i18next";
 
 const changeImage = (id: string) => {
   const element = document.getElementById(`image-${id}`);
@@ -113,6 +114,7 @@ const themeImages: ThemeImageTypes[] = [
 ];
 
 const ThemeImage = ({ theme, onChangeData }: ThemeImageProps) => {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<ThemeImageTypes | null>(null);
 
   const onChangeThemeImage = (image: ThemeImageTypes) => {
@@ -143,16 +145,19 @@ const ThemeImage = ({ theme, onChangeData }: ThemeImageProps) => {
         className="mb-3 font-size-11 text-muted text-uppercase"
         id="chat-background-heading"
       >
-        Chat Background
+        {t("settings.chatBackground")}
       </h5>
       <div
         className="theme-pattern-grid"
         role="radiogroup"
         aria-labelledby="chat-background-heading"
       >
-        {themeImages.map((image: ThemeImageTypes) => (
+        {themeImages.map((image: ThemeImageTypes, index) => (
           <FormCheck
-            image={image}
+            image={{
+              ...image,
+              name: t("settings.pattern", { count: index + 1 }),
+            }}
             key={image.id}
             selected={selected}
             onChange={onChangeThemeImage}

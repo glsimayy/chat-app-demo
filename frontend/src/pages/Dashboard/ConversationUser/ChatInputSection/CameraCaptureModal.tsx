@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Alert,
   Button,
@@ -21,6 +22,7 @@ const CameraCaptureModal = ({
   onClose,
   onCapture,
 }: CameraCaptureModalProps) => {
+  const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const nativeInputRef = useRef<HTMLInputElement | null>(null);
@@ -46,7 +48,7 @@ const CameraCaptureModal = ({
     setLoading(true);
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      setError("Live camera is unavailable. Use the device camera button.");
+      setError(t("chat.cameraUnavailable"));
       setLoading(false);
       return;
     }
@@ -70,18 +72,14 @@ const CameraCaptureModal = ({
               (!(playError instanceof DOMException) ||
                 playError.name !== "AbortError")
             ) {
-              setError(
-                "Camera preview could not be started. Use the device camera button.",
-              );
+              setError(t("chat.cameraPreviewFailed"));
             }
           });
         }
       })
       .catch(() => {
         if (active) {
-          setError(
-            "Camera access was blocked or unavailable. Use the device camera button.",
-          );
+          setError(t("chat.cameraAccessBlocked"));
         }
       })
       .finally(() => {
@@ -94,7 +92,7 @@ const CameraCaptureModal = ({
       active = false;
       stopCamera();
     };
-  }, [isOpen]);
+  }, [isOpen, t]);
 
   const close = () => {
     stopCamera();
@@ -104,7 +102,7 @@ const CameraCaptureModal = ({
   const captureFrame = () => {
     const video = videoRef.current;
     if (!video?.videoWidth || !video.videoHeight) {
-      setError("The camera is not ready yet.");
+      setError(t("chat.cameraNotReady"));
       return;
     }
 
@@ -115,7 +113,7 @@ const CameraCaptureModal = ({
     canvas.toBlob(
       blob => {
         if (!blob) {
-          setError("The photo could not be captured.");
+          setError(t("chat.photoCaptureFailed"));
           return;
         }
         onCapture(
@@ -142,7 +140,7 @@ const CameraCaptureModal = ({
 
   return (
     <Modal isOpen={isOpen} toggle={close} centered size="lg">
-      <ModalHeader toggle={close}>Camera</ModalHeader>
+      <ModalHeader toggle={close}>{t("chat.camera")}</ModalHeader>
       <ModalBody>
         {error && <Alert color="warning">{error}</Alert>}
         <div className="camera-capture-preview bg-dark rounded overflow-hidden position-relative">
@@ -151,7 +149,7 @@ const CameraCaptureModal = ({
             autoPlay
             muted
             playsInline
-            aria-label="Camera preview"
+            aria-label={t("chat.cameraPreview")}
             className="w-100 d-block"
           />
           {loading && (
@@ -176,7 +174,7 @@ const CameraCaptureModal = ({
           onClick={() => nativeInputRef.current?.click()}
         >
           <i className="bx bx-mobile-alt me-2" aria-hidden="true"></i>
-          Use device camera
+          {t("chat.useDeviceCamera")}
         </Button>
         <Button
           type="button"
@@ -185,7 +183,7 @@ const CameraCaptureModal = ({
           onClick={captureFrame}
         >
           <i className="bx bxs-camera me-2" aria-hidden="true"></i>
-          Take photo
+          {t("chat.takePhoto")}
         </Button>
       </ModalFooter>
     </Modal>

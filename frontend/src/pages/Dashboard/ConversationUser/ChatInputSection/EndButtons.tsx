@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button, Spinner } from "reactstrap";
 import { VoiceRecorderStatus } from "../../../../features/voice-message/useVoiceRecorder";
@@ -17,6 +18,8 @@ const EndButtons = ({
   onStopRecording,
   onCancelRecording,
 }: EndButtonsProps) => {
+  const { t } = useTranslation();
+
   return (
     <div className="chat-input-links ms-2 gap-md-1">
       {voiceStatus === "recording" ? (
@@ -25,8 +28,8 @@ const EndButtons = ({
             <Button
               color="none"
               type="button"
-              title="Cancel recording"
-              aria-label="Cancel voice recording"
+              title={t("chat.cancelRecording")}
+              aria-label={t("chat.cancelVoiceRecording")}
               className="btn btn-link btn-lg text-danger"
               onClick={onCancelRecording}
             >
@@ -37,8 +40,8 @@ const EndButtons = ({
             <Button
               color="danger"
               type="button"
-              title="Stop and attach recording"
-              aria-label="Stop and attach voice recording"
+              title={t("chat.stopRecording")}
+              aria-label={t("chat.stopVoiceRecording")}
               className="btn btn-danger btn-lg chat-send"
               onClick={onStopRecording}
             >
@@ -53,8 +56,8 @@ const EndButtons = ({
               color="none"
               type="button"
               disabled={voiceStatus === "requesting"}
-              title="Record voice message"
-              aria-label="Record voice message"
+              title={t("chat.recordVoice")}
+              aria-label={t("chat.recordVoice")}
               className="btn btn-link text-decoration-none btn-lg"
               onClick={onStartRecording}
             >
@@ -70,8 +73,8 @@ const EndButtons = ({
               color="primary"
               type="submit"
               disabled={disabled || voiceStatus === "requesting"}
-              title="Send message"
-              aria-label="Send message"
+              title={t("chat.sendMessage")}
+              aria-label={t("chat.sendMessage")}
               className="btn btn-primary btn-lg chat-send waves-effect waves-light"
             >
               <i className="bx bxs-send align-middle"></i>

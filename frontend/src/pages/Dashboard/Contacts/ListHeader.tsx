@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Button, UncontrolledTooltip, Form, Input } from "reactstrap";
 
 interface ListHeaderProps {
@@ -7,11 +8,13 @@ interface ListHeaderProps {
   search: string;
 }
 const ListHeader = ({ openModal, search, onChangeSearch }: ListHeaderProps) => {
+  const { t } = useTranslation();
+
   return (
     <div className="px-4 pt-4">
       <div className="d-flex align-items-start">
         <div className="flex-grow-1">
-          <h4 className="mb-4">Contacts</h4>
+          <h4 className="mb-4">{t("nav.contacts")}</h4>
         </div>
         <div className="flex-shrink-0">
           <div id="add-contact-button">
@@ -26,7 +29,7 @@ const ListHeader = ({ openModal, search, onChangeSearch }: ListHeaderProps) => {
             </Button>
           </div>
           <UncontrolledTooltip target="add-contact-button" placement="bottom">
-            Add Contact
+            {t("contacts.add")}
           </UncontrolledTooltip>
         </div>
       </div>
@@ -36,7 +39,7 @@ const ListHeader = ({ openModal, search, onChangeSearch }: ListHeaderProps) => {
           <Input
             type="text"
             className="form-control bg-light border-0 pe-0"
-            placeholder="Search Contacts.."
+            placeholder={t("contacts.search")}
             value={search || ""}
             onChange={(e: any) => onChangeSearch(e.target.value)}
           />

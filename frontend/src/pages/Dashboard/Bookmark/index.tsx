@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { createSelector } from "reselect";
 
 import AppSimpleBar from "../../../components/AppSimpleBar";
@@ -32,6 +33,7 @@ const bookmarkState = createSelector(
 );
 
 const Bookmark = () => {
+  const { t } = useTranslation();
   const { dispatch, useAppSelector } = useRedux();
   const {
     bookmarksList,
@@ -98,13 +100,13 @@ const Bookmark = () => {
   return (
     <div className="position-relative">
       {getBookmarksLoading && <Loader />}
-      <LeftbarTitle title="Saved Messages" />
+      <LeftbarTitle title={t("nav.savedMessages")} />
       <AppSimpleBar className="chat-message-list chat-bookmark-list">
         {!getBookmarksLoading && (bookmarksList || []).length === 0 && (
           <div className="bookmark-empty-state">
             <i className="bx bx-bookmark" aria-hidden="true"></i>
-            <strong>No saved messages</strong>
-            <span>Save a message from its actions menu.</span>
+            <strong>{t("bookmark.emptyTitle")}</strong>
+            <span>{t("bookmark.emptyDescription")}</span>
           </div>
         )}
         <ul className="list-unstyled chat-list bookmark-message-list">

@@ -8,11 +8,13 @@ import { DISPLAY_TYPES } from "../../../constants/index";
 
 // components
 import DisplaySelect from "./DisplaySelect";
+import { useTranslation } from "react-i18next";
 interface PrivacyProps {
   privacy: PrivacyTypes;
   onChangeSettings: (field: string, value: any) => void;
 }
 const Privacy = ({ privacy, onChangeSettings }: PrivacyProps) => {
+  const { t } = useTranslation();
   const [data, setData] = useState<PrivacyTypes>({
     displayprofilePhoto: "selected",
     displayLastSeen: true,
@@ -39,7 +41,7 @@ const Privacy = ({ privacy, onChangeSettings }: PrivacyProps) => {
       | "displayStatus"
       | "readReceipts"
       | "displayGroups",
-    value: string | boolean
+    value: string | boolean,
   ) => {
     let modifiedData: any = { ...data };
     modifiedData[field] = value;
@@ -53,7 +55,7 @@ const Privacy = ({ privacy, onChangeSettings }: PrivacyProps) => {
         <li className="list-group-item py-3 px-0 pt-0">
           <DisplaySelect
             value={data.displayprofilePhoto}
-            label="Profile photo"
+            label={t("settings.profilePhoto")}
             onChange={(value: string) => {
               onChangeData("displayprofilePhoto", value);
             }}
@@ -62,7 +64,9 @@ const Privacy = ({ privacy, onChangeSettings }: PrivacyProps) => {
         <li className="list-group-item py-3 px-0">
           <div className="d-flex align-items-center">
             <div className="flex-grow-1 overflow-hidden">
-              <h5 className="font-size-13 mb-0 text-truncate">Last seen</h5>
+              <h5 className="font-size-13 mb-0 text-truncate">
+                {t("settings.lastSeen")}
+              </h5>
             </div>
             <div className="flex-shrink-0 ms-2">
               <div className="form-check form-switch">
@@ -89,14 +93,15 @@ const Privacy = ({ privacy, onChangeSettings }: PrivacyProps) => {
             onChange={(value: string) => {
               onChangeData("displayStatus", value);
             }}
-            label="Status"
+            label={t("common.status")}
           />
-          displayStatus
         </li>
         <li className="list-group-item py-3 px-0">
           <div className="d-flex align-items-center">
             <div className="flex-grow-1 overflow-hidden">
-              <h5 className="font-size-13 mb-0 text-truncate">Read receipts</h5>
+              <h5 className="font-size-13 mb-0 text-truncate">
+                {t("settings.readReceipts")}
+              </h5>
             </div>
             <div className="flex-shrink-0 ms-2">
               <div className="form-check form-switch">
@@ -123,7 +128,7 @@ const Privacy = ({ privacy, onChangeSettings }: PrivacyProps) => {
             onChange={(value: string) => {
               onChangeData("displayGroups", value);
             }}
-            label="Groups"
+            label={t("settings.groups")}
           />
         </li>
       </ul>

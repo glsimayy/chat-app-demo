@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import classnames from "classnames";
 
 import {
@@ -116,6 +117,7 @@ const AddGroupModal = ({
   onClose,
   onCreateChannel,
 }: AddGroupModalProps) => {
+  const { t } = useTranslation();
   /*
     collapse handeling
     */
@@ -216,7 +218,7 @@ const AddGroupModal = ({
      </ModalHeader> */}
       <ModalHeader toggle={onClose} className="bg-primary">
         <div className="modal-title modal-title-custom text-white bg-primary font-size-16">
-          Create New Group
+          {t("groupManagement.createNew")}
         </div>
       </ModalHeader>
       {/* <div className="modal-title text-white font-size-16 bg-primary text-white">
@@ -227,13 +229,13 @@ const AddGroupModal = ({
         <Form>
           <div className="mb-4">
             <Label htmlFor="addgroupname-input" className="form-label">
-              Group Name
+              {t("groupManagement.groupName")}
             </Label>
             <Input
               type="text"
               className="form-control"
               id="addgroupname-input"
-              placeholder="Enter Group Name"
+              placeholder={t("groupManagement.enterGroupName")}
               value={data.channelName || ""}
               onChange={(e: any) => {
                 onDataChange("channelName", e.target.value);
@@ -241,7 +243,9 @@ const AddGroupModal = ({
             />
           </div>
           <div className="mb-4">
-            <label className="form-label">Group Members</label>
+            <label className="form-label">
+              {t("groupManagement.groupMembers")}
+            </label>
             <div className="mb-3">
               <Button
                 color="light"
@@ -249,14 +253,14 @@ const AddGroupModal = ({
                 type="button"
                 onClick={toggleCollapse}
               >
-                Select Members
+                {t("groupManagement.selectMembers")}
               </Button>
             </div>
 
             <Collapse isOpen={isOpenCollapse} id="groupmembercollapse">
               <div className="card border">
                 <div className="card-header">
-                  <h5 className="font-size-15 mb-0">Contacts</h5>
+                  <h5 className="font-size-15 mb-0">{t("nav.contacts")}</h5>
                 </div>
                 <div className="card-body p-2">
                   <AppSimpleBar style={{ maxHeight: "150px" }}>
@@ -279,7 +283,9 @@ const AddGroupModal = ({
           </div>
           {selectedContactRecords.length > 0 && (
             <div className="mb-4">
-              <Label className="form-label">Group Managers</Label>
+              <Label className="form-label">
+                {t("groupManagement.groupManagers")}
+              </Label>
               <div className="border p-2">
                 {selectedContactRecords.map((contact: any) => {
                   const managerSelected = selectedManagers.includes(contact.id);
@@ -312,13 +318,13 @@ const AddGroupModal = ({
           )}
           <div className="mb-3">
             <Label htmlFor="addgroupdescription-input" className="form-label">
-              Description
+              {t("groupManagement.description")}
             </Label>
             <textarea
               className="form-control"
               id="addgroupdescription-input"
               rows={3}
-              placeholder="Enter Description"
+              placeholder={t("groupManagement.enterDescription")}
               value={data.description || ""}
               onChange={(e: any) => {
                 onDataChange("description", e.target.value);
@@ -335,7 +341,7 @@ const AddGroupModal = ({
               }
             />
             <Label htmlFor="group-member-messages" className="form-check-label">
-              Members can send messages
+              {t("groupManagement.membersCanSendPolicy")}
             </Label>
           </div>
           <div className="form-check form-switch">
@@ -348,14 +354,14 @@ const AddGroupModal = ({
               }
             />
             <Label htmlFor="group-members-leave" className="form-check-label">
-              Members can leave the group
+              {t("groupManagement.membersCanLeaveGroup")}
             </Label>
           </div>
         </Form>
       </ModalBody>
       <ModalFooter>
         <Button color="link" type="button" onClick={onClose}>
-          Close
+          {t("common.close")}
         </Button>
         <Button
           type="button"
@@ -365,7 +371,7 @@ const AddGroupModal = ({
             data.channelName.trim().length < 3 || selectedContacts.length === 0
           }
         >
-          Create Groups
+          {t("groupManagement.createGroup")}
         </Button>
       </ModalFooter>
     </Modal>

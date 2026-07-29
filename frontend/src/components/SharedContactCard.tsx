@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button, Spinner } from "reactstrap";
 import { getUserProfile } from "../api/contacts";
 import UserProfileModal from "./UserProfileModal";
@@ -8,6 +9,7 @@ interface SharedContactCardProps {
 }
 
 const SharedContactCard = ({ userId }: SharedContactCardProps) => {
+  const { t } = useTranslation();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -47,7 +49,9 @@ const SharedContactCard = ({ userId }: SharedContactCardProps) => {
         className="shared-contact-card text-start"
         disabled={!user}
         aria-label={
-          user ? `Open ${user.username} profile` : "Shared contact unavailable"
+          user
+            ? t("chat.openSenderProfile", { name: user.username })
+            : t("contacts.sharedUnavailable")
         }
         onClick={() => setIsProfileOpen(true)}
       >
@@ -66,10 +70,10 @@ const SharedContactCard = ({ userId }: SharedContactCardProps) => {
         )}
         <span className="shared-contact-copy">
           <strong className="d-block text-truncate">
-            {user?.username || "Contact unavailable"}
+            {user?.username || t("contacts.unavailable")}
           </strong>
           <small className="d-block text-muted">
-            View user profile
+            {t("contacts.viewProfile")}
           </small>
         </span>
         <i className="bx bx-chevron-right font-size-20"></i>

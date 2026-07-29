@@ -6,6 +6,7 @@ export enum DISPLAY_TYPES {
 
 export enum SETTINGS_COLLAPSES {
   PROFILE = "profile",
+  LANGUAGE = "language",
   THEME = "theme",
   PRIVACY = "privacy",
   SECURITY = "security",

@@ -45,11 +45,13 @@ import {
   readPendingMessageFocus,
 } from "../../../utils/messageFocus";
 import { buildMentionMembers } from "../../../utils/mentions";
+import { useTranslation } from "react-i18next";
 
 interface IndexProps {
   isChannel: boolean;
 }
 const Index = ({ isChannel }: IndexProps) => {
+  const { t } = useTranslation();
   // global store
   const { dispatch, useAppSelector } = useRedux();
 
@@ -515,7 +517,7 @@ const Index = ({ isChannel }: IndexProps) => {
       await markMessageAsUnreadApi(activeConversationId, messageId);
       dispatch(getDirectMessages());
       dispatch(getChannels());
-      showSuccessNotification("Conversation marked as unread");
+      showSuccessNotification(t("chat.markedUnread"));
     } catch (error: any) {
       const message = String(
         error || "Conversation could not be marked unread",
@@ -672,13 +674,17 @@ const Index = ({ isChannel }: IndexProps) => {
             }
             aria-hidden="true"
           ></i>
-          {socketConnected ? "Realtime connected" : "REST fallback active"}
+          {socketConnected
+            ? t("chat.realtimeConnected")
+            : t("chat.restFallback")}
         </span>
         {isChannel && (
-          <span className="text-muted">{onlineParticipantCount} online</span>
+          <span className="text-muted">
+            {t("chat.onlineCount", { count: onlineParticipantCount })}
+          </span>
         )}
         {typingUserIds.size > 0 && (
-          <span className="text-primary">Someone is typing...</span>
+          <span className="text-primary">{t("chat.someoneTyping")}</span>
         )}
       </div>
       {isChannel && (
@@ -687,7 +693,7 @@ const Index = ({ isChannel }: IndexProps) => {
             <div
               className="btn-group btn-group-sm"
               role="group"
-              aria-label="Conversation view"
+              aria-label={t("chat.conversationView")}
             >
               <Button
                 color={conversationMode === "group" ? "primary" : "light"}
@@ -697,14 +703,14 @@ const Index = ({ isChannel }: IndexProps) => {
                   className="bx bx-message-square-dots me-1"
                   aria-hidden="true"
                 ></i>
-                Group Chat
+                {t("chat.groupChat")}
               </Button>
               <Button
                 color={conversationMode === "management" ? "warning" : "light"}
                 onClick={showManagementChat}
               >
                 <i className="bx bx-lock-alt me-1" aria-hidden="true"></i>
-                Manager Chat
+                {t("chat.managerChat")}
               </Button>
             </div>
           ) : (
@@ -713,13 +719,13 @@ const Index = ({ isChannel }: IndexProps) => {
                 className="bx bx-message-square-dots me-1"
                 aria-hidden="true"
               ></i>
-              Group Chat
+              {t("chat.groupChat")}
             </strong>
           )}
           <small className="conversation-context-copy">
             {conversationMode === "management"
-              ? "Private channel | Visible only to group management"
-              : "Shared channel | Visible to all group members"}
+              ? t("chat.privateChannel")
+              : t("chat.sharedChannel")}
           </small>
         </div>
       )}
@@ -754,8 +760,8 @@ const Index = ({ isChannel }: IndexProps) => {
         canSend={canSendMessage}
         disabledMessage={
           !groupIsActive
-            ? `This group is ${chatUserDetails.status}.`
-            : "Members cannot send messages in this group. Only group management can send."
+            ? t("chat.groupStatus", { status: chatUserDetails.status })
+            : t("chat.memberSendBlocked")
         }
       />
     </div>

@@ -23,9 +23,11 @@ import NonAuthLayoutWrapper from "../../components/NonAutnLayoutWrapper";
 import AuthHeader from "../../components/AuthHeader";
 import FormInput from "../../components/FormInput";
 import Loader from "../../components/Loader";
+import { useTranslation } from "react-i18next";
 
 interface RegisterProps {}
 const Register = (props: RegisterProps) => {
+  const { t } = useTranslation();
   // global store
   const { dispatch, useAppSelector } = useRedux();
 
@@ -37,37 +39,33 @@ const Register = (props: RegisterProps) => {
   // }));
 
   const errorData = createSelector(
-    (state : any) => state.Register,
-    (state) => ({
+    (state: any) => state.Register,
+    state => ({
       user: state.user,
       registrationError: state.registrationError,
       regLoading: state.loading,
       isUserRegistered: state.isUserRegistered,
-
-    })
+    }),
   );
   // Inside your component
-  const { user,registrationError ,regLoading} = useAppSelector(errorData);
+  const { user, registrationError, regLoading } = useAppSelector(errorData);
 
   const resolver = yupResolver(
     yup.object().shape({
       email: yup
         .string()
-        .email("This value should be a valid email.")
-        .required("Please Enter E-mail."),
+        .email(t("auth.validation.validEmail"))
+        .required(t("auth.validation.emailRequired")),
       username: yup
         .string()
-        .min(3, "Username must be at least 3 characters.")
-        .matches(
-          /^[a-zA-Z0-9_]+$/,
-          "Username can only contain letters, numbers and underscores."
-        )
-        .required("Please enter a username."),
+        .min(3, t("auth.validation.usernameMin"))
+        .matches(/^[a-zA-Z0-9_]+$/, t("auth.validation.usernamePattern"))
+        .required(t("auth.validation.usernameRequired")),
       password: yup
         .string()
-        .min(6, "Password must be at least 6 characters.")
-        .required("Please Enter Password."),
-    })
+        .min(6, t("auth.validation.passwordMin"))
+        .required(t("auth.validation.passwordRequired")),
+    }),
   );
 
   const defaultValues: any = {};
@@ -96,12 +94,12 @@ const Register = (props: RegisterProps) => {
         <Col sm={8} lg={6} xl={5} className="col-xxl-4">
           <div className="py-md-5 py-4">
             <AuthHeader
-              title="Register Account"
-              subtitle="Create your ellO account."
+              title={t("auth.registerTitle")}
+              subtitle={t("auth.registerSubtitle")}
             />
 
             {user && user ? (
-              <Alert color="success">Register User Successfully</Alert>
+              <Alert color="success">{t("auth.registerSuccess")}</Alert>
             ) : null}
 
             {registrationError && registrationError ? (
@@ -115,35 +113,35 @@ const Register = (props: RegisterProps) => {
               {regLoading && <Loader />}
               <div className="mb-3">
                 <FormInput
-                  label="Email"
+                  label={t("auth.email")}
                   type="text"
                   name="email"
                   register={register}
                   errors={errors}
                   control={control}
                   labelClassName="form-label"
-                  placeholder="Enter Email"
+                  placeholder={t("auth.enterEmail")}
                   className="form-control"
                 />
               </div>
 
               <div className="mb-3">
                 <FormInput
-                  label="Username"
+                  label={t("auth.username")}
                   type="text"
                   name="username"
                   register={register}
                   errors={errors}
                   control={control}
                   labelClassName="form-label"
-                  placeholder="Enter username"
+                  placeholder={t("auth.enterUsername")}
                   className="form-control"
                 />
               </div>
 
               <div className="mb-3">
                 <FormInput
-                  label="Password"
+                  label={t("auth.password")}
                   type="password"
                   name="password"
                   register={register}
@@ -151,15 +149,15 @@ const Register = (props: RegisterProps) => {
                   control={control}
                   labelClassName="form-label"
                   className="form-control pe-5"
-                  placeholder="Enter Password"
+                  placeholder={t("auth.enterPassword")}
                 />
               </div>
 
               <div className="mb-4">
                 <p className="mb-0">
-                  By registering you agree to the ellO{" "}
+                  {t("auth.termsPrefix")}{" "}
                   <Link to="#" className="text-primary">
-                    Terms of Use
+                    {t("auth.terms")}
                   </Link>
                 </p>
               </div>
@@ -170,12 +168,14 @@ const Register = (props: RegisterProps) => {
                   className="w-100  waves-effect waves-light"
                   type="submit"
                 >
-                  Register
+                  {t("auth.register")}
                 </Button>
               </div>
               <div className="mt-4 text-center">
                 <div className="signin-other-title">
-                  <h5 className="font-size-14 mb-4 title">Sign up using</h5>
+                  <h5 className="font-size-14 mb-4 title">
+                    {t("auth.signUpUsing")}
+                  </h5>
                 </div>
                 <Row className="">
                   <div className="col-4">
@@ -226,12 +226,12 @@ const Register = (props: RegisterProps) => {
 
             <div className="mt-5 text-center text-muted">
               <p>
-                Already have an account ?{" "}
+                {t("auth.haveAccount")}{" "}
                 <Link
                   to="/auth-login"
                   className="fw-medium text-decoration-underline"
                 >
-                  Login
+                  {t("auth.login")}
                 </Link>
               </p>
             </div>

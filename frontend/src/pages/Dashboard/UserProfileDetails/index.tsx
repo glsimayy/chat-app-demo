@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import classnames from "classnames";
 import { createSelector } from "reselect";
 import {
@@ -51,6 +52,7 @@ interface IndexProps {
   isChannel: boolean;
 }
 const Index = ({ isChannel }: IndexProps) => {
+  const { t } = useTranslation();
   // global store
   const { dispatch, useAppSelector } = useRedux();
   const { startCall } = useAudioCall();
@@ -75,13 +77,13 @@ const Index = ({ isChannel }: IndexProps) => {
   };
 
   const onOpenVideo = () => {
-    showErrorNotification("Video calls are not available in this release");
+    showErrorNotification(t("profile.videoUnavailable"));
   };
 
   const onOpenAudio = () => {
     const targetUserId = chatUserDetails?.participantId;
     if (!chatUserDetails?.id || !targetUserId) {
-      showErrorNotification("This user is not available for an audio call");
+      showErrorNotification(t("profile.audioUnavailable"));
       return;
     }
 
@@ -90,7 +92,7 @@ const Index = ({ isChannel }: IndexProps) => {
         .filter(Boolean)
         .join(" ") ||
       chatUserDetails.username ||
-      "User";
+      t("profile.user");
     void startCall({
       conversationId: String(chatUserDetails.id),
       targetUserId: String(targetUserId),
@@ -125,10 +127,10 @@ const Index = ({ isChannel }: IndexProps) => {
       dispatch(getDirectMessages());
       dispatch(getFavourites());
       dispatch(getArchiveContact());
-      showSuccessNotification("Conversation deleted");
+      showSuccessNotification(t("profile.conversationDeleted"));
     } catch (error) {
       showErrorNotification(
-        String(error || "Conversation could not be deleted"),
+        String(error || t("profile.conversationDeleteFailed")),
       );
     } finally {
       setIsDeleting(false);
@@ -157,7 +159,7 @@ const Index = ({ isChannel }: IndexProps) => {
     const conversation: any = await createDirectConversation(userId);
 
     if (!conversation?.id) {
-      throw new Error("Direct conversation could not be created");
+      throw new Error(t("profile.directCreateFailed"));
     }
 
     dispatch(toggleUserDetailsTab(false));
@@ -231,12 +233,9 @@ const Index = ({ isChannel }: IndexProps) => {
             centered
           >
             <ModalHeader toggle={() => !isDeleting && setIsDeleteOpen(false)}>
-              Delete conversation?
+              {t("profile.deleteConversation")}
             </ModalHeader>
-            <ModalBody>
-              This conversation will be removed from your chat list. The other
-              participant will keep their copy.
-            </ModalBody>
+            <ModalBody>{t("profile.deleteConversationDescription")}</ModalBody>
             <ModalFooter>
               <Button
                 type="button"
@@ -244,7 +243,7 @@ const Index = ({ isChannel }: IndexProps) => {
                 disabled={isDeleting}
                 onClick={() => setIsDeleteOpen(false)}
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 type="button"
@@ -253,7 +252,7 @@ const Index = ({ isChannel }: IndexProps) => {
                 onClick={onDeleteConversation}
               >
                 {isDeleting && <Spinner size="sm" className="me-2" />}
-                Delete
+                {t("chat.delete")}
               </Button>
             </ModalFooter>
           </Modal>

@@ -23,6 +23,7 @@ import {
   MentionMember,
   replaceActiveMention,
 } from "../../../../utils/mentions";
+import { useTranslation } from "react-i18next";
 
 // interface
 import { MessagesTypes } from "../../../../data/messages";
@@ -65,6 +66,7 @@ const Index = ({
   canSend = true,
   disabledMessage = "Messaging is unavailable in this conversation.",
 }: IndexProps) => {
+  const { t } = useTranslation();
   /*
   more menu collapse
   */
@@ -207,7 +209,7 @@ const Index = ({
 
     if (selected.length > MAX_ATTACHMENT_COUNT) {
       setSelectionError(
-        `You can attach at most ${MAX_ATTACHMENT_COUNT} files to one message.`,
+        t("chat.maxAttachments", { count: MAX_ATTACHMENT_COUNT }),
       );
       return;
     }
@@ -349,7 +351,7 @@ const Index = ({
   };
   const onShareLocation = () => {
     if (!navigator.geolocation) {
-      setSelectionError("Location sharing is not supported by this browser.");
+      setSelectionError(t("chat.locationUnsupported"));
       return;
     }
 
@@ -358,12 +360,12 @@ const Index = ({
         const latitude = position.coords.latitude.toFixed(6);
         const longitude = position.coords.longitude.toFixed(6);
         appendText(
-          `Location: https://www.google.com/maps?q=${latitude},${longitude}`,
+          `${t("chat.locationLabel")}: https://www.google.com/maps?q=${latitude},${longitude}`,
         );
         setSelectionError("");
         setIsOpen(false);
       },
-      () => setSelectionError("Location permission was denied or unavailable."),
+      () => setSelectionError(t("chat.locationPermissionDenied")),
       { enableHighAccuracy: true, timeout: 10000 },
     );
   };
@@ -412,12 +414,14 @@ const Index = ({
               <div
                 className="voice-recording-status"
                 role="status"
-                aria-label={`Recording voice message, ${formatRecordingDuration(
-                  voiceRecording.elapsedSeconds,
-                )}`}
+                aria-label={t("chat.recordingAria", {
+                  duration: formatRecordingDuration(
+                    voiceRecording.elapsedSeconds,
+                  ),
+                })}
               >
                 <span className="voice-recording-dot" aria-hidden="true"></span>
-                <strong>Recording</strong>
+                <strong>{t("chat.recording")}</strong>
                 <span>
                   {formatRecordingDuration(voiceRecording.elapsedSeconds)}
                 </span>
@@ -440,7 +444,7 @@ const Index = ({
                     className="mention-suggestions"
                     id={mentionListId}
                     role="listbox"
-                    aria-label="Group members"
+                    aria-label={t("chat.groupMembers")}
                   >
                     {mentionSuggestions.map((member, index) => (
                       <button
@@ -498,13 +502,16 @@ const Index = ({
           <p className="me-2 mb-0">
             {images.length > 0 &&
               files.length === 0 &&
-              ` You have selected ${images.length} images`}
+              t("chat.selectedImages", { count: images.length })}
             {files.length > 0 &&
               images.length === 0 &&
-              ` You have selected ${files.length} files`}
+              t("chat.selectedFiles", { count: files.length })}
             {files.length > 0 &&
               images.length > 0 &&
-              ` You have selected ${files.length} files & ${images.length} images.`}
+              t("chat.selectedFilesAndImages", {
+                fileCount: files.length,
+                imageCount: images.length,
+              })}
           </p>
         </Alert>
       ) : null}
@@ -529,13 +536,13 @@ const Index = ({
         <div className="voice-message-preview mt-2">
           <div className="voice-message-preview-copy">
             <i className="bx bxs-microphone" aria-hidden="true"></i>
-            <span>Voice message ready to send</span>
+            <span>{t("chat.voiceReady")}</span>
           </div>
           <audio
             controls
             preload="metadata"
             src={voicePreviewUrl}
-            aria-label="Voice message preview"
+            aria-label={t("chat.voicePreview")}
           />
         </div>
       )}
@@ -547,7 +554,7 @@ const Index = ({
           toggle={() => setSharedContact(null)}
         >
           <i className="bx bx-user me-2" aria-hidden="true"></i>
-          Sharing contact:{" "}
+          {t("chat.sharingContact")}{" "}
           <strong className="ms-1">{sharedContact.username}</strong>
         </Alert>
       )}

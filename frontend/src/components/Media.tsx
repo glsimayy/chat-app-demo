@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 // interface
@@ -15,16 +16,23 @@ interface MediaItemProps {
   remainingItem: number;
 }
 const MediaItem = ({ mediaItem, hasMore, remainingItem }: MediaItemProps) => {
+  const { t } = useTranslation();
+
   return (
     <div className="media-img-list">
       <Link to="#">
-        <img src={mediaItem.url} alt="media img" className="img-fluid" />
+        <img
+          src={mediaItem.url}
+          alt={t("profile.media")}
+          className="img-fluid"
+        />
         {hasMore && <div className="bg-overlay">+ {remainingItem}</div>}
       </Link>
     </div>
   );
 };
 const Media = ({ media, limit }: MediaProps) => {
+  const { t } = useTranslation();
   const [mediaList, setMediaList] = useState<MediaListItemTypes[]>([]);
   useEffect(() => {
     if (media && media.list) setMediaList(media.list);
@@ -35,11 +43,13 @@ const Media = ({ media, limit }: MediaProps) => {
     <div>
       <div className="d-flex">
         <div className="flex-grow-1">
-          <h5 className="font-size-11 text-muted text-uppercase">Media</h5>
+          <h5 className="font-size-11 text-muted text-uppercase">
+            {t("profile.media")}
+          </h5>
         </div>
         <div className="flex-shrink-0">
           <Link to="#" className="font-size-12 d-block mb-2">
-            Show all
+            {t("profile.showAll")}
           </Link>
         </div>
       </div>
@@ -59,9 +69,9 @@ const Media = ({ media, limit }: MediaProps) => {
                     />
                   );
                 } else return null;
-              }
+              },
             )
-          : "No Media Files."}
+          : t("profile.noMedia")}
       </div>
     </div>
   );

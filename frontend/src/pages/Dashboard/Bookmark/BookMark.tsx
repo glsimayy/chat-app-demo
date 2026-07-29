@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Dropdown,
   DropdownItem,
@@ -17,15 +18,16 @@ interface BookMarkProps {
 }
 
 const BookMark = ({ bookmark, onOpen, onUpdate, onDelete }: BookMarkProps) => {
+  const { t, i18n } = useTranslation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const displayTitle =
-    bookmark.title || bookmark.message.content || "Attachment";
+    bookmark.title || bookmark.message.content || t("bookmark.attachment");
   const conversationTitle =
     bookmark.conversation.name ||
     (bookmark.conversation.type === "direct"
-      ? bookmark.sender?.username || "Direct message"
-      : "Conversation");
+      ? bookmark.sender?.username || t("bookmark.directMessage")
+      : t("bookmark.conversation"));
   const conversationIcon =
     bookmark.conversation.type === "direct" ? "bx-user" : "bx-hash";
 
@@ -42,7 +44,7 @@ const BookMark = ({ bookmark, onOpen, onUpdate, onDelete }: BookMarkProps) => {
             type="button"
             className="bookmark-open-button d-flex align-items-center flex-grow-1"
             onClick={() => onOpen(bookmark)}
-            aria-label={`Go to saved message: ${displayTitle}`}
+            aria-label={t("bookmark.goToSaved", { title: displayTitle })}
           >
             <span className="flex-shrink-0 avatar-xs ms-1 me-3">
               <span className="avatar-title bg-primary-subtle text-primary rounded-circle">
@@ -54,7 +56,9 @@ const BookMark = ({ bookmark, onOpen, onUpdate, onDelete }: BookMarkProps) => {
               <span className="bookmark-message-meta">
                 <span>{conversationTitle}</span>
                 <time dateTime={bookmark.message.createdAt}>
-                  {new Date(bookmark.message.createdAt).toLocaleString()}
+                  {new Date(bookmark.message.createdAt).toLocaleString(
+                    i18n.resolvedLanguage,
+                  )}
                 </time>
               </span>
             </span>
@@ -68,7 +72,7 @@ const BookMark = ({ bookmark, onOpen, onUpdate, onDelete }: BookMarkProps) => {
               <DropdownToggle
                 color="none"
                 className="font-size-16 text-muted px-1"
-                aria-label="Saved message actions"
+                aria-label={t("bookmark.actions")}
               >
                 <i
                   className="bx bx-dots-horizontal-rounded"
@@ -84,21 +88,23 @@ const BookMark = ({ bookmark, onOpen, onUpdate, onDelete }: BookMarkProps) => {
                   onClick={() => onOpen(bookmark)}
                   className="d-flex align-items-center justify-content-between"
                 >
-                  Go to message{" "}
+                  {t("bookmark.goToMessage")}{" "}
                   <i className="bx bx-navigation ms-2 text-muted"></i>
                 </DropdownItem>
                 <DropdownItem
                   onClick={() => setIsEditOpen(true)}
                   className="d-flex align-items-center justify-content-between"
                 >
-                  Edit <i className="bx bx-pencil ms-2 text-muted"></i>
+                  {t("chat.edit")}{" "}
+                  <i className="bx bx-pencil ms-2 text-muted"></i>
                 </DropdownItem>
                 <DropdownItem divider />
                 <DropdownItem
                   onClick={() => onDelete(bookmark.messageId)}
                   className="d-flex align-items-center justify-content-between"
                 >
-                  Delete <i className="bx bx-trash ms-2 text-muted"></i>
+                  {t("chat.delete")}{" "}
+                  <i className="bx bx-trash ms-2 text-muted"></i>
                 </DropdownItem>
               </DropdownMenu>
             </Dropdown>

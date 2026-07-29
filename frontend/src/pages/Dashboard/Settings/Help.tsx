@@ -1,48 +1,36 @@
 import React, { useState } from "react";
 import { Button, Modal, ModalBody, ModalHeader } from "reactstrap";
+import { useTranslation } from "react-i18next";
 
 type HelpTopic = "faqs" | "contact" | "terms";
 
-const helpContent: Record<HelpTopic, { title: string; body: React.ReactNode }> =
-  {
+const Help = () => {
+  const { t } = useTranslation();
+  const [activeTopic, setActiveTopic] = useState<HelpTopic | null>(null);
+  const helpContent: Record<
+    HelpTopic,
+    { title: string; body: React.ReactNode }
+  > = {
     faqs: {
-      title: "Frequently asked questions",
+      title: t("settings.faqTitle"),
       body: (
         <>
-          <h6>Why do messages sometimes take a moment to appear?</h6>
-          <p>
-            The app retries over the REST API if the real-time connection drops.
-          </p>
-          <h6>Which files can I send?</h6>
-          <p className="mb-0">
-            Images, PDFs, Office documents and common text files are supported.
-          </p>
+          <h6>{t("settings.faqRealtimeQuestion")}</h6>
+          <p>{t("settings.faqRealtimeAnswer")}</p>
+          <h6>{t("settings.faqFilesQuestion")}</h6>
+          <p className="mb-0">{t("settings.faqFilesAnswer")}</p>
         </>
       ),
     },
     contact: {
-      title: "Contact support",
-      body: (
-        <p className="mb-0">
-          Open Support from the left navigation to create a ticket and follow
-          its status.
-        </p>
-      ),
+      title: t("settings.contactTitle"),
+      body: <p className="mb-0">{t("settings.contactBody")}</p>,
     },
     terms: {
-      title: "Terms & Privacy policy",
-      body: (
-        <p className="mb-0">
-          This is a demonstration environment. Account details, messages,
-          attachments and call metadata may be stored for testing, so do not use
-          production-sensitive information.
-        </p>
-      ),
+      title: t("settings.termsTitle"),
+      body: <p className="mb-0">{t("settings.termsBody")}</p>,
     },
   };
-
-const Help = () => {
-  const [activeTopic, setActiveTopic] = useState<HelpTopic | null>(null);
   const topic = activeTopic ? helpContent[activeTopic] : null;
 
   return (
@@ -51,9 +39,9 @@ const Help = () => {
         <ul className="list-group list-group-flush">
           {(
             [
-              ["faqs", "FAQs"],
-              ["contact", "Contact"],
-              ["terms", "Terms & Privacy policy"],
+              ["faqs", t("settings.helpFaqs")],
+              ["contact", t("settings.helpContact")],
+              ["terms", t("settings.helpTerms")],
             ] as Array<[HelpTopic, string]>
           ).map(([key, label], index) => (
             <li

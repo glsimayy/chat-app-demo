@@ -36,8 +36,6 @@ import {
 // hooks
 import { useProfile } from "../../../hooks";
 
-// utils
-import { formateDate } from "../../../utils";
 import RepliedMessage from "./RepliedMessage";
 import { getAttachmentBlob } from "../../../api/chats";
 import { parseSharedContactMessage } from "../../../utils/sharedContact";
@@ -51,33 +49,41 @@ import {
 } from "../../../helpers/notifications";
 import { isMessageReportable } from "../../../utils/messageReporting";
 import { MentionMember, tokenizeMentions } from "../../../utils/mentions";
+import { useTranslation } from "react-i18next";
+import { translateKnownSystemMessage } from "../../../utils/systemMessages";
 
 interface MentionTextProps {
   text: string;
   members: MentionMember[];
 }
 
-const MentionText = ({ text, members }: MentionTextProps) => (
-  <>
-    {tokenizeMentions(text, members).map((segment, index) =>
-      segment.isMention ? (
-        <span
-          className="message-mention"
-          title={
-            segment.member?.email || segment.member?.username || "Group member"
-          }
-          key={`${index}-${segment.text}`}
-        >
-          {segment.text}
-        </span>
-      ) : (
-        <React.Fragment key={`${index}-${segment.text}`}>
-          {segment.text}
-        </React.Fragment>
-      ),
-    )}
-  </>
-);
+const MentionText = ({ text, members }: MentionTextProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <>
+      {tokenizeMentions(text, members).map((segment, index) =>
+        segment.isMention ? (
+          <span
+            className="message-mention"
+            title={
+              segment.member?.email ||
+              segment.member?.username ||
+              t("groupManagement.groupMember")
+            }
+            key={`${index}-${segment.text}`}
+          >
+            {segment.text}
+          </span>
+        ) : (
+          <React.Fragment key={`${index}-${segment.text}`}>
+            {segment.text}
+          </React.Fragment>
+        ),
+      )}
+    </>
+  );
+};
 
 interface MenuProps {
   canModify: boolean;
@@ -110,6 +116,7 @@ const Menu = ({
   canReport,
   onReport,
 }: MenuProps) => {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -119,7 +126,7 @@ const Menu = ({
       className="align-self-start message-box-drop"
     >
       <DropdownToggle
-        aria-label="Message actions"
+        aria-label={t("chat.messageActions")}
         className="btn btn-toggle"
         tag="button"
         type="button"
@@ -136,28 +143,29 @@ const Menu = ({
           to="#"
           onClick={onReply}
         >
-          Reply <i className="bx bx-share ms-2 text-muted"></i>
+          {t("chat.reply")} <i className="bx bx-share ms-2 text-muted"></i>
         </DropdownItem>
         <DropdownItem
           className="d-flex align-items-center justify-content-between"
           to="#"
           onClick={onForward}
         >
-          Forward <i className="bx bx-share-alt ms-2 text-muted"></i>
+          {t("chat.forward")}{" "}
+          <i className="bx bx-share-alt ms-2 text-muted"></i>
         </DropdownItem>
         {canModify && (
           <DropdownItem
             className="d-flex align-items-center justify-content-between"
             onClick={onEdit}
           >
-            Edit <i className="bx bx-edit text-muted ms-2"></i>
+            {t("chat.edit")} <i className="bx bx-edit text-muted ms-2"></i>
           </DropdownItem>
         )}
         <DropdownItem
           className="d-flex align-items-center justify-content-between"
           onClick={onCopy}
         >
-          Copy <i className="bx bx-copy text-muted ms-2"></i>
+          {t("chat.copy")} <i className="bx bx-copy text-muted ms-2"></i>
         </DropdownItem>
         <DropdownItem
           className="d-flex align-items-center justify-content-between"
@@ -165,7 +173,7 @@ const Menu = ({
           disabled={bookmarkLoading}
           onClick={onToggleBookmark}
         >
-          {isBookmarked ? "Remove from saved" : "Save message"}
+          {t(isBookmarked ? "chat.removeFromSaved" : "chat.saveMessage")}
           <i
             className={`bx ${
               isBookmarked ? "bxs-bookmark" : "bx-bookmark"
@@ -177,14 +185,15 @@ const Menu = ({
           disabled={markUnreadLoading}
           onClick={onMarkUnread}
         >
-          Mark as Unread <i className="bx bx-message-error text-muted ms-2"></i>
+          {t("chat.markUnread")}{" "}
+          <i className="bx bx-message-error text-muted ms-2"></i>
         </DropdownItem>
         {canReport && (
           <DropdownItem
             className="d-flex align-items-center justify-content-between text-danger"
             onClick={onReport}
           >
-            Report <i className="bx bx-flag text-danger ms-2"></i>
+            {t("chat.report")} <i className="bx bx-flag text-danger ms-2"></i>
           </DropdownItem>
         )}
         {canModify && (
@@ -192,7 +201,7 @@ const Menu = ({
             className="d-flex align-items-center justify-content-between delete-item"
             onClick={onDelete}
           >
-            Delete <i className="bx bx-trash text-muted ms-2"></i>
+            {t("chat.delete")} <i className="bx bx-trash text-muted ms-2"></i>
           </DropdownItem>
         )}
       </DropdownMenu>
@@ -223,6 +232,7 @@ const ImageMoreMenu = ({
   canReport,
   onReport,
 }: ImageMoreMenuProps) => {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -236,7 +246,7 @@ const ImageMoreMenu = ({
           className="list-inline-item dropdown"
         >
           <DropdownToggle
-            aria-label="Image actions"
+            aria-label={t("chat.imageActions")}
             tag="button"
             type="button"
             className="btn btn-toggle"
@@ -253,7 +263,8 @@ const ImageMoreMenu = ({
               href={imagelink}
               download
             >
-              Download <i className="bx bx-download ms-2 text-muted"></i>
+              {t("chat.download")}{" "}
+              <i className="bx bx-download ms-2 text-muted"></i>
             </DropdownItem>
             <DropdownItem
               tag="a"
@@ -261,13 +272,14 @@ const ImageMoreMenu = ({
               href="#"
               onClick={onReply}
             >
-              Reply <i className="bx bx-share ms-2 text-muted"></i>
+              {t("chat.reply")} <i className="bx bx-share ms-2 text-muted"></i>
             </DropdownItem>
             <DropdownItem
               className=" d-flex align-items-center justify-content-between"
               onClick={onForward}
             >
-              Forward <i className="bx bx-share-alt ms-2 text-muted"></i>
+              {t("chat.forward")}{" "}
+              <i className="bx bx-share-alt ms-2 text-muted"></i>
             </DropdownItem>
             <DropdownItem
               tag="a"
@@ -276,7 +288,7 @@ const ImageMoreMenu = ({
               disabled={bookmarkLoading}
               onClick={onToggleBookmark}
             >
-              {isBookmarked ? "Remove from saved" : "Save message"}
+              {t(isBookmarked ? "chat.removeFromSaved" : "chat.saveMessage")}
               <i
                 className={`bx ${
                   isBookmarked ? "bxs-bookmark" : "bx-bookmark"
@@ -288,7 +300,7 @@ const ImageMoreMenu = ({
                 className="d-flex align-items-center justify-content-between text-danger"
                 onClick={onReport}
               >
-                Report image
+                {t("chat.reportImage")}
                 <i className="bx bx-flag text-danger ms-2"></i>
               </DropdownItem>
             )}
@@ -299,7 +311,8 @@ const ImageMoreMenu = ({
                 href="#"
                 onClick={onDelete}
               >
-                Delete message <i className="bx bx-trash ms-2 text-muted"></i>
+                {t("chat.deleteMessage")}{" "}
+                <i className="bx bx-trash ms-2 text-muted"></i>
               </DropdownItem>
             )}
           </DropdownMenu>
@@ -339,6 +352,7 @@ const Image = ({
   canReport,
   onReport,
 }: ImageProps) => {
+  const { t } = useTranslation();
   const onDelete = () => {
     onDeleteImg(image.id);
   };
@@ -365,7 +379,7 @@ const Image = ({
             >
               <img
                 src={image.downloadLink}
-                alt={image.name || "Message attachment"}
+                alt={image.name || t("chat.messageAttachment")}
                 className="rounded border"
               />
             </Link>
@@ -517,6 +531,7 @@ const AudioAttachmentPlayer = ({
   downloading,
   onDownload,
 }: AudioAttachmentPlayerProps) => {
+  const { t } = useTranslation();
   const [source, setSource] = useState(
     attachment.requiresAuth ? "" : attachment.downloadLink,
   );
@@ -567,7 +582,7 @@ const AudioAttachmentPlayer = ({
           <i className="bx bxs-microphone"></i>
         </span>
         <div>
-          <strong>Voice message</strong>
+          <strong>{t("chat.voiceMessage")}</strong>
           <span>{attachment.name}</span>
           <span>{attachment.desc}</span>
         </div>
@@ -575,8 +590,8 @@ const AudioAttachmentPlayer = ({
           type="button"
           color="link"
           className="message-audio-download"
-          title={`Download ${attachment.name}`}
-          aria-label={`Download ${attachment.name}`}
+          title={t("chat.downloadFile", { name: attachment.name })}
+          aria-label={t("chat.downloadFile", { name: attachment.name })}
           disabled={downloading}
           onClick={() => void onDownload(attachment)}
         >
@@ -590,18 +605,18 @@ const AudioAttachmentPlayer = ({
       {loading ? (
         <div className="message-audio-loading" role="status">
           <Spinner size="sm" />
-          <span>Loading voice message...</span>
+          <span>{t("chat.loadingVoiceMessage")}</span>
         </div>
       ) : failed || !source ? (
         <span className="text-danger font-size-12">
-          Voice message could not be loaded.
+          {t("chat.voiceLoadFailed")}
         </span>
       ) : (
         <audio
           controls
           preload="metadata"
           src={source}
-          aria-label={`Play ${attachment.name}`}
+          aria-label={t("chat.playVoiceMessage", { name: attachment.name })}
         />
       )}
     </div>
@@ -609,6 +624,7 @@ const AudioAttachmentPlayer = ({
 };
 
 const Attachments = ({ attachments }: AttachmentsProps) => {
+  const { t } = useTranslation();
   const [downloadingId, setDownloadingId] = useState<string | number | null>(
     null,
   );
@@ -675,8 +691,12 @@ const Attachments = ({ attachments }: AttachmentsProps) => {
                       type="button"
                       color="link"
                       className="text-muted p-0"
-                      title={`Download ${attachment.name}`}
-                      aria-label={`Download ${attachment.name}`}
+                      title={t("chat.downloadFile", {
+                        name: attachment.name,
+                      })}
+                      aria-label={t("chat.downloadFile", {
+                        name: attachment.name,
+                      })}
                       disabled={downloadingId === attachment.id}
                       onClick={() => onDownload(attachment)}
                     >
@@ -706,9 +726,11 @@ const Attachments = ({ attachments }: AttachmentsProps) => {
 };
 
 const Typing = () => {
+  const { t } = useTranslation();
+
   return (
     <p className="mb-0">
-      typing
+      {t("chat.typing")}
       <span className="animate-typing">
         <span className="dot mx-1"></span>
         <span className="dot me-1"></span>
@@ -747,6 +769,7 @@ const Message = ({
   isHighlighted,
   onToggleBookmark,
 }: MessageProps) => {
+  const { t, i18n } = useTranslation();
   const { userProfile } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(message.text || "");
@@ -766,7 +789,12 @@ const Message = ({
   const sharedContactUserId = message.isDeleted
     ? null
     : parseSharedContactMessage(message.text);
-  const hasText = Boolean(message.text) && !sharedContactUserId;
+  const displayText = message.isDeleted
+    ? t("chat.deletedMessage")
+    : message.messageType === "system" && message.text
+      ? translateKnownSystemMessage(message.text, t)
+      : message.text;
+  const hasText = Boolean(displayText) && !sharedContactUserId;
   const isTyping = false;
 
   const chatUserFullName = chatUserDetails.firstName
@@ -792,7 +820,13 @@ const Message = ({
     !isBotMessage &&
     senderUserId !== "system" &&
     Boolean(message.meta.userData?.id);
-  const date = formateDate(message.time, "hh:mmaaa");
+  const date = new Date(message.time).toLocaleTimeString(
+    i18n.resolvedLanguage,
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+    },
+  );
   const isSent = message.meta.sent;
   const isReceived = message.meta.received;
   const isRead = message.meta.read;
@@ -800,7 +834,12 @@ const Message = ({
   const channdelSenderFullname = message.meta.userData
     ? `${message.meta.userData.firstName} ${message.meta.userData.lastName}`
     : "-";
-  const fullName = isChannel ? channdelSenderFullname : chatUserFullName;
+  const fullName =
+    message.messageType === "system"
+      ? t("chat.system")
+      : isChannel
+        ? channdelSenderFullname
+        : chatUserFullName;
   const canModify = isFromMe && !message.isDeleted;
   const canReport = isMessageReportable({
     isFromMe,
@@ -866,15 +905,15 @@ const Message = ({
         .join(", ");
 
     if (!content) {
-      showErrorNotification("There is no message content to copy");
+      showErrorNotification(t("chat.noContentToCopy"));
       return;
     }
 
     try {
       await navigator.clipboard.writeText(content);
-      showSuccessNotification("Message copied");
+      showSuccessNotification(t("chat.messageCopied"));
     } catch {
-      showErrorNotification("Message could not be copied");
+      showErrorNotification(t("chat.messageCopyFailed"));
     }
   };
   const markAsUnread = async () => {
@@ -911,7 +950,7 @@ const Message = ({
     event.preventDefault();
     if (!canReport) {
       setIsReportOpen(false);
-      showErrorNotification("System messages cannot be reported");
+      showErrorNotification(t("chat.systemCannotBeReported"));
       return;
     }
 
@@ -922,7 +961,7 @@ const Message = ({
         reason: reportReason,
         details: reportDetails.trim() || undefined,
       });
-      showSuccessNotification("Message reported for moderator review");
+      showSuccessNotification(t("chat.reportSubmitted"));
       setIsReportOpen(false);
       setReportReason("harassment");
       setReportDetails("");
@@ -947,8 +986,8 @@ const Message = ({
           {isBotMessage ? (
             <span
               className="avatar-title rounded-circle bg-primary text-white"
-              title="Automation bot"
-              aria-label="Automation bot"
+              title={t("chat.automationBot")}
+              aria-label={t("chat.automationBot")}
             >
               <i className="bx bx-bot" aria-hidden="true"></i>
             </span>
@@ -957,7 +996,9 @@ const Message = ({
               type="button"
               color="link"
               className="message-avatar-button p-0 border-0"
-              aria-label={`Open ${message.meta.userData?.username || "sender"} profile`}
+              aria-label={t("chat.openSenderProfile", {
+                name: message.meta.userData?.username || t("chat.sender"),
+              })}
               onClick={() => setProfileUserId(senderUserId)}
             >
               <img src={profile} alt="" />
@@ -968,11 +1009,11 @@ const Message = ({
         </div>
 
         <div className="user-chat-content">
-          {hasImages && message.text && (
+          {hasImages && displayText && (
             <div className="ctext-wrap">
               <div className="ctext-wrap-content">
                 <p className="mb-0 ctext-content">
-                  <MentionText text={message.text} members={mentionMembers} />
+                  <MentionText text={displayText} members={mentionMembers} />
                 </p>
               </div>
             </div>
@@ -995,7 +1036,7 @@ const Message = ({
                   "me-1",
                 )}
               ></i>
-              Forwarded
+              {t("chat.forwarded")}
             </span>
           )}
 
@@ -1033,7 +1074,7 @@ const Message = ({
                     >
                       <Input
                         bsSize="sm"
-                        aria-label="Edit message"
+                        aria-label={t("chat.editMessage")}
                         autoFocus
                         disabled={isSaving}
                         maxLength={2000}
@@ -1044,8 +1085,8 @@ const Message = ({
                         size="sm"
                         color="primary"
                         type="submit"
-                        title="Save edit"
-                        aria-label="Save message edit"
+                        title={t("chat.saveEdit")}
+                        aria-label={t("chat.saveEdit")}
                         disabled={
                           isSaving ||
                           !editText.trim() ||
@@ -1062,8 +1103,8 @@ const Message = ({
                         size="sm"
                         color="light"
                         type="button"
-                        title="Cancel edit"
-                        aria-label="Cancel message edit"
+                        title={t("chat.cancelEdit")}
+                        aria-label={t("chat.cancelEdit")}
                         disabled={isSaving}
                         onClick={onCancelEdit}
                       >
@@ -1075,7 +1116,7 @@ const Message = ({
                   ) : hasText ? (
                     <p className="mb-0 ctext-content">
                       <MentionText
-                        text={message.text!}
+                        text={displayText!}
                         members={mentionMembers}
                       />
                     </p>
@@ -1133,9 +1174,9 @@ const Message = ({
                   {date}
                 </small>
                 {message.isEdited && (
-                  <small className="text-muted me-2">edited</small>
+                  <small className="text-muted me-2">{t("chat.edited")}</small>
                 )}
-                You
+                {t("chat.you")}
               </>
             ) : (
               <>
@@ -1144,7 +1185,7 @@ const Message = ({
                   {date}
                 </small>
                 {message.isEdited && (
-                  <small className="text-muted ms-2">edited</small>
+                  <small className="text-muted ms-2">{t("chat.edited")}</small>
                 )}
               </>
             )}
@@ -1159,16 +1200,16 @@ const Message = ({
         <ModalHeader
           toggle={() => !isDeleting && setIsDeleteConfirmOpen(false)}
         >
-          Delete message
+          {t("chat.deleteMessage")}
         </ModalHeader>
-        <ModalBody>This message will be removed for everyone.</ModalBody>
+        <ModalBody>{t("chat.deleteForEveryone")}</ModalBody>
         <ModalFooter>
           <Button
             color="light"
             disabled={isDeleting}
             onClick={() => setIsDeleteConfirmOpen(false)}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             color="danger"
@@ -1176,20 +1217,23 @@ const Message = ({
             onClick={onDeleteMessage}
           >
             {isDeleting && <Spinner size="sm" className="me-2" />}
-            Delete message
+            {t("chat.deleteMessage")}
           </Button>
         </ModalFooter>
       </Modal>
       <Modal centered isOpen={isReportOpen && canReport} toggle={closeReport}>
         <Form onSubmit={submitReport}>
-          <ModalHeader toggle={closeReport}>Report message</ModalHeader>
+          <ModalHeader toggle={closeReport}>
+            {t("chat.reportMessage")}
+          </ModalHeader>
           <ModalBody>
             <p className="text-muted font-size-13">
-              The message will enter the moderation queue. Its content remains
-              masked until an administrator records a review reason.
+              {t("chat.reportDescription")}
             </p>
             <FormGroup>
-              <Label for={`report-reason-${message.mId}`}>Reason</Label>
+              <Label for={`report-reason-${message.mId}`}>
+                {t("common.reason")}
+              </Label>
               <Input
                 id={`report-reason-${message.mId}`}
                 type="select"
@@ -1199,17 +1243,23 @@ const Message = ({
                   setReportReason(event.target.value as MessageReportReason)
                 }
               >
-                <option value="harassment">Harassment</option>
-                <option value="sexual_content">Sexual content</option>
-                <option value="violence_or_threat">Violence or threat</option>
-                <option value="spam">Spam</option>
-                <option value="impersonation">Impersonation</option>
-                <option value="other">Other</option>
+                <option value="harassment">{t("moderation.harassment")}</option>
+                <option value="sexual_content">
+                  {t("moderation.sexualContent")}
+                </option>
+                <option value="violence_or_threat">
+                  {t("moderation.violenceOrThreat")}
+                </option>
+                <option value="spam">{t("moderation.spam")}</option>
+                <option value="impersonation">
+                  {t("moderation.impersonation")}
+                </option>
+                <option value="other">{t("moderation.other")}</option>
               </Input>
             </FormGroup>
             <FormGroup className="mb-0">
               <Label for={`report-details-${message.mId}`}>
-                Additional details
+                {t("chat.additionalDetails")}
               </Label>
               <Input
                 id={`report-details-${message.mId}`}
@@ -1218,11 +1268,11 @@ const Message = ({
                 maxLength={500}
                 value={reportDetails}
                 disabled={isReporting}
-                placeholder="Optional context for the moderation team"
+                placeholder={t("chat.moderationContextPlaceholder")}
                 onChange={event => setReportDetails(event.target.value)}
               />
               <small className="text-muted">
-                {reportDetails.length}/500 characters
+                {t("admin.characters", { count: reportDetails.length })}
               </small>
             </FormGroup>
           </ModalBody>
@@ -1233,11 +1283,11 @@ const Message = ({
               disabled={isReporting}
               onClick={closeReport}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button color="danger" type="submit" disabled={isReporting}>
               {isReporting && <Spinner size="sm" className="me-2" />}
-              Submit report
+              {t("chat.submitReport")}
             </Button>
           </ModalFooter>
         </Form>

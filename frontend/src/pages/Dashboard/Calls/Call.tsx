@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import classnames from "classnames";
 import { Button } from "reactstrap";
 
@@ -10,22 +11,23 @@ interface CallProps {
   call: CallItem;
 }
 
-const statusCopy: Record<CallItem["status"], string> = {
-  ringing: "Ringing",
-  active: "In progress",
-  completed: "Completed",
-  missed: "Missed",
-  declined: "Declined",
-  failed: "Failed",
+const statusCopyKeys: Record<CallItem["status"], string> = {
+  ringing: "calls.ringing",
+  active: "calls.inProgress",
+  completed: "calls.completed",
+  missed: "calls.missed",
+  declined: "calls.declined",
+  failed: "calls.failed",
 };
 
 const Call = ({ call }: CallProps) => {
+  const { t, i18n } = useTranslation();
   const { startCall } = useAudioCall();
   const { isOnline } = usePresence();
   const online = isOnline(call.peerId);
   const fullName = `${call.firstName} ${call.lastName}`.trim();
   const initials = `${call.firstName.charAt(0)}${call.lastName.charAt(0)}`;
-  const date = new Date(call.callDate).toLocaleString([], {
+  const date = new Date(call.callDate).toLocaleString(i18n.resolvedLanguage, {
     dateStyle: "medium",
     timeStyle: "short",
   });
@@ -62,10 +64,9 @@ const Call = ({ call }: CallProps) => {
     <li className="call-history-item">
       <div className="d-flex align-items-center">
         <div
-          className={classnames(
-            "chat-user-img flex-shrink-0 avatar-xs me-3",
-            { online },
-          )}
+          className={classnames("chat-user-img flex-shrink-0 avatar-xs me-3", {
+            online,
+          })}
         >
           {call.profileImage ? (
             <img
@@ -102,7 +103,7 @@ const Call = ({ call }: CallProps) => {
               )}
               aria-hidden="true"
             ></i>
-            {statusCopy[call.status]} · {date}
+            {t(statusCopyKeys[call.status])} · {date}
           </div>
         </div>
 
@@ -118,8 +119,12 @@ const Call = ({ call }: CallProps) => {
             className="call-again-button p-0 font-size-20"
             onClick={() => void callAgain()}
             disabled={!online}
-            title={online ? `Call ${fullName}` : `${fullName} is offline`}
-            aria-label={online ? `Call ${fullName}` : `${fullName} is offline`}
+            title={t(online ? "calls.callUser" : "calls.userOffline", {
+              name: fullName,
+            })}
+            aria-label={t(online ? "calls.callUser" : "calls.userOffline", {
+              name: fullName,
+            })}
           >
             <i className="bx bxs-phone-call align-middle"></i>
           </Button>

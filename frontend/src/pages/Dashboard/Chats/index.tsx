@@ -50,9 +50,11 @@ import {
   showErrorNotification,
   showSuccessNotification,
 } from "../../../helpers/notifications";
+import { useTranslation } from "react-i18next";
 
 interface IndexProps {}
 const Index = (props: IndexProps) => {
+  const { t } = useTranslation();
   // global store
   const { dispatch, useAppSelector } = useRedux();
 
@@ -99,9 +101,11 @@ const Index = (props: IndexProps) => {
     try {
       setInvitations(await getContactInvitations());
     } catch (error: any) {
-      showErrorNotification(String(error || "Invitations could not be loaded"));
+      showErrorNotification(
+        String(error || t("contacts.invitationLoadFailed")),
+      );
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     refreshInvitations();
@@ -114,7 +118,9 @@ const Index = (props: IndexProps) => {
     const handleNewInvitation = (invitation: any) => {
       refreshInvitations();
       showSuccessNotification(
-        `${invitation?.sender?.username || "A user"} sent you a contact invitation`,
+        t("contacts.invitationReceived", {
+          name: invitation?.sender?.username || t("contacts.aUser"),
+        }),
       );
     };
     const handleUpdatedInvitation = () => refreshInvitations();
@@ -129,7 +135,7 @@ const Index = (props: IndexProps) => {
       socket.off("contact:invitation:new", handleNewInvitation);
       socket.off("contact:invitation:updated", handleUpdatedInvitation);
     };
-  }, [refreshInvitations]);
+  }, [refreshInvitations, t]);
 
   const respondToInvitation = async (
     invitationId: string,
@@ -144,10 +150,16 @@ const Index = (props: IndexProps) => {
       dispatch(getContacts());
       dispatch(getDirectMessages());
       showSuccessNotification(
-        status === "accepted" ? "Invitation accepted" : "Invitation declined",
+        t(
+          status === "accepted"
+            ? "contacts.invitationAccepted"
+            : "contacts.invitationDeclined",
+        ),
       );
     } catch (error: any) {
-      showErrorNotification(String(error || "Invitation could not be updated"));
+      showErrorNotification(
+        String(error || t("contacts.invitationUpdateFailed")),
+      );
     } finally {
       setProcessingInvitationId(null);
     }
@@ -304,7 +316,7 @@ const Index = (props: IndexProps) => {
         <div className="px-4 pt-4">
           <div className="d-flex align-items-start">
             <div className="flex-grow-1">
-              <h4 className="mb-4">Chats</h4>
+              <h4 className="mb-4">{t("chat.title")}</h4>
             </div>
             <div className="flex-shrink-0 d-flex align-items-center gap-2">
               <div id="contact-invitations" className="position-relative">
@@ -312,7 +324,7 @@ const Index = (props: IndexProps) => {
                   type="button"
                   color="light"
                   className="btn-sm"
-                  aria-label="Open contact invitations"
+                  aria-label={t("chat.openInvitations")}
                   onClick={() => setIsInvitationsOpen(true)}
                 >
                   <i className="bx bx-envelope font-size-16"></i>
@@ -327,14 +339,17 @@ const Index = (props: IndexProps) => {
                 target="contact-invitations"
                 placement="bottom"
               >
-                Contact invitations
+                {t("chat.invitations")}
               </UncontrolledTooltip>
               <div id="add-contact">
                 {/* Button trigger modal */}
-                <AddButton ariaLabel="Add contact" onClick={openModal} />
+                <AddButton
+                  ariaLabel={t("chat.addContact")}
+                  onClick={openModal}
+                />
               </div>
               <UncontrolledTooltip target="add-contact" placement="bottom">
-                Add Contact
+                {t("chat.addContact")}
               </UncontrolledTooltip>
             </div>
           </div>
@@ -345,14 +360,14 @@ const Index = (props: IndexProps) => {
                 id="serachChatUser"
                 type="text"
                 className="form-control bg-light border-0 pe-0"
-                placeholder="Search here.."
-                aria-label="Search chats"
+                placeholder={t("chat.searchPlaceholder")}
+                aria-label={t("chat.searchChats")}
               />
               <Button
                 color="light"
                 type="button"
                 id="searchbtn-addon"
-                aria-label="Search chats"
+                aria-label={t("chat.searchChats")}
               >
                 <i className="bx bx-search align-middle"></i>
               </Button>
@@ -393,7 +408,7 @@ const Index = (props: IndexProps) => {
                   className="mb-3 px-4 mt-4 font-size-11 text-primary"
                   onClick={() => onChangeTab(CHATS_TABS.ARCHIVE)}
                 >
-                  Archived Contacts{" "}
+                  {t("chat.archivedContacts")}{" "}
                   <i className="bx bxs-archive-in align-middle" />
                 </Link>
               </h5>
@@ -412,7 +427,8 @@ const Index = (props: IndexProps) => {
                   className="mb-3 px-4 mt-4 font-size-11 text-primary"
                   onClick={() => onChangeTab(CHATS_TABS.DEFAULT)}
                 >
-                  Chats <i className="bx bxs-archive-out align-middle" />
+                  {t("chat.title")}{" "}
+                  <i className="bx bxs-archive-out align-middle" />
                 </Link>
               </h5>
             </>

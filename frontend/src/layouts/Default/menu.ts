@@ -5,7 +5,7 @@ export interface MenuItemType {
   id: number;
   key: string;
   icon: string;
-  tooltipTitle: string;
+  labelKey: string;
   className?: string;
   tabId: TABS;
   adminOnly?: boolean;
@@ -15,42 +15,42 @@ const MENU_ITEMS: MenuItemType[] = [
     id: 1,
     key: "pills-chat-tab",
     icon: "bx bx-conversation",
-    tooltipTitle: "Chats",
+    labelKey: "nav.chats",
     tabId: TABS.CHAT,
   },
   {
     id: 2,
     key: "pills-contacts-tab",
     icon: "bx bxs-user-detail",
-    tooltipTitle: "Contacts",
+    labelKey: "nav.contacts",
     tabId: TABS.CONTACTS,
   },
   {
     id: 3,
     key: "pills-calls-tab",
     icon: "bx bx-phone-call",
-    tooltipTitle: "Calls",
+    labelKey: "nav.calls",
     tabId: TABS.CALLS,
   },
   {
     id: 4,
     key: "pills-bookmark-tab",
     icon: "bx bx-bookmarks",
-    tooltipTitle: "Saved Messages",
+    labelKey: "nav.savedMessages",
     tabId: TABS.BOOKMARK,
   },
   {
     id: 5,
     key: "pills-support-tab",
     icon: "bx bx-support",
-    tooltipTitle: "Support",
+    labelKey: "nav.support",
     tabId: TABS.SUPPORT,
   },
   {
     id: 6,
     key: "pills-admin-tab",
     icon: "bx bx-shield-quarter",
-    tooltipTitle: "Admin Control Center",
+    labelKey: "nav.admin",
     tabId: TABS.ADMIN,
     adminOnly: true,
   },
@@ -58,7 +58,7 @@ const MENU_ITEMS: MenuItemType[] = [
     id: 7,
     key: "pills-setting-tab",
     icon: "bx bx-cog",
-    tooltipTitle: "Settings",
+    labelKey: "nav.settings",
     tabId: TABS.SETTINGS,
   },
 ];

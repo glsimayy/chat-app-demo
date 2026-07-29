@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 // hooks
@@ -50,6 +51,7 @@ interface GroupsProps {
   chatUserDetails: any;
 }
 const Groups = ({ chatUserDetails }: GroupsProps) => {
+  const { t } = useTranslation();
   const groups =
     chatUserDetails.channels &&
     chatUserDetails.channels.length &&
@@ -59,7 +61,7 @@ const Groups = ({ chatUserDetails }: GroupsProps) => {
       <div className="d-flex">
         <div className="flex-grow-1">
           <h5 className="font-size-11 text-muted text-uppercase">
-            Group in common
+            {t("profile.groupsInCommon")}
           </h5>
         </div>
       </div>
@@ -71,7 +73,7 @@ const Groups = ({ chatUserDetails }: GroupsProps) => {
           ))}
         </ul>
       ) : (
-        <p>No Groups</p> 
+        <p>{t("profile.noGroups")}</p>
       )}
     </div>
   );

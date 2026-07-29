@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Alert, Row, Col, Form } from "reactstrap";
 
 // hooks
@@ -25,6 +26,7 @@ import { getCurrentAuthUser } from "../../api/backendAdapters";
 
 interface ChangePasswordProps {}
 const ChangePassword = (props: ChangePasswordProps) => {
+  const { t } = useTranslation();
   // global store
   const { dispatch, useAppSelector } = useRedux();
 
@@ -49,12 +51,12 @@ const ChangePassword = (props: ChangePasswordProps) => {
 
   const resolver = yupResolver(
     yup.object().shape({
-      oldPassword: yup.string().required("Please Enter Old Password."),
-      password: yup.string().required("Please Enter New Password."),
+      oldPassword: yup.string().required(t("auth.oldPasswordRequired")),
+      password: yup.string().required(t("auth.newPasswordRequired")),
       confirmpassword: yup
         .string()
-        .oneOf([yup.ref("password")], "Passwords don't match")
-        .required("This value is required."),
+        .oneOf([yup.ref("password")], t("auth.passwordsMismatch"))
+        .required(t("auth.valueRequired")),
     }),
   );
 
@@ -73,7 +75,7 @@ const ChangePassword = (props: ChangePasswordProps) => {
   };
 
   const currentUser = getCurrentAuthUser();
-  const username = currentUser?.username || "ellO user";
+  const username = currentUser?.username || t("auth.elloUser");
   const initials = username.slice(0, 2).toUpperCase();
 
   // const { userProfile, loading } = useProfile();
@@ -83,13 +85,13 @@ const ChangePassword = (props: ChangePasswordProps) => {
       <Row className=" justify-content-center my-auto">
         <Col sm={8} lg={6} xl={5} className="col-xxl-4">
           <div className="py-md-5 py-4">
-            <AuthHeader title="Change Password" />
+            <AuthHeader title={t("auth.changePassword")} />
             <div className="user-thumb text-center mb-4">
               {currentUser?.profileImage ? (
                 <img
                   src={currentUser.profileImage}
                   className="rounded-circle img-thumbnail avatar-lg"
-                  alt={`${username} profile`}
+                  alt={t("profile.profileImage", { name: username })}
                 />
               ) : (
                 <span className="avatar-lg rounded-circle img-thumbnail avatar-title bg-primary text-white mx-auto">
@@ -102,7 +104,7 @@ const ChangePassword = (props: ChangePasswordProps) => {
               <Alert color="danger">{changepasswordError}</Alert>
             ) : null}
             {passwordChanged ? (
-              <Alert color="success">Your Password is changed</Alert>
+              <Alert color="success">{t("auth.passwordChanged")}</Alert>
             ) : null}
 
             <Form
@@ -112,14 +114,14 @@ const ChangePassword = (props: ChangePasswordProps) => {
               {changePassLoading && <Loader />}
               <div className="mb-3">
                 <FormInput
-                  label="Old Password"
+                  label={t("auth.oldPassword")}
                   type="password"
                   name="oldPassword"
                   register={register}
                   errors={errors}
                   control={control}
                   labelClassName="form-label"
-                  placeholder="Enter Old Password"
+                  placeholder={t("auth.enterOldPassword")}
                   className="form-control"
                   withoutLabel={true}
                   hidePasswordButton={true}
@@ -127,14 +129,14 @@ const ChangePassword = (props: ChangePasswordProps) => {
               </div>
               <div className="mb-3">
                 <FormInput
-                  label="New Password"
+                  label={t("auth.newPassword")}
                   type="password"
                   name="password"
                   register={register}
                   errors={errors}
                   control={control}
                   labelClassName="form-label"
-                  placeholder="Enter New Password"
+                  placeholder={t("auth.enterNewPassword")}
                   className="form-control"
                   withoutLabel={true}
                   hidePasswordButton={false}
@@ -142,14 +144,14 @@ const ChangePassword = (props: ChangePasswordProps) => {
               </div>
               <div className="mb-3">
                 <FormInput
-                  label="Confirm New Password"
+                  label={t("auth.confirmNewPassword")}
                   type="password"
                   name="confirmpassword"
                   register={register}
                   errors={errors}
                   control={control}
                   labelClassName="form-label"
-                  placeholder="Enter Confirm Password"
+                  placeholder={t("auth.enterConfirmPassword")}
                   className="form-control"
                   withoutLabel={true}
                   hidePasswordButton={true}
@@ -160,12 +162,12 @@ const ChangePassword = (props: ChangePasswordProps) => {
                 <div className="row">
                   <div className="col-6">
                     <button className="btn btn-primary w-100" type="submit">
-                      Save
+                      {t("common.save")}
                     </button>
                   </div>
                   <div className="col-6">
                     <button className="btn btn-light w-100" type="button">
-                      Cancel
+                      {t("common.cancel")}
                     </button>
                   </div>
                 </div>

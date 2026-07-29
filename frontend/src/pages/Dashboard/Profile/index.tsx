@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Button } from "reactstrap";
 
@@ -18,6 +19,7 @@ import { changeTab, getProfileDetails } from "../../../redux/actions";
 import { TABS } from "../../../constants";
 
 const Index = () => {
+  const { t } = useTranslation();
   // global store
   const { dispatch, useAppSelector } = useRedux();
 
@@ -48,7 +50,9 @@ const Index = () => {
       {profileDetails.basicDetails && (
         <AppSimpleBar className="p-4 profile-desc">
           <div className="profile-account-actions">
-            <small className="text-muted d-block mb-2">Account</small>
+            <small className="text-muted d-block mb-2">
+              {t("profile.account")}
+            </small>
             <Button
               type="button"
               color="light"
@@ -56,7 +60,7 @@ const Index = () => {
               onClick={() => dispatch(changeTab(TABS.SETTINGS))}
             >
               <i className="bx bx-cog font-size-18 me-3"></i>
-              <span className="flex-grow-1">Profile settings</span>
+              <span className="flex-grow-1">{t("profile.settings")}</span>
               <i className="bx bx-chevron-right"></i>
             </Button>
             <Link
@@ -64,7 +68,7 @@ const Index = () => {
               className="btn btn-light w-100 d-flex align-items-center text-start mb-2"
             >
               <i className="bx bx-lock-open font-size-18 me-3"></i>
-              <span className="flex-grow-1">Change password</span>
+              <span className="flex-grow-1">{t("profile.changePassword")}</span>
               <i className="bx bx-chevron-right"></i>
             </Link>
             <Link
@@ -72,7 +76,7 @@ const Index = () => {
               className="btn btn-light text-danger w-100 d-flex align-items-center text-start"
             >
               <i className="bx bx-log-out-circle font-size-18 me-3"></i>
-              <span className="flex-grow-1">Log out</span>
+              <span className="flex-grow-1">{t("profile.logout")}</span>
               <i className="bx bx-chevron-right"></i>
             </Link>
           </div>

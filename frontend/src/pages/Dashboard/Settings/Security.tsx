@@ -2,12 +2,14 @@ import React, { useEffect, useState } from "react";
 
 // interface
 import { SecurityTypes } from "../../../data/settings";
+import { useTranslation } from "react-i18next";
 
 interface SecurityProps {
   security: SecurityTypes;
   onChangeSettings: (field: string, value: any) => void;
 }
 const Security = ({ security, onChangeSettings }: SecurityProps) => {
+  const { t } = useTranslation();
   const [show, setShow] = useState<boolean>(false);
   const onChange = (checked: boolean) => {
     setShow(checked);
@@ -30,7 +32,7 @@ const Security = ({ security, onChangeSettings }: SecurityProps) => {
           <div className="d-flex align-items-center">
             <div className="flex-grow-1 overflow-hidden">
               <h5 className="font-size-13 mb-0 text-truncate">
-                Show security notification
+                {t("settings.securityNotifications")}
               </h5>
             </div>
             <div className="flex-shrink-0 ms-2">

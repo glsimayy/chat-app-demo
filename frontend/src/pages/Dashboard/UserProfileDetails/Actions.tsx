@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Button,
   Dropdown,
@@ -24,6 +25,7 @@ const AttachedFiles = ({
   isBookmarked,
   isArchived,
 }: AttachedFilesProps) => {
+  const { t } = useTranslation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const toggle = () => setDropdownOpen(!dropdownOpen);
   return (
@@ -37,7 +39,7 @@ const AttachedFiles = ({
               </span>
             </Button>
             <h5 className="font-size-11 text-uppercase text-muted mt-2">
-              Message
+              {t("support.message")}
             </h5>
           </div>
         </div>
@@ -47,7 +49,9 @@ const AttachedFiles = ({
               color="none"
               className="btn avatar-sm p-0"
               aria-label={
-                isBookmarked ? "Unpin conversation" : "Pin conversation"
+                isBookmarked
+                  ? t("profile.unpinConversation")
+                  : t("profile.pinConversation")
               }
               aria-pressed={isBookmarked}
               onClick={onToggleBookmark}
@@ -57,7 +61,7 @@ const AttachedFiles = ({
               </span>
             </Button>
             <h5 className="font-size-11 text-uppercase text-muted mt-2">
-              {isBookmarked ? "Pinned" : "Pin"}
+              {t(isBookmarked ? "profile.pinned" : "profile.pin")}
             </h5>
           </div>
         </div>
@@ -67,15 +71,15 @@ const AttachedFiles = ({
               color="none"
               className="btn avatar-sm p-0"
               onClick={onOpenAudio}
-              aria-label="Start audio call"
-              title="Start audio call"
+              aria-label={t("profile.startAudioCall")}
+              title={t("profile.startAudioCall")}
             >
               <span className="avatar-title rounded bg-light text-body">
                 <i className="bx bxs-phone-call"></i>
               </span>
             </Button>
             <h5 className="font-size-11 text-uppercase text-muted mt-2">
-              Audio
+              {t("profile.audio")}
             </h5>
           </div>
         </div>
@@ -86,15 +90,15 @@ const AttachedFiles = ({
               type="button"
               className="btn avatar-sm p-0"
               onClick={onOpenVideo}
-              aria-label="Video calls are not available in this release"
-              title="Video calls are not available in this release"
+              aria-label={t("profile.videoUnavailable")}
+              title={t("profile.videoUnavailable")}
             >
               <span className="avatar-title rounded bg-light text-body">
                 <i className="bx bx-video"></i>
               </span>
             </Button>
             <h5 className="font-size-11 text-uppercase text-muted mt-2">
-              Video
+              {t("profile.video")}
             </h5>
           </div>
         </div>
@@ -105,7 +109,7 @@ const AttachedFiles = ({
                 color="none"
                 className="btn avatar-sm p-0 dropdown-toggle"
                 type="button"
-                aria-label="More conversation actions"
+                aria-label={t("profile.moreActions")}
               >
                 <span className="avatar-title bg-light text-body rounded">
                   <i className="bx bx-dots-horizontal-rounded"></i>
@@ -120,12 +124,13 @@ const AttachedFiles = ({
                 >
                   {isArchived ? (
                     <>
-                      Un-Archive{" "}
+                      {t("profile.unarchive")}{" "}
                       <i className="bx bx-archive-out text-muted"></i>
                     </>
                   ) : (
                     <>
-                      Archive <i className="bx bx-archive text-muted"></i>
+                      {t("profile.archive")}{" "}
+                      <i className="bx bx-archive text-muted"></i>
                     </>
                   )}
                 </DropdownItem>
@@ -133,18 +138,19 @@ const AttachedFiles = ({
                   className=" d-flex justify-content-between align-items-center"
                   disabled
                 >
-                  Muted <i className="bx bx-microphone-off text-muted"></i>
+                  {t("profile.muted")}{" "}
+                  <i className="bx bx-microphone-off text-muted"></i>
                 </DropdownItem>
                 <DropdownItem
                   className="d-flex justify-content-between align-items-center text-danger"
                   onClick={onDelete}
                 >
-                  Delete <i className="bx bx-trash text-muted"></i>
+                  {t("chat.delete")} <i className="bx bx-trash text-muted"></i>
                 </DropdownItem>
               </DropdownMenu>
             </Dropdown>
             <h5 className="font-size-11 text-uppercase text-muted mt-2">
-              More
+              {t("chat.more")}
             </h5>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import classnames from "classnames";
 import { Alert, Button } from "reactstrap";
 
@@ -28,6 +29,7 @@ import AdminPanel from "./Admin";
 
 interface IndexProps {}
 const Index = (props: IndexProps) => {
+  const { t } = useTranslation();
   // global store
   const { dispatch, useAppSelector } = useRedux();
 
@@ -79,10 +81,10 @@ const Index = (props: IndexProps) => {
         event?.sender?.username ||
         event?.senderName ||
         sender?.username ||
-        (event?.senderId ? "A participant" : "ellO");
+        (event?.senderId ? t("chat.participantFallback") : "ellO");
 
       const previousTitle = document.title;
-      document.title = `New message from ${senderName} | ellO`;
+      document.title = t("chat.newMessageFrom", { name: senderName });
       window.setTimeout(() => {
         document.title = previousTitle;
       }, 5000);
@@ -122,7 +124,7 @@ const Index = (props: IndexProps) => {
       socket.off("message:new", handleNewMessage);
       socket.off("conversation:left", handleConversationLeft);
     };
-  }, [dispatch, selectedChat]);
+  }, [dispatch, selectedChat, t]);
 
   const { isChannel } = useConversationUserType();
   const isAdminPanel =
@@ -151,7 +153,7 @@ const Index = (props: IndexProps) => {
             >
               <span>{error}</span>
               <Button color="danger" outline size="sm" onClick={retryChatLists}>
-                Retry
+                {t("calls.retry")}
               </Button>
             </Alert>
           )}

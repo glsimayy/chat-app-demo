@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { UncontrolledTooltip } from "reactstrap";
 
 //components
@@ -22,6 +23,8 @@ const DirectMessages = ({
   selectedChat,
   onSelectChat,
 }: DirectMessagesProps) => {
+  const { t } = useTranslation();
+
   /*
     add contacts
     */
@@ -30,20 +33,20 @@ const DirectMessages = ({
       <div className="d-flex align-items-center px-4 mt-5 mb-2">
         <div className="flex-grow-1">
           <h4 className="mb-0 font-size-11 text-muted text-uppercase">
-            Direct Messages
+            {t("chat.directMessages")}
           </h4>
         </div>
         <div className="flex-shrink-0">
-          <div id="new-message" title="New Message">
+          <div id="new-message" title={t("chat.newMessage")}>
             {/* Button trigger modal */}
             <AddButton
-              ariaLabel="New direct message"
+              ariaLabel={t("chat.newDirectMessage")}
               onClick={openAddContact}
             />{" "}
             {/* contactModal */}
           </div>
           <UncontrolledTooltip target="new-message" placement="bottom">
-            New Message
+            {t("chat.newMessage")}
           </UncontrolledTooltip>
         </div>
       </div>

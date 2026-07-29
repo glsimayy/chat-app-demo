@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Alert,
   Button,
@@ -21,6 +22,7 @@ const ShareContactModal = ({
   onClose,
   onShare,
 }: ShareContactModalProps) => {
+  const { t } = useTranslation();
   const [contacts, setContacts] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,9 +38,9 @@ const ShareContactModal = ({
     setLoading(true);
     getContacts()
       .then(setContacts)
-      .catch(reason => setError(String(reason || "Contacts could not be loaded")))
+      .catch(reason => setError(String(reason || t("chat.contactsLoadFailed"))))
       .finally(() => setLoading(false));
-  }, [isOpen]);
+  }, [isOpen, t]);
 
   const filteredContacts = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -52,12 +54,12 @@ const ShareContactModal = ({
 
   return (
     <Modal isOpen={isOpen} toggle={onClose} centered scrollable>
-      <ModalHeader toggle={onClose}>Share contact</ModalHeader>
+      <ModalHeader toggle={onClose}>{t("chat.shareContact")}</ModalHeader>
       <ModalBody>
         <Input
           type="search"
-          aria-label="Search contacts to share"
-          placeholder="Search contacts"
+          aria-label={t("chat.searchContactsToShare")}
+          placeholder={t("chat.searchContacts")}
           className="mb-3"
           value={search}
           onChange={event => setSearch(event.target.value)}
@@ -82,7 +84,9 @@ const ShareContactModal = ({
               </Button>
             ))}
             {!loading && filteredContacts.length === 0 && (
-              <div className="text-center text-muted p-4">No contacts found</div>
+              <div className="text-center text-muted p-4">
+                {t("chat.noContactsFound")}
+              </div>
             )}
           </div>
         )}

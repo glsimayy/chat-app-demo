@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Alert, Badge, Button, Input, Label, Spinner } from "reactstrap";
 import {
   addConversationParticipant,
@@ -27,6 +28,7 @@ const GroupManagement = ({
   onLeft,
   onOpenDirect,
 }: GroupManagementProps) => {
+  const { t } = useTranslation();
   const conversationId = conversation.id;
   const [participants, setParticipants] = useState<Array<any>>([]);
   const [users, setUsers] = useState<Array<any>>([]);
@@ -67,9 +69,9 @@ const GroupManagement = ({
       setParticipants(nextParticipants.filter((item: any) => !item.leftAt));
       setUsers(nextUsers);
     } catch (loadError: any) {
-      setError(String(loadError || "Group members could not be loaded"));
+      setError(String(loadError || t("groupManagement.membersLoadFailed")));
     }
-  }, [conversationId]);
+  }, [conversationId, t]);
 
   useEffect(() => {
     load();
@@ -105,7 +107,7 @@ const GroupManagement = ({
   const getUser = (userId: string) =>
     users.find(item => item.id === userId) || {
       id: userId,
-      username: "Unknown user",
+      username: t("groupManagement.unknownUser"),
       email: userId,
     };
 
@@ -145,7 +147,7 @@ const GroupManagement = ({
       onChanged();
       return true;
     } catch (actionError: any) {
-      setError(String(actionError || "Group could not be updated"));
+      setError(String(actionError || t("groupManagement.updateFailed")));
       return false;
     } finally {
       setLoading(false);
@@ -159,7 +161,7 @@ const GroupManagement = ({
 
     const succeeded = await runAction(
       () => addConversationParticipant(conversationId, selectedUserId),
-      "Member added",
+      t("groupManagement.memberAdded"),
     );
     if (succeeded) {
       setSelectedUserId("");
@@ -167,13 +169,17 @@ const GroupManagement = ({
   };
 
   const removeParticipant = async (userId: string) => {
-    if (!window.confirm(`Remove ${userLabel(userId)} from this group?`)) {
+    if (
+      !window.confirm(
+        t("groupManagement.confirmRemove", { name: userLabel(userId) }),
+      )
+    ) {
       return;
     }
 
     await runAction(
       () => removeConversationParticipant(conversationId, userId),
-      "Member removed",
+      t("groupManagement.memberRemoved"),
     );
   };
 
@@ -184,7 +190,7 @@ const GroupManagement = ({
           name: groupName.trim(),
           description: description.trim(),
         }),
-      "Group details updated",
+      t("groupManagement.detailsUpdated"),
     );
 
   const updateMessagePolicy = async (enabled: boolean) => {
@@ -197,8 +203,8 @@ const GroupManagement = ({
           memberCanSendMessages: enabled,
         }),
       enabled
-        ? "Members can now send messages"
-        : "Member messaging disabled",
+        ? t("groupManagement.membersCanSend")
+        : t("groupManagement.memberMessagingDisabled"),
     );
 
     if (!succeeded) {
@@ -215,7 +221,9 @@ const GroupManagement = ({
         updateGroupConversation(conversationId, {
           membersCanLeave: enabled,
         }),
-      enabled ? "Members can now leave" : "Member leaving disabled",
+      enabled
+        ? t("groupManagement.membersCanLeave")
+        : t("groupManagement.memberLeavingDisabled"),
     );
 
     if (!succeeded) {
@@ -232,7 +240,7 @@ const GroupManagement = ({
         updateGroupConversation(conversationId, {
           status: nextStatus,
         }),
-      "Group status updated",
+      t("groupManagement.statusUpdated"),
     );
 
     if (!succeeded) {
@@ -248,7 +256,9 @@ const GroupManagement = ({
           participant.userId,
           participant.role === "manager" ? "member" : "manager",
         ),
-      participant.role === "manager" ? "Manager removed" : "Manager assigned",
+      participant.role === "manager"
+        ? t("groupManagement.managerRemoved")
+        : t("groupManagement.managerAssigned"),
     );
 
   const transferOwner = async () => {
@@ -256,13 +266,19 @@ const GroupManagement = ({
       return;
     }
 
-    if (!window.confirm(`Transfer ownership to ${userLabel(ownerUserId)}?`)) {
+    if (
+      !window.confirm(
+        t("groupManagement.confirmTransfer", {
+          name: userLabel(ownerUserId),
+        }),
+      )
+    ) {
       return;
     }
 
     await runAction(
       () => transferConversationOwner(conversationId, ownerUserId),
-      "Group ownership transferred",
+      t("groupManagement.ownershipTransferred"),
     );
     setOwnerUserId("");
   };
@@ -272,7 +288,7 @@ const GroupManagement = ({
       return;
     }
 
-    if (!window.confirm("Leave this group?")) {
+    if (!window.confirm(t("groupManagement.confirmLeave"))) {
       return;
     }
 
@@ -282,7 +298,7 @@ const GroupManagement = ({
       await leaveConversation(conversationId);
       onLeft();
     } catch (leaveError: any) {
-      setError(String(leaveError || "Group could not be left"));
+      setError(String(leaveError || t("groupManagement.leaveFailed")));
       setLoading(false);
     }
   };
@@ -293,7 +309,7 @@ const GroupManagement = ({
       setError("");
       await onOpenDirect(userId);
     } catch (openError: any) {
-      setError(String(openError || "Direct conversation could not be opened"));
+      setError(String(openError || t("groupManagement.directFailed")));
     } finally {
       setOpeningUserId("");
     }
@@ -317,23 +333,25 @@ const GroupManagement = ({
         aria-labelledby="group-overview-heading"
       >
         <h5 id="group-overview-heading" className="group-info-heading">
-          Group overview
+          {t("groupManagement.overview")}
         </h5>
         <dl className="group-info-facts mb-0">
           <div>
-            <dt>Ownership</dt>
+            <dt>{t("groupManagement.ownership")}</dt>
             <dd>
               {conversation.isBotManaged ? (
-                <Badge color="info">BOT managed</Badge>
+                <Badge color="info">{t("groupManagement.botManaged")}</Badge>
               ) : owner ? (
                 <span>{userLabel(owner.userId)}</span>
               ) : (
-                <span className="text-warning">No human owner</span>
+                <span className="text-warning">
+                  {t("groupManagement.noHumanOwner")}
+                </span>
               )}
             </dd>
           </div>
           <div>
-            <dt>Status</dt>
+            <dt>{t("groupManagement.status")}</dt>
             <dd>
               <Badge
                 color={
@@ -344,31 +362,33 @@ const GroupManagement = ({
                       : "secondary"
                 }
               >
-                {status}
+                {t(`groupManagement.${status}`)}
               </Badge>
             </dd>
           </div>
           <div>
-            <dt>Source</dt>
+            <dt>{t("groupManagement.source")}</dt>
             <dd>
               {conversation.sourceName ||
-                (conversation.isBotManaged ? "Automation" : "Manual")}
+                (conversation.isBotManaged
+                  ? t("groupManagement.automation")
+                  : t("groupManagement.manual"))}
             </dd>
           </div>
           <div>
-            <dt>Messaging</dt>
+            <dt>{t("groupManagement.messaging")}</dt>
             <dd>
               {conversation.memberCanSendMessages
-                ? "All members"
-                : "Management only"}
+                ? t("groupManagement.allMembers")
+                : t("groupManagement.managementOnly")}
             </dd>
           </div>
           <div>
-            <dt>Leaving</dt>
+            <dt>{t("groupManagement.leaving")}</dt>
             <dd>
               {conversation.membersCanLeave
-                ? "Members may leave"
-                : "Restricted"}
+                ? t("groupManagement.membersMayLeave")
+                : t("groupManagement.restricted")}
             </dd>
           </div>
         </dl>
@@ -380,14 +400,14 @@ const GroupManagement = ({
           aria-labelledby="group-details-heading"
         >
           <h5 id="group-details-heading" className="group-info-heading">
-            Details
+            {t("groupManagement.details")}
           </h5>
           <div className="mb-3">
             <Label
               className="form-label font-size-12"
               htmlFor="group-name-input"
             >
-              Group name
+              {t("groupManagement.groupName")}
             </Label>
             <Input
               id="group-name-input"
@@ -402,7 +422,7 @@ const GroupManagement = ({
               className="form-label font-size-12"
               htmlFor="group-description-input"
             >
-              Description
+              {t("groupManagement.description")}
             </Label>
             <Input
               id="group-description-input"
@@ -417,12 +437,12 @@ const GroupManagement = ({
           <Button
             color="primary"
             className="w-100"
-            aria-label="Save group details"
+            aria-label={t("groupManagement.saveDetails")}
             disabled={loading || groupName.trim().length < 3}
             onClick={saveGroupDetails}
           >
             <i className="bx bx-save me-1" aria-hidden="true"></i>
-            Save group details
+            {t("groupManagement.saveDetails")}
           </Button>
         </section>
       )}
@@ -433,7 +453,7 @@ const GroupManagement = ({
       >
         <div className="d-flex align-items-center justify-content-between gap-2 mb-3">
           <h5 id="group-members-heading" className="group-info-heading mb-0">
-            Members
+            {t("groupManagement.members")}
           </h5>
           <Badge color="light" className="text-body">
             {participants.length}
@@ -461,12 +481,16 @@ const GroupManagement = ({
                   className="group-member-main"
                   title={
                     canOpenDirect
-                      ? `Message ${userLabel(participant.userId)}`
+                      ? t("groupManagement.messageUser", {
+                          name: userLabel(participant.userId),
+                        })
                       : undefined
                   }
                   aria-label={
                     canOpenDirect
-                      ? `Message ${userLabel(participant.userId)}`
+                      ? t("groupManagement.messageUser", {
+                          name: userLabel(participant.userId),
+                        })
                       : undefined
                   }
                   disabled={
@@ -487,7 +511,9 @@ const GroupManagement = ({
                     <strong>{userLabel(participant.userId)}</strong>
                     <small>
                       {user.email ||
-                        (bot ? "Automation account" : "Group member")}
+                        (bot
+                          ? t("groupManagement.automationAccount")
+                          : t("groupManagement.groupMember"))}
                     </small>
                   </span>
                   {openingUserId === participant.userId && (
@@ -506,11 +532,13 @@ const GroupManagement = ({
                             : "secondary"
                     }
                   >
-                    {bot ? "BOT" : participant.role}
+                    {bot
+                      ? "BOT"
+                      : t(`groupManagement.role.${participant.role}`)}
                   </Badge>
                   {user.role === "admin" && !bot && (
                     <Badge color="light" className="text-body">
-                      global admin
+                      {t("groupManagement.globalAdmin")}
                     </Badge>
                   )}
                   {canChangeSettings &&
@@ -521,13 +549,17 @@ const GroupManagement = ({
                         size="sm"
                         title={
                           participant.role === "manager"
-                            ? "Remove manager role"
-                            : "Make manager"
+                            ? t("groupManagement.removeManagerRole")
+                            : t("groupManagement.makeManager")
                         }
                         aria-label={
                           participant.role === "manager"
-                            ? `Remove manager role from ${userLabel(participant.userId)}`
-                            : `Make ${userLabel(participant.userId)} manager`
+                            ? t("groupManagement.removeManagerFrom", {
+                                name: userLabel(participant.userId),
+                              })
+                            : t("groupManagement.makeUserManager", {
+                                name: userLabel(participant.userId),
+                              })
                         }
                         disabled={loading}
                         onClick={() => toggleManager(participant)}
@@ -547,8 +579,10 @@ const GroupManagement = ({
                       color="light"
                       size="sm"
                       className="text-danger"
-                      title="Remove member"
-                      aria-label={`Remove ${userLabel(participant.userId)}`}
+                      title={t("groupManagement.removeMember")}
+                      aria-label={t("groupManagement.removeUser", {
+                        name: userLabel(participant.userId),
+                      })}
                       disabled={loading}
                       onClick={() => removeParticipant(participant.userId)}
                     >
@@ -565,12 +599,12 @@ const GroupManagement = ({
           <div className="input-group mt-3">
             <Input
               type="select"
-              aria-label="Select member to add"
+              aria-label={t("groupManagement.selectMember")}
               value={selectedUserId}
               disabled={loading}
               onChange={event => setSelectedUserId(event.target.value)}
             >
-              <option value="">Add member...</option>
+              <option value="">{t("groupManagement.addMember")}</option>
               {availableUsers.map(user => (
                 <option value={user.id} key={user.id}>
                   {user.username || user.email}
@@ -579,8 +613,8 @@ const GroupManagement = ({
             </Input>
             <Button
               color="primary"
-              title="Add member"
-              aria-label="Add selected member"
+              title={t("groupManagement.addMember")}
+              aria-label={t("groupManagement.addSelectedMember")}
               disabled={!selectedUserId || loading}
               onClick={addParticipant}
             >
@@ -600,7 +634,7 @@ const GroupManagement = ({
           aria-labelledby="group-policies-heading"
         >
           <h5 id="group-policies-heading" className="group-info-heading">
-            Policies
+            {t("groupManagement.policies")}
           </h5>
           <div className="form-check form-switch mb-3">
             <Input
@@ -611,7 +645,7 @@ const GroupManagement = ({
               onChange={event => void updateMessagePolicy(event.target.checked)}
             />
             <Label className="form-check-label" htmlFor="group-message-policy">
-              Members can message
+              {t("groupManagement.membersCanMessage")}
             </Label>
           </div>
           <div className="form-check form-switch mb-3">
@@ -623,29 +657,29 @@ const GroupManagement = ({
               onChange={event => void updateLeavePolicy(event.target.checked)}
             />
             <Label className="form-check-label" htmlFor="group-leave-policy">
-              Members can leave
+              {t("groupManagement.membersCanLeavePolicy")}
             </Label>
           </div>
           <Label
             className="form-label font-size-12"
             htmlFor="group-status-input"
           >
-            Group status
+            {t("groupManagement.groupStatus")}
           </Label>
           <Input
             id="group-status-input"
             type="select"
-            aria-label="Group status"
+            aria-label={t("groupManagement.groupStatus")}
             value={status}
             disabled={loading}
             onChange={event => void updateGroupStatus(event.target.value)}
           >
-            <option value="active">Active</option>
-            <option value="closed">Closed</option>
-            <option value="archived">Archived</option>
+            <option value="active">{t("groupManagement.active")}</option>
+            <option value="closed">{t("groupManagement.closed")}</option>
+            <option value="archived">{t("groupManagement.archived")}</option>
           </Input>
           <p className="text-muted small mb-0 mt-3">
-            Policy changes are saved automatically.
+            {t("groupManagement.policiesAutoSave")}
           </p>
         </section>
       )}
@@ -656,18 +690,18 @@ const GroupManagement = ({
           aria-labelledby="group-ownership-heading"
         >
           <h5 id="group-ownership-heading" className="group-info-heading">
-            Ownership
+            {t("groupManagement.ownership")}
           </h5>
           <div className="input-group">
             <Input
               type="select"
               id="group-owner-input"
-              aria-label="Transfer ownership"
+              aria-label={t("groupManagement.transferOwnership")}
               value={ownerUserId}
               disabled={loading}
               onChange={event => setOwnerUserId(event.target.value)}
             >
-              <option value="">Select new owner...</option>
+              <option value="">{t("groupManagement.selectNewOwner")}</option>
               {ownerCandidates.map(participant => (
                 <option value={participant.userId} key={participant.userId}>
                   {userLabel(participant.userId)}
@@ -676,8 +710,8 @@ const GroupManagement = ({
             </Input>
             <Button
               color="primary"
-              title="Transfer ownership"
-              aria-label="Transfer ownership"
+              title={t("groupManagement.transferOwnership")}
+              aria-label={t("groupManagement.transferOwnership")}
               disabled={!ownerUserId || loading}
               onClick={transferOwner}
             >
@@ -693,10 +727,12 @@ const GroupManagement = ({
           aria-labelledby="group-membership-heading"
         >
           <h5 id="group-membership-heading" className="group-info-heading">
-            Your membership
+            {t("groupManagement.yourMembership")}
           </h5>
           <p className="text-muted font-size-12">
-            You are a <strong>{currentParticipant.role}</strong> in this group.
+            {t("groupManagement.membershipDescription", {
+              role: t(`groupManagement.role.${currentParticipant.role}`),
+            })}
           </p>
           <Button
             outline
@@ -704,16 +740,16 @@ const GroupManagement = ({
             className="w-100"
             title={
               isOwner
-                ? "Transfer ownership before leaving"
+                ? t("groupManagement.transferBeforeLeaving")
                 : !conversation.membersCanLeave
-                  ? "Members cannot leave this group"
-                  : "Leave group"
+                  ? t("groupManagement.membersCannotLeave")
+                  : t("groupManagement.leaveGroup")
             }
             disabled={loading || isOwner || !conversation.membersCanLeave}
             onClick={leaveGroup}
           >
             <i className="bx bx-log-out me-1" aria-hidden="true"></i>
-            Leave group
+            {t("groupManagement.leaveGroup")}
           </Button>
         </section>
       )}

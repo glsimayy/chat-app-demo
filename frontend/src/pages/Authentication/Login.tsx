@@ -20,9 +20,11 @@ import NonAuthLayoutWrapper from "../../components/NonAutnLayoutWrapper";
 import AuthHeader from "../../components/AuthHeader";
 import FormInput from "../../components/FormInput";
 import Loader from "../../components/Loader";
+import { useTranslation } from "react-i18next";
 
 interface LoginProps {}
 const Login = (props: LoginProps) => {
+  const { t } = useTranslation();
   // global store
   const { dispatch, useAppSelector } = useRedux();
 
@@ -89,9 +91,9 @@ const Login = (props: LoginProps) => {
     yup.object().shape({
       email: yup
         .string()
-        .email("Please enter a valid email address.")
-        .required("Please enter your email address."),
-      password: yup.string().required("Please Enter Password."),
+        .email(t("auth.validation.validEmail"))
+        .required(t("auth.validation.emailRequired")),
+      password: yup.string().required(t("auth.validation.passwordRequired")),
     }),
   );
 
@@ -124,14 +126,16 @@ const Login = (props: LoginProps) => {
         <Col sm={8} lg={6} xl={5} className="col-xxl-4">
           <div className="py-md-5 py-4">
             <AuthHeader
-              title="Welcome Back !"
-              subtitle="Sign in to continue to ellO."
+              title={t("auth.welcomeBack")}
+              subtitle={t("auth.signInSubtitle")}
             />
 
             {error && (
               <Alert color="danger">
                 {retryAfterSeconds > 0
-                  ? `${error} Try again in ${retryAfterSeconds} seconds.`
+                  ? `${error} ${t("auth.retrySentence", {
+                      count: retryAfterSeconds,
+                    })}`
                   : error}
               </Alert>
             )}
@@ -143,21 +147,21 @@ const Login = (props: LoginProps) => {
               {loginLoading && <Loader />}
               <div className="mb-3">
                 <FormInput
-                  label="Email"
+                  label={t("auth.email")}
                   type="text"
                   name="email"
                   register={register}
                   errors={errors}
                   control={control}
                   labelClassName="form-label"
-                  placeholder="Enter email"
+                  placeholder={t("auth.enterEmail")}
                   className="form-control"
                 />
               </div>
 
               <div className="mb-3">
                 <FormInput
-                  label="Password"
+                  label={t("auth.password")}
                   type="password"
                   name="password"
                   register={register}
@@ -165,7 +169,7 @@ const Login = (props: LoginProps) => {
                   control={control}
                   labelClassName="form-label"
                   className="form-control pe-5"
-                  placeholder="Enter Password"
+                  placeholder={t("auth.enterPassword")}
                 />
               </div>
 
@@ -179,7 +183,7 @@ const Login = (props: LoginProps) => {
                   className="form-check-label font-size-14"
                   htmlFor="remember-check"
                 >
-                  Remember me
+                  {t("auth.rememberMe")}
                 </Label>
               </div>
 
@@ -191,21 +195,21 @@ const Login = (props: LoginProps) => {
                   disabled={loginLoading || retryAfterSeconds > 0}
                 >
                   {retryAfterSeconds > 0
-                    ? `Try again in ${retryAfterSeconds}s`
-                    : "Log In"}
+                    ? t("auth.retryIn", { count: retryAfterSeconds })
+                    : t("auth.login")}
                 </Button>
               </div>
             </Form>
 
             <div className="mt-5 text-center text-muted">
               <p>
-                Don't have an account ?{" "}
+                {t("auth.noAccount")}{" "}
                 <Link
                   to="/auth-register"
                   className="fw-medium text-decoration-underline"
                 >
                   {" "}
-                  Register
+                  {t("auth.register")}
                 </Link>
               </p>
             </div>

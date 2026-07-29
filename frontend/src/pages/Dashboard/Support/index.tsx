@@ -1,4 +1,6 @@
 import React, { FormEvent, useCallback, useEffect, useState } from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import {
   Alert,
   Badge,
@@ -37,17 +39,17 @@ import {
   showSuccessNotification,
 } from "../../../helpers/notifications";
 
-const PRIORITY_LABELS: Record<SupportTicketPriority, string> = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
+const PRIORITY_LABEL_KEYS: Record<SupportTicketPriority, string> = {
+  low: "support.low",
+  medium: "support.medium",
+  high: "support.high",
 };
 
-const STATUS_LABELS: Record<SupportTicketStatus, string> = {
-  open: "Open",
-  in_progress: "In progress",
-  resolved: "Resolved",
-  closed: "Closed",
+const STATUS_LABEL_KEYS: Record<SupportTicketStatus, string> = {
+  open: "support.open",
+  in_progress: "support.inProgress",
+  resolved: "support.resolved",
+  closed: "support.closed",
 };
 
 const STATUS_COLORS: Record<SupportTicketStatus, string> = {
@@ -57,17 +59,24 @@ const STATUS_COLORS: Record<SupportTicketStatus, string> = {
   closed: "secondary",
 };
 
-const formatTicketDate = (value: string) =>
-  new Intl.DateTimeFormat(undefined, {
+const formatTicketDate = (value: string, locale?: string) =>
+  new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
 
-const getAdminName = (adminId: string | null, admins: SupportTicketUser[]) => {
+const getAdminName = (
+  adminId: string | null,
+  admins: SupportTicketUser[],
+  t: TFunction,
+) => {
   if (!adminId) {
-    return "Unassigned";
+    return t("support.unassigned");
   }
-  return admins.find(admin => admin.id === adminId)?.username || "Former admin";
+  return (
+    admins.find(admin => admin.id === adminId)?.username ||
+    t("support.formerAdmin")
+  );
 };
 
 interface TicketRealtimeEvent {
@@ -79,30 +88,51 @@ interface TicketRealtimeEvent {
 const describeActivity = (
   activity: SupportTicketActivity,
   admins: SupportTicketUser[],
+  t: TFunction,
 ) => {
   switch (activity.action) {
     case "created":
-      return "Created the support request";
+      return t("support.activityCreated");
     case "assigned":
-      return `Assigned to ${getAdminName(activity.toValue, admins)}`;
+      return t("support.activityAssigned", {
+        name: getAdminName(activity.toValue, admins, t),
+      });
     case "unassigned":
-      return "Moved the ticket back to the unassigned queue";
+      return t("support.activityUnassigned");
     case "transferred":
-      return `Transferred from ${getAdminName(activity.fromValue, admins)} to ${getAdminName(activity.toValue, admins)}`;
+      return t("support.activityTransferred", {
+        from: getAdminName(activity.fromValue, admins, t),
+        to: getAdminName(activity.toValue, admins, t),
+      });
     case "status_changed":
-      return `Changed status from ${STATUS_LABELS[activity.fromValue as SupportTicketStatus] || activity.fromValue} to ${STATUS_LABELS[activity.toValue as SupportTicketStatus] || activity.toValue}`;
+      return t("support.activityStatusChanged", {
+        from:
+          t(STATUS_LABEL_KEYS[activity.fromValue as SupportTicketStatus]) ||
+          activity.fromValue,
+        to:
+          t(STATUS_LABEL_KEYS[activity.toValue as SupportTicketStatus]) ||
+          activity.toValue,
+      });
     case "priority_changed":
-      return `Changed priority from ${PRIORITY_LABELS[activity.fromValue as SupportTicketPriority] || activity.fromValue} to ${PRIORITY_LABELS[activity.toValue as SupportTicketPriority] || activity.toValue}`;
+      return t("support.activityPriorityChanged", {
+        from:
+          t(PRIORITY_LABEL_KEYS[activity.fromValue as SupportTicketPriority]) ||
+          activity.fromValue,
+        to:
+          t(PRIORITY_LABEL_KEYS[activity.toValue as SupportTicketPriority]) ||
+          activity.toValue,
+      });
     case "note_updated":
       return activity.toValue === "set"
-        ? "Updated the support response"
-        : "Cleared the support response";
+        ? t("support.activityNoteUpdated")
+        : t("support.activityNoteCleared");
     default:
-      return "Updated the ticket";
+      return t("support.activityUpdated");
   }
 };
 
 const Support = () => {
+  const { t, i18n } = useTranslation();
   const currentUser = getCurrentAuthUser();
   const currentUserId = String(currentUser?.id || currentUser?.uid || "");
   const isAdmin = currentUser?.role === "admin";
@@ -149,16 +179,14 @@ const Support = () => {
         });
         setTickets(response.items || []);
       } catch (requestError: any) {
-        setError(
-          String(requestError || "Support tickets could not be loaded."),
-        );
+        setError(String(requestError || t("support.loadFailed")));
       } finally {
         if (showLoading) {
           setLoading(false);
         }
       }
     },
-    [assignmentFilter, isAdmin, priorityFilter, search, statusFilter],
+    [assignmentFilter, isAdmin, priorityFilter, search, statusFilter, t],
   );
 
   useEffect(() => {
@@ -236,7 +264,7 @@ const Support = () => {
   }, [loadTickets, refreshTicket, selectedTicket?.id]);
 
   const handleActionError = async (requestError: any, ticketId: string) => {
-    showErrorNotification(String(requestError || "Ticket update failed."));
+    showErrorNotification(String(requestError || t("support.updateFailed")));
     await Promise.all([loadTickets(), refreshTicket(ticketId)]);
   };
 
@@ -248,12 +276,10 @@ const Support = () => {
       setSubject("");
       setMessage("");
       setPriority("medium");
-      showSuccessNotification("Support request sent.");
+      showSuccessNotification(t("support.requestSent"));
       await loadTickets();
     } catch (requestError: any) {
-      showErrorNotification(
-        String(requestError || "Support request could not be sent."),
-      );
+      showErrorNotification(String(requestError || t("support.sendFailed")));
     } finally {
       setSubmitting(false);
     }
@@ -278,7 +304,7 @@ const Support = () => {
           )
         : await claimSupportTicket(selectedTicket.id, selectedTicket.version);
       syncTicket(updated);
-      showSuccessNotification("Ticket assigned to you.");
+      showSuccessNotification(t("support.assignedSuccess"));
       await loadTickets();
     } catch (requestError: any) {
       await handleActionError(requestError, selectedTicket.id);
@@ -299,7 +325,7 @@ const Support = () => {
         selectedTicket.version,
       );
       syncTicket(updated);
-      showSuccessNotification("Ticket assignment updated.");
+      showSuccessNotification(t("support.assignmentUpdated"));
       await loadTickets();
     } catch (requestError: any) {
       await handleActionError(requestError, selectedTicket.id);
@@ -321,7 +347,7 @@ const Support = () => {
         adminNote,
       });
       syncTicket(updated);
-      showSuccessNotification("Support ticket updated.");
+      showSuccessNotification(t("support.ticketUpdated"));
       await loadTickets();
     } catch (requestError: any) {
       await handleActionError(requestError, selectedTicket.id);
@@ -338,7 +364,9 @@ const Support = () => {
 
   return (
     <div className="support-panel position-relative">
-      <LeftbarTitle title={isAdmin ? "Support Tickets" : "Support"} />
+      <LeftbarTitle
+        title={t(isAdmin ? "support.ticketsTitle" : "support.title")}
+      />
       <AppSimpleBar className="support-panel-scroll">
         <div className="px-4 pb-4">
           {!isAdmin && (
@@ -346,22 +374,22 @@ const Support = () => {
               className="support-create-section"
               aria-labelledby="support-create-title"
             >
-              <h5 id="support-create-title">Create Support Request</h5>
+              <h5 id="support-create-title">{t("support.createRequest")}</h5>
               <Form onSubmit={submitTicket}>
                 <FormGroup>
-                  <Label for="support-subject">Subject</Label>
+                  <Label for="support-subject">{t("support.subject")}</Label>
                   <Input
                     id="support-subject"
                     value={subject}
                     onChange={event => setSubject(event.target.value)}
                     minLength={3}
                     maxLength={120}
-                    placeholder="Subject"
+                    placeholder={t("support.subject")}
                     required
                   />
                 </FormGroup>
                 <FormGroup>
-                  <Label for="support-message">Message</Label>
+                  <Label for="support-message">{t("support.message")}</Label>
                   <Input
                     id="support-message"
                     type="textarea"
@@ -369,13 +397,13 @@ const Support = () => {
                     onChange={event => setMessage(event.target.value)}
                     minLength={10}
                     maxLength={2000}
-                    placeholder="Your message"
+                    placeholder={t("support.yourMessage")}
                     rows={4}
                     required
                   />
                 </FormGroup>
                 <FormGroup>
-                  <Label for="support-priority">Priority</Label>
+                  <Label for="support-priority">{t("support.priority")}</Label>
                   <Input
                     id="support-priority"
                     type="select"
@@ -384,9 +412,9 @@ const Support = () => {
                       setPriority(event.target.value as SupportTicketPriority)
                     }
                   >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
+                    <option value="low">{t("support.low")}</option>
+                    <option value="medium">{t("support.medium")}</option>
+                    <option value="high">{t("support.high")}</option>
                   </Input>
                 </FormGroup>
                 <Button
@@ -396,11 +424,11 @@ const Support = () => {
                   block
                 >
                   {submitting ? (
-                    <Spinner size="sm" aria-label="Sending support request" />
+                    <Spinner size="sm" aria-label={t("support.sending")} />
                   ) : (
                     <>
                       <i className="bx bx-send me-2" aria-hidden="true"></i>
-                      Send
+                      {t("support.send")}
                     </>
                   )}
                 </Button>
@@ -414,15 +442,15 @@ const Support = () => {
           >
             <div className="d-flex align-items-center justify-content-between gap-2 mb-3">
               <h5 id="support-list-title" className="mb-0">
-                {isAdmin ? "Shared Queue" : "My Requests"}
+                {t(isAdmin ? "support.sharedQueue" : "support.myRequests")}
               </h5>
               <Button
                 color="light"
                 size="sm"
                 className="support-refresh-button"
                 onClick={() => void loadTickets()}
-                aria-label="Refresh support tickets"
-                title="Refresh"
+                aria-label={t("support.refreshTickets")}
+                title={t("support.refresh")}
               >
                 <i className="bx bx-refresh" aria-hidden="true"></i>
               </Button>
@@ -433,8 +461,8 @@ const Support = () => {
                 <Input
                   value={search}
                   onChange={event => setSearch(event.target.value)}
-                  placeholder="Search tickets"
-                  aria-label="Search support tickets"
+                  placeholder={t("support.searchTickets")}
+                  aria-label={t("support.searchTicketsAria")}
                 />
                 <Input
                   type="select"
@@ -444,37 +472,41 @@ const Support = () => {
                       event.target.value as SupportTicketAssignment,
                     )
                   }
-                  aria-label="Filter support tickets by assignment"
+                  aria-label={t("support.filterAssignment")}
                 >
-                  <option value="all">All assignments</option>
-                  <option value="mine">Assigned to me</option>
-                  <option value="unassigned">Unassigned</option>
+                  <option value="all">{t("support.allAssignments")}</option>
+                  <option value="mine">{t("support.assignedToMe")}</option>
+                  <option value="unassigned">{t("support.unassigned")}</option>
                 </Input>
                 <Input
                   type="select"
                   value={statusFilter}
                   onChange={event => setStatusFilter(event.target.value)}
-                  aria-label="Filter support tickets by status"
+                  aria-label={t("support.filterStatus")}
                 >
-                  <option value="">All statuses</option>
-                  {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
+                  <option value="">{t("support.allStatuses")}</option>
+                  {Object.entries(STATUS_LABEL_KEYS).map(
+                    ([value, labelKey]) => (
+                      <option key={value} value={value}>
+                        {t(labelKey)}
+                      </option>
+                    ),
+                  )}
                 </Input>
                 <Input
                   type="select"
                   value={priorityFilter}
                   onChange={event => setPriorityFilter(event.target.value)}
-                  aria-label="Filter support tickets by priority"
+                  aria-label={t("support.filterPriority")}
                 >
-                  <option value="">All priorities</option>
-                  {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
+                  <option value="">{t("support.allPriorities")}</option>
+                  {Object.entries(PRIORITY_LABEL_KEYS).map(
+                    ([value, labelKey]) => (
+                      <option key={value} value={value}>
+                        {t(labelKey)}
+                      </option>
+                    ),
+                  )}
                 </Input>
               </div>
             )}
@@ -482,12 +514,12 @@ const Support = () => {
             {error && <Alert color="danger">{error}</Alert>}
             {loading ? (
               <div className="support-loading text-muted">
-                <Spinner size="sm" /> Loading...
+                <Spinner size="sm" /> {t("support.loading")}
               </div>
             ) : tickets.length === 0 ? (
               <div className="support-empty text-muted">
                 <i className="bx bx-support" aria-hidden="true"></i>
-                <span>No support requests found.</span>
+                <span>{t("support.noRequests")}</span>
               </div>
             ) : (
               <div className="support-ticket-list">
@@ -501,25 +533,31 @@ const Support = () => {
                     <span className="support-ticket-heading">
                       <strong>{ticket.subject}</strong>
                       <Badge color={STATUS_COLORS[ticket.status]} pill>
-                        {STATUS_LABELS[ticket.status]}
+                        {t(STATUS_LABEL_KEYS[ticket.status])}
                       </Badge>
                     </span>
                     {isAdmin && (
                       <span className="support-ticket-requester">
-                        {ticket.requester?.username || "Deleted user"}
+                        {ticket.requester?.username || t("support.deletedUser")}
                       </span>
                     )}
                     <span className="support-ticket-assignee">
                       <i className="bx bx-user-check" aria-hidden="true"></i>
-                      {ticket.assignedAdmin?.username || "Unassigned"}
+                      {ticket.assignedAdmin?.username ||
+                        t("support.unassigned")}
                     </span>
                     <span className="support-ticket-preview">
                       {ticket.message}
                     </span>
                     <span className="support-ticket-meta">
-                      {PRIORITY_LABELS[ticket.priority]} priority
+                      {t("support.priorityLabel", {
+                        priority: t(PRIORITY_LABEL_KEYS[ticket.priority]),
+                      })}
                       <time dateTime={ticket.createdAt}>
-                        {formatTicketDate(ticket.createdAt)}
+                        {formatTicketDate(
+                          ticket.createdAt,
+                          i18n.resolvedLanguage,
+                        )}
                       </time>
                     </span>
                   </button>
@@ -546,15 +584,25 @@ const Support = () => {
             <ModalBody>
               <div className="support-ticket-detail-meta">
                 <Badge color={STATUS_COLORS[selectedTicket.status]} pill>
-                  {STATUS_LABELS[selectedTicket.status]}
+                  {t(STATUS_LABEL_KEYS[selectedTicket.status])}
                 </Badge>
-                <span>{PRIORITY_LABELS[selectedTicket.priority]} priority</span>
                 <span>
-                  Assigned to{" "}
-                  {selectedTicket.assignedAdmin?.username || "nobody"}
+                  {t("support.priorityLabel", {
+                    priority: t(PRIORITY_LABEL_KEYS[selectedTicket.priority]),
+                  })}
+                </span>
+                <span>
+                  {t("support.assignedTo", {
+                    name:
+                      selectedTicket.assignedAdmin?.username ||
+                      t("support.nobody"),
+                  })}
                 </span>
                 <time dateTime={selectedTicket.createdAt}>
-                  {formatTicketDate(selectedTicket.createdAt)}
+                  {formatTicketDate(
+                    selectedTicket.createdAt,
+                    i18n.resolvedLanguage,
+                  )}
                 </time>
               </div>
               {isAdmin && selectedTicket.requester && (
@@ -569,7 +617,7 @@ const Support = () => {
                 <>
                   <section className="support-assignment-section">
                     <div className="support-section-heading">
-                      <h6>Assignment</h6>
+                      <h6>{t("support.assignment")}</h6>
                       {!isAssignedToMe && (
                         <Button
                           color="primary"
@@ -581,7 +629,7 @@ const Support = () => {
                             className="bx bx-user-plus me-1"
                             aria-hidden="true"
                           ></i>
-                          Assign to me
+                          {t("support.assignToMe")}
                         </Button>
                       )}
                     </div>
@@ -590,9 +638,9 @@ const Support = () => {
                         type="select"
                         value={editAssignee}
                         onChange={event => setEditAssignee(event.target.value)}
-                        aria-label="Ticket assignee"
+                        aria-label={t("support.ticketAssignee")}
                       >
-                        <option value="">Unassigned</option>
+                        <option value="">{t("support.unassigned")}</option>
                         {admins.map(admin => (
                           <option key={admin.id} value={admin.id}>
                             {admin.username}
@@ -605,7 +653,11 @@ const Support = () => {
                         onClick={saveAssignment}
                         disabled={!assignmentChanged || assignmentSaving}
                       >
-                        {assignmentSaving ? <Spinner size="sm" /> : "Apply"}
+                        {assignmentSaving ? (
+                          <Spinner size="sm" />
+                        ) : (
+                          t("support.apply")
+                        )}
                       </Button>
                     </div>
                   </section>
@@ -613,15 +665,17 @@ const Support = () => {
                   {!isAssignedToMe && (
                     <Alert color="warning" className="mt-3 mb-0">
                       {selectedTicket.assignedAdmin
-                        ? `This ticket is assigned to ${selectedTicket.assignedAdmin.username}. Assign it to yourself or transfer it before editing.`
-                        : "This ticket is unassigned. Claim it before editing."}
+                        ? t("support.assignedWarning", {
+                            name: selectedTicket.assignedAdmin.username,
+                          })
+                        : t("support.unassignedWarning")}
                     </Alert>
                   )}
 
                   <Form className="support-resolution-form">
                     <div className="row g-3">
                       <FormGroup className="col-sm-6 mb-0">
-                        <Label for="ticket-status">Status</Label>
+                        <Label for="ticket-status">{t("common.status")}</Label>
                         <Input
                           id="ticket-status"
                           type="select"
@@ -633,17 +687,19 @@ const Support = () => {
                             )
                           }
                         >
-                          {Object.entries(STATUS_LABELS).map(
-                            ([value, label]) => (
+                          {Object.entries(STATUS_LABEL_KEYS).map(
+                            ([value, labelKey]) => (
                               <option key={value} value={value}>
-                                {label}
+                                {t(labelKey)}
                               </option>
                             ),
                           )}
                         </Input>
                       </FormGroup>
                       <FormGroup className="col-sm-6 mb-0">
-                        <Label for="ticket-edit-priority">Priority</Label>
+                        <Label for="ticket-edit-priority">
+                          {t("support.priority")}
+                        </Label>
                         <Input
                           id="ticket-edit-priority"
                           type="select"
@@ -655,10 +711,10 @@ const Support = () => {
                             )
                           }
                         >
-                          {Object.entries(PRIORITY_LABELS).map(
-                            ([value, label]) => (
+                          {Object.entries(PRIORITY_LABEL_KEYS).map(
+                            ([value, labelKey]) => (
                               <option key={value} value={value}>
-                                {label}
+                                {t(labelKey)}
                               </option>
                             ),
                           )}
@@ -666,7 +722,9 @@ const Support = () => {
                       </FormGroup>
                     </div>
                     <FormGroup className="mt-3 mb-0">
-                      <Label for="ticket-admin-note">Support response</Label>
+                      <Label for="ticket-admin-note">
+                        {t("support.supportResponse")}
+                      </Label>
                       <Input
                         id="ticket-admin-note"
                         type="textarea"
@@ -675,13 +733,13 @@ const Support = () => {
                         value={adminNote}
                         disabled={!isAssignedToMe}
                         onChange={event => setAdminNote(event.target.value)}
-                        placeholder="Add a response or resolution note"
+                        placeholder={t("support.responsePlaceholder")}
                       />
                     </FormGroup>
                   </Form>
 
                   <section className="support-activity-section">
-                    <h6>Activity</h6>
+                    <h6>{t("support.activity")}</h6>
                     <div className="support-activity-list">
                       {selectedTicket.activities.length ? (
                         selectedTicket.activities.map(activity => (
@@ -697,18 +755,22 @@ const Support = () => {
                             </span>
                             <div>
                               <strong>
-                                {activity.actor?.username || "Deleted user"}
+                                {activity.actor?.username ||
+                                  t("support.deletedUser")}
                               </strong>
-                              <p>{describeActivity(activity, admins)}</p>
+                              <p>{describeActivity(activity, admins, t)}</p>
                               <time dateTime={activity.createdAt}>
-                                {formatTicketDate(activity.createdAt)}
+                                {formatTicketDate(
+                                  activity.createdAt,
+                                  i18n.resolvedLanguage,
+                                )}
                               </time>
                             </div>
                           </div>
                         ))
                       ) : (
                         <p className="support-activity-empty text-muted">
-                          No activity was recorded for this legacy ticket.
+                          {t("support.noLegacyActivity")}
                         </p>
                       )}
                     </div>
@@ -716,18 +778,18 @@ const Support = () => {
                 </>
               ) : selectedTicket.adminNote ? (
                 <div className="support-admin-note">
-                  <strong>Support response</strong>
+                  <strong>{t("support.supportResponse")}</strong>
                   <p>{selectedTicket.adminNote}</p>
                 </div>
               ) : null}
             </ModalBody>
             <ModalFooter>
               <Button color="light" onClick={() => setSelectedTicket(null)}>
-                Close
+                {t("common.close")}
               </Button>
               {isAdmin && isAssignedToMe && (
                 <Button color="primary" onClick={saveTicket} disabled={saving}>
-                  {saving ? <Spinner size="sm" /> : "Save changes"}
+                  {saving ? <Spinner size="sm" /> : t("support.saveChanges")}
                 </Button>
               )}
             </ModalFooter>

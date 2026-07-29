@@ -24,8 +24,10 @@ import AuthHeader from "../../components/AuthHeader";
 import FormInput from "../../components/FormInput";
 import Loader from "../../components/Loader";
 import { createSelector } from "reselect";
+import { useTranslation } from "react-i18next";
 interface RecoverPasswordProps {}
 const RecoverPassword = (props: RecoverPasswordProps) => {
+  const { t } = useTranslation();
   // global store
   const { dispatch, useAppSelector } = useRedux();
 
@@ -37,26 +39,25 @@ const RecoverPassword = (props: RecoverPasswordProps) => {
   //   })
   // );
 
-
   const errorData = createSelector(
-    (state : any) => state.ForgetPassword,
-    (state) => ({
+    (state: any) => state.ForgetPassword,
+    state => ({
       forgetError: state.forgetError,
       forgetSuccessMsg: state.forgetSuccessMsg,
       forgetPassLoading: state.loading,
-
-    })
+    }),
   );
   // Inside your component
-  const { forgetError,forgetSuccessMsg ,forgetPassLoading} = useAppSelector(errorData);
+  const { forgetError, forgetSuccessMsg, forgetPassLoading } =
+    useAppSelector(errorData);
 
   const resolver = yupResolver(
     yup.object().shape({
       email: yup
         .string()
-        .email("This value should be a valid email.")
-        .required("Please Enter E-mail."),
-    })
+        .email(t("auth.validation.validEmail"))
+        .required(t("auth.validation.emailRequired")),
+    }),
   );
 
   const defaultValues: any = {};
@@ -84,8 +85,8 @@ const RecoverPassword = (props: RecoverPasswordProps) => {
         <Col sm={8} lg={6} xl={5} className="col-xxl-4">
           <div className="py-md-5 py-4">
             <AuthHeader
-              title="Reset Password"
-              subtitle="Reset your ellO password."
+              title={t("auth.resetTitle")}
+              subtitle={t("auth.resetSubtitle")}
             />
 
             {forgetError && forgetError ? (
@@ -96,7 +97,7 @@ const RecoverPassword = (props: RecoverPasswordProps) => {
             ) : null}
             {!forgetError && !forgetSuccessMsg && (
               <Alert color="info" className="text-center my-4">
-                Enter your Email and instructions will be sent to you!
+                {t("auth.resetInfo")}
               </Alert>
             )}
 
@@ -107,32 +108,32 @@ const RecoverPassword = (props: RecoverPasswordProps) => {
               {forgetPassLoading && <Loader />}
               <div className="mb-3">
                 <FormInput
-                  label="Email"
+                  label={t("auth.email")}
                   type="text"
                   name="email"
                   register={register}
                   errors={errors}
                   control={control}
                   labelClassName="form-label"
-                  placeholder="Enter Email"
+                  placeholder={t("auth.enterEmail")}
                   className="form-control"
                 />
               </div>
               <div className="text-center mt-4">
                 <Button color="primary" className="w-100" type="submit">
-                  Reset
+                  {t("auth.reset")}
                 </Button>
               </div>
             </Form>
             <div className="mt-5 text-center text-muted">
               <p>
-                Remember It ?{" "}
+                {t("auth.rememberPassword")}{" "}
                 <Link
                   to="/auth-login"
                   className="fw-medium text-decoration-underline"
                 >
                   {" "}
-                  Login
+                  {t("auth.login")}
                 </Link>
               </p>
             </div>

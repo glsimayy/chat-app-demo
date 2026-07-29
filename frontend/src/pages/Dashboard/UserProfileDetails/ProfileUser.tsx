@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Button,
   Dropdown,
@@ -25,6 +26,7 @@ const ProfileUser = ({
   onOpenVideo,
   isChannel,
 }: ProfileUserProps) => {
+  const { t } = useTranslation();
   const { isOnline } = usePresence();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const toggle = () => setDropdownOpen(!dropdownOpen);
@@ -62,7 +64,7 @@ const ProfileUser = ({
           <img
             src={chatUserDetails.profileImage}
             className="profile-img rounded"
-            alt={`${fullName} profile`}
+            alt={t("profile.profileImage", { name: fullName })}
           />
         ) : (
           <div
@@ -111,40 +113,45 @@ const ProfileUser = ({
                         className="d-flex justify-content-between align-items-center d-lg-none user-profile-show"
                         to="#"
                       >
-                        View Profile <i className="bx bx-user text-muted"></i>
+                        {t("profile.viewProfile")}{" "}
+                        <i className="bx bx-user text-muted"></i>
                       </DropdownItem>
                       <DropdownItem
                         className="d-flex justify-content-between align-items-center d-lg-none"
                         to="#"
                         onClick={onOpenAudio}
                       >
-                        Audio <i className="bx bxs-phone-call text-muted"></i>
+                        {t("profile.audio")}{" "}
+                        <i className="bx bxs-phone-call text-muted"></i>
                       </DropdownItem>
                       <DropdownItem
                         className="d-flex justify-content-between align-items-center d-lg-none"
                         to="#"
                         onClick={onOpenVideo}
                       >
-                        Video <i className="bx bx-video text-muted"></i>
+                        {t("profile.video")}{" "}
+                        <i className="bx bx-video text-muted"></i>
                       </DropdownItem>
                       <DropdownItem
                         className="d-flex justify-content-between align-items-center"
                         to="#"
                       >
-                        Archive <i className="bx bx-archive text-muted"></i>
+                        {t("profile.archive")}{" "}
+                        <i className="bx bx-archive text-muted"></i>
                       </DropdownItem>
                       <DropdownItem
                         className="d-flex justify-content-between align-items-center"
                         to="#"
                       >
-                        Muted{" "}
+                        {t("profile.muted")}{" "}
                         <i className="bx bx-microphone-off text-muted"></i>
                       </DropdownItem>
                       <DropdownItem
                         className="d-flex justify-content-between align-items-center"
                         to="#"
                       >
-                        Delete <i className="bx bx-trash text-muted"></i>
+                        {t("chat.delete")}{" "}
+                        <i className="bx bx-trash text-muted"></i>
                       </DropdownItem>
                     </DropdownMenu>
                   </Dropdown>
@@ -157,8 +164,8 @@ const ProfileUser = ({
             {isChannel ? (
               <p className="font-size-13 text-truncate mb-0">
                 {chatUserDetails.isBotManaged
-                  ? "BOT managed | No human owner"
-                  : "Human-owned group"}
+                  ? t("profile.botManagedNoOwner")
+                  : t("profile.humanOwnedGroup")}
               </p>
             ) : (
               <p className="font-size-14 text-truncate mb-0">
@@ -170,15 +177,18 @@ const ProfileUser = ({
                     "me-1",
                     "ms-0",
                     {
-                      "text-success":
-                        displayedStatus === STATUS_TYPES.ACTIVE,
+                      "text-success": displayedStatus === STATUS_TYPES.ACTIVE,
                     },
                     {
                       "text-muted": displayedStatus === STATUS_TYPES.OFFLINE,
                     },
                   )}
                 ></i>{" "}
-                {displayedStatus}
+                {t(
+                  displayedStatus === STATUS_TYPES.ACTIVE
+                    ? "chat.online"
+                    : "chat.offline",
+                )}
               </p>
             )}
           </div>

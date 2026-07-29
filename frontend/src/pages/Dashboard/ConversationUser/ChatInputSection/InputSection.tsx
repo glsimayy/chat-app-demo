@@ -1,6 +1,7 @@
 import React from "react";
 
 import { Input } from "reactstrap";
+import { useTranslation } from "react-i18next";
 
 interface InputSectionProps {
   value: null | string;
@@ -21,6 +22,7 @@ const InputSection = ({
   mentionListId,
   activeMentionOptionId,
 }: InputSectionProps) => {
+  const { t } = useTranslation();
   const updateCaret = (event: React.SyntheticEvent<HTMLInputElement>) => {
     onCaretChange(event.currentTarget.selectionStart ?? value?.length ?? 0);
   };
@@ -32,12 +34,12 @@ const InputSection = ({
         type="text"
         className="form-control form-control-lg chat-input"
         id="chat-input"
-        aria-label="Message"
+        aria-label={t("chat.message")}
         aria-autocomplete={mentionListId ? "list" : undefined}
         aria-controls={mentionListId}
         aria-expanded={Boolean(mentionListId)}
         aria-activedescendant={activeMentionOptionId}
-        placeholder="Type your message..."
+        placeholder={t("chat.typeMessage")}
         value={value || ""}
         onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
           onChange(

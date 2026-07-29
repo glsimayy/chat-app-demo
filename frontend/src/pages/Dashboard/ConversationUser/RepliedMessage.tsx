@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 // interface
 import { MessagesTypes } from "../../../data/messages";
@@ -11,13 +12,14 @@ interface RepliedMessageProps {
   fullName: string;
 }
 function RepliedMessage({ message, fullName }: RepliedMessageProps) {
+  const { t } = useTranslation();
   const { userProfile } = useProfile();
   const reply = message.replyOf;
   const imageCount = reply?.image?.length || 0;
   const fileCount = reply?.attachments?.length || 0;
   const attachmentSummary = [
-    imageCount ? `${imageCount} Images` : "",
-    fileCount ? `${fileCount} Files` : "",
+    imageCount ? t("forward.image", { count: imageCount }) : "",
+    fileCount ? t("forward.file", { count: fileCount }) : "",
   ]
     .filter(Boolean)
     .join(" & ");
@@ -31,7 +33,7 @@ function RepliedMessage({ message, fullName }: RepliedMessageProps) {
     <div className="replymessage-block mb-2 d-flex align-items-start">
       <div className="flex-grow-1">
         <h5 className="conversation-name">
-          {isReplyFromMe ? "You" : replySenderName}
+          {isReplyFromMe ? t("chat.you") : replySenderName}
         </h5>
         {reply?.text && <p className="mb-0">{reply.text}</p>}
         {attachmentSummary && <p className="mb-0">{attachmentSummary}</p>}

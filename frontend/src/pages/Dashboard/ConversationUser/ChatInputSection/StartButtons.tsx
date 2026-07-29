@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button, UncontrolledTooltip } from "reactstrap";
 
@@ -18,6 +19,8 @@ const StartButtons = ({
   emojiPicker,
   setemojiPicker,
 }: StartButtonsProps) => {
+  const { t } = useTranslation();
+
   return (
     <div className="chat-input-links me-md-2">
       <div className="links-list-item" id="more-menu">
@@ -26,14 +29,14 @@ const StartButtons = ({
           className="btn btn-link text-decoration-none btn-lg waves-effect"
           onClick={onToggle}
           color="none"
-          title="More message options"
-          aria-label="More message options"
+          title={t("chat.moreOptions")}
+          aria-label={t("chat.moreOptions")}
         >
           <i className="bx bx-dots-horizontal-rounded align-middle"></i>
         </Button>
       </div>
       <UncontrolledTooltip target="more-menu" placement="top">
-        More
+        {t("chat.more")}
       </UncontrolledTooltip>
       {emojiPicker && (
         <Picker onEmojiClick={onEmojiClick} width={350} height={382} />
@@ -45,8 +48,8 @@ const StartButtons = ({
           id="emoji-btn"
           color="none"
           onClick={() => setemojiPicker(!emojiPicker)}
-          title="Choose emoji"
-          aria-label="Choose emoji"
+          title={t("chat.chooseEmoji")}
+          aria-label={t("chat.chooseEmoji")}
         >
           <i className="bx bx-smile align-middle"></i>
         </Button>

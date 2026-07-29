@@ -2,6 +2,7 @@ import React, { ChangeEvent, useState } from "react";
 import { Label, Spinner } from "reactstrap";
 
 import { BasicDetailsTypes } from "../../../data/settings";
+import { useTranslation } from "react-i18next";
 
 interface UserProfileProps {
   basicDetails: BasicDetailsTypes;
@@ -12,6 +13,7 @@ const UserProfile = ({
   basicDetails,
   onProfileImageChange,
 }: UserProfileProps) => {
+  const { t } = useTranslation();
   const [uploading, setUploading] = useState(false);
   const initials = (basicDetails.username || "U").slice(0, 2).toUpperCase();
 
@@ -54,7 +56,7 @@ const UserProfile = ({
           <Label
             htmlFor="profile-img-file-input"
             className="profile-photo-edit avatar-xs"
-            title="Change profile image"
+            title={t("settings.changeProfileImage")}
           >
             <span className="avatar-title rounded-circle bg-light text-body">
               {uploading ? (

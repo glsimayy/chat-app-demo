@@ -2,6 +2,7 @@ import React from "react";
 
 // constants
 import { DisplayTypes, DisplayOpt } from "../../../constants/index";
+import { useTranslation } from "react-i18next";
 
 interface DisplaySelectProps {
   value: string;
@@ -9,6 +10,7 @@ interface DisplaySelectProps {
   label: string;
 }
 const DisplaySelect = ({ value, onChange, label }: DisplaySelectProps) => {
+  const { t } = useTranslation();
   const onChangeSelect = (value: string) => {
     onChange(value);
   };
@@ -27,7 +29,7 @@ const DisplaySelect = ({ value, onChange, label }: DisplaySelectProps) => {
         >
           {(DisplayTypes || []).map((option: DisplayOpt, key: number) => (
             <option key={key} value={option.value}>
-              {option.label}
+              {t(`settings.${option.value}`, { defaultValue: option.label })}
             </option>
           ))}
         </select>

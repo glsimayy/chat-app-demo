@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 // hooks
 import { useRedux } from "../../../hooks/index";
@@ -17,16 +18,17 @@ import { CallItem } from "../../../data/calls";
 
 interface IndexProps {}
 const Index = (props: IndexProps) => {
+  const { t } = useTranslation();
   // global store
   const { dispatch, useAppSelector } = useRedux();
 
   const errorData = createSelector(
-    (state : any) => state.Calls,
-    (state) => ({
+    (state: any) => state.Calls,
+    state => ({
       calls: state.calls,
       getCallsLoading: state.getCallsLoading,
       error: state.error,
-    })
+    }),
   );
   const { calls, getCallsLoading, error } = useAppSelector(errorData);
 
@@ -43,7 +45,7 @@ const Index = (props: IndexProps) => {
   return (
     <div className="position-relative">
       {getCallsLoading && <Loader />}
-      <LeftbarTitle title="Calls" />
+      <LeftbarTitle title={t("nav.calls")} />
       {/* end p-4 */}
 
       {/* Start contact lists */}
@@ -51,21 +53,21 @@ const Index = (props: IndexProps) => {
         {!getCallsLoading && error && (
           <div className="call-empty-state text-danger">
             <i className="bx bx-error-circle" aria-hidden="true"></i>
-            <strong>Call history could not load</strong>
+            <strong>{t("calls.loadFailed")}</strong>
             <button
               type="button"
               className="btn btn-sm btn-outline-danger"
               onClick={() => dispatch(getCalls())}
             >
-              Retry
+              {t("calls.retry")}
             </button>
           </div>
         )}
         {!getCallsLoading && !error && (calls || []).length === 0 && (
           <div className="call-empty-state">
             <i className="bx bx-phone" aria-hidden="true"></i>
-            <strong>No calls yet</strong>
-            <span>Your incoming and outgoing audio calls will appear here.</span>
+            <strong>{t("calls.emptyTitle")}</strong>
+            <span>{t("calls.emptyDescription")}</span>
           </div>
         )}
         <ul className="list-unstyled chat-list">

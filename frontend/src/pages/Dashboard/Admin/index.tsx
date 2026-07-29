@@ -5,6 +5,8 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import {
   Alert,
   Badge,
@@ -57,40 +59,40 @@ type OverviewLiveStatus = "connecting" | "live" | "delayed";
 
 const OVERVIEW_REFRESH_INTERVAL_MS = 5000;
 
-const REASON_LABELS: Record<AdminMessageAccessReason, string> = {
-  support_request: "Support request",
-  abuse_investigation: "Abuse investigation",
-  security_incident: "Security incident",
-  system_test: "System test",
-  other: "Other",
+const REASON_LABEL_KEYS: Record<AdminMessageAccessReason, string> = {
+  support_request: "admin.accessReason.supportRequest",
+  abuse_investigation: "admin.accessReason.abuseInvestigation",
+  security_incident: "admin.accessReason.securityIncident",
+  system_test: "admin.accessReason.systemTest",
+  other: "admin.accessReason.other",
 };
 
-const REPORT_REASON_LABELS: Record<MessageReportReason, string> = {
-  harassment: "Harassment",
-  sexual_content: "Sexual content",
-  violence_or_threat: "Violence or threat",
-  spam: "Spam",
-  impersonation: "Impersonation",
-  other: "Other",
+const REPORT_REASON_LABEL_KEYS: Record<MessageReportReason, string> = {
+  harassment: "moderation.harassment",
+  sexual_content: "moderation.sexualContent",
+  violence_or_threat: "moderation.violenceOrThreat",
+  spam: "moderation.spam",
+  impersonation: "moderation.impersonation",
+  other: "moderation.other",
 };
 
-const RESOLUTION_LABELS: Record<ModerationResolutionAction, string> = {
-  dismiss: "Dismiss report",
-  delete_message: "Delete message",
-  warn_user: "Warn user",
-  suspend_user: "Suspend user",
+const RESOLUTION_LABEL_KEYS: Record<ModerationResolutionAction, string> = {
+  dismiss: "moderation.dismissReport",
+  delete_message: "moderation.deleteMessage",
+  warn_user: "moderation.warnUser",
+  suspend_user: "moderation.suspendUser",
 };
 
-const formatDate = (value: string | null) =>
+const formatDate = (value: string | null, locale?: string) =>
   value
-    ? new Intl.DateTimeFormat(undefined, {
+    ? new Intl.DateTimeFormat(locale, {
         dateStyle: "medium",
         timeStyle: "short",
       }).format(new Date(value))
     : "-";
 
-const formatLiveDate = (value: string) =>
-  new Intl.DateTimeFormat(undefined, {
+const formatLiveDate = (value: string, locale?: string) =>
+  new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "medium",
   }).format(new Date(value));
@@ -107,19 +109,22 @@ const formatBytes = (bytes: number) => {
 
 const conversationLabel = (
   conversation: AdminMessageMetadata["conversation"],
+  t: TFunction,
 ) => {
   if (conversation.name) {
     return conversation.name;
   }
   if (conversation.type === "direct") {
     return (
-      conversation.recipients.map(user => user.username).join(", ") || "Direct"
+      conversation.recipients.map(user => user.username).join(", ") ||
+      t("admin.direct")
     );
   }
-  return "Unnamed conversation";
+  return t("admin.unnamedConversation");
 };
 
 const AdminPanel = () => {
+  const { t } = useTranslation();
   const [view, setView] = useState<AdminView>("overview");
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [overviewDelta, setOverviewDelta] =
@@ -433,7 +438,7 @@ const AdminPanel = () => {
       setRevealedContent(result.content);
       setRevealedAuditId(result.auditId);
       setRevealedAttachments(result.attachments);
-      showSuccessNotification("Message access recorded");
+      showSuccessNotification(t("admin.accessRecorded"));
       void loadAudits(0);
       void loadOverview();
     } catch (requestError) {
@@ -461,7 +466,7 @@ const AdminPanel = () => {
         suspensionHours:
           resolutionAction === "suspend_user" ? suspensionHours : undefined,
       });
-      showSuccessNotification("Moderation decision recorded");
+      showSuccessNotification(t("moderation.decisionRecorded"));
       closeReveal();
       void loadModerationReports(0);
       void loadOverview();
@@ -477,34 +482,34 @@ const AdminPanel = () => {
   const resolutionReady =
     !resolving && resolutionNote.trim().length >= 5 && hasValidSuspension;
   const resolutionButtonLabel = resolving
-    ? "Recording..."
+    ? t("moderation.recording")
     : resolutionNote.trim().length < 5
-      ? "Add decision note"
+      ? t("moderation.addDecisionNote")
       : !hasValidSuspension
-        ? "Check suspension duration"
-        : "Record decision";
+        ? t("moderation.checkSuspension")
+        : t("moderation.recordDecision");
 
   return (
-    <main className="admin-monitoring-panel" aria-label="Admin Control Center">
+    <main className="admin-monitoring-panel" aria-label={t("admin.title")}>
       <header className="admin-monitoring-header">
         <div>
-          <p className="admin-monitoring-eyebrow">ellO operations</p>
-          <h1>Admin Control Center</h1>
-          <p>System activity, message metadata and accountable access.</p>
+          <p className="admin-monitoring-eyebrow">{t("admin.eyebrow")}</p>
+          <h1>{t("admin.title")}</h1>
+          <p>{t("admin.subtitle")}</p>
         </div>
         <Button
           color="light"
           className="admin-refresh-button"
           onClick={refresh}
           disabled={loading}
-          aria-label="Refresh admin data"
-          title="Refresh admin data"
+          aria-label={t("admin.refresh")}
+          title={t("admin.refresh")}
         >
           <i className={`bx bx-refresh ${loading ? "bx-spin" : ""}`} />
         </Button>
       </header>
 
-      <nav className="admin-monitoring-tabs" aria-label="Admin panel sections">
+      <nav className="admin-monitoring-tabs" aria-label={t("admin.sections")}>
         {(["overview", "moderation", "messages", "audits"] as AdminView[]).map(
           tab => (
             <button
@@ -513,13 +518,7 @@ const AdminPanel = () => {
               className={view === tab ? "active" : ""}
               onClick={() => changeView(tab)}
             >
-              {tab === "overview"
-                ? "Overview"
-                : tab === "moderation"
-                  ? "Moderation"
-                  : tab === "messages"
-                    ? "Message audit"
-                    : "Access log"}
+              {t(`admin.${tab === "messages" ? "messageAudit" : tab}`)}
             </button>
           ),
         )}
@@ -530,7 +529,7 @@ const AdminPanel = () => {
         {loading && !overview && (
           <div className="admin-loading-state">
             <Spinner size="sm" />
-            <span>Loading operational data...</span>
+            <span>{t("admin.loading")}</span>
           </div>
         )}
 
@@ -546,56 +545,59 @@ const AdminPanel = () => {
           <section aria-labelledby="message-audit-title">
             <div className="admin-section-heading">
               <div>
-                <h2 id="message-audit-title">Message audit</h2>
-                <p>
-                  Content is excluded from this list and requires a recorded
-                  reason to reveal.
-                </p>
+                <h2 id="message-audit-title">{t("admin.messageAudit")}</h2>
+                <p>{t("admin.auditDescription")}</p>
               </div>
               <Badge color="warning" pill>
-                Content masked
+                {t("admin.contentMasked")}
               </Badge>
             </div>
 
             <Form className="admin-filter-bar" onSubmit={submitFilters}>
               <FormGroup>
-                <Label for="admin-message-search">Sender or conversation</Label>
+                <Label for="admin-message-search">
+                  {t("admin.senderOrConversation")}
+                </Label>
                 <Input
                   id="admin-message-search"
                   value={search}
                   onChange={event => setSearch(event.target.value)}
-                  placeholder="Search metadata"
+                  placeholder={t("admin.searchMetadata")}
                 />
               </FormGroup>
               <FormGroup>
-                <Label for="admin-conversation-type">Conversation type</Label>
+                <Label for="admin-conversation-type">
+                  {t("admin.conversationType")}
+                </Label>
                 <Input
                   id="admin-conversation-type"
                   type="select"
                   value={conversationType}
                   onChange={event => setConversationType(event.target.value)}
                 >
-                  <option value="">All types</option>
-                  <option value="direct">Direct</option>
-                  <option value="group">Group</option>
-                  <option value="management">Management</option>
+                  <option value="">{t("admin.allTypes")}</option>
+                  <option value="direct">{t("admin.direct")}</option>
+                  <option value="group">{t("admin.group")}</option>
+                  <option value="management">{t("admin.management")}</option>
                 </Input>
               </FormGroup>
               <FormGroup>
-                <Label for="admin-attachment-filter">Attachments</Label>
+                <Label for="admin-attachment-filter">
+                  {t("admin.attachments")}
+                </Label>
                 <Input
                   id="admin-attachment-filter"
                   type="select"
                   value={attachmentFilter}
                   onChange={event => setAttachmentFilter(event.target.value)}
                 >
-                  <option value="">All messages</option>
-                  <option value="yes">With attachments</option>
-                  <option value="no">Without attachments</option>
+                  <option value="">{t("admin.allMessages")}</option>
+                  <option value="yes">{t("admin.withAttachments")}</option>
+                  <option value="no">{t("admin.withoutAttachments")}</option>
                 </Input>
               </FormGroup>
               <Button color="primary" type="submit" disabled={loading}>
-                Apply filters
+                {t("common.applyFilters")}
               </Button>
             </Form>
 
@@ -635,19 +637,20 @@ const AdminPanel = () => {
         <Form onSubmit={submitReveal}>
           <ModalHeader toggle={closeReveal}>
             {selectedReport
-              ? "Review moderation report"
-              : "Reveal message content"}
+              ? t("admin.reviewReport")
+              : t("admin.revealContent")}
           </ModalHeader>
           <ModalBody>
             {revealedContent === null ? (
               <>
                 {selectedReport && <ReportContext report={selectedReport} />}
                 <Alert color="warning">
-                  This action is permanent in the access log. Use a
-                  case-specific justification.
+                  {t("admin.permanentAuditWarning")}
                 </Alert>
                 <FormGroup>
-                  <Label for="message-access-reason">Reason</Label>
+                  <Label for="message-access-reason">
+                    {t("common.reason")}
+                  </Label>
                   <Input
                     id="message-access-reason"
                     type="select"
@@ -656,16 +659,18 @@ const AdminPanel = () => {
                       setReason(event.target.value as AdminMessageAccessReason)
                     }
                   >
-                    {Object.entries(REASON_LABELS).map(([value, label]) => (
-                      <option value={value} key={value}>
-                        {label}
-                      </option>
-                    ))}
+                    {Object.entries(REASON_LABEL_KEYS).map(
+                      ([value, labelKey]) => (
+                        <option value={value} key={value}>
+                          {t(labelKey)}
+                        </option>
+                      ),
+                    )}
                   </Input>
                 </FormGroup>
                 <FormGroup>
                   <Label for="message-access-justification">
-                    Justification
+                    {t("admin.justification")}
                   </Label>
                   <Input
                     id="message-access-justification"
@@ -674,20 +679,21 @@ const AdminPanel = () => {
                     maxLength={500}
                     value={justification}
                     onChange={event => setJustification(event.target.value)}
-                    placeholder="Reference the ticket, incident or approved test."
+                    placeholder={t("admin.justificationPlaceholder")}
                     required
                   />
-                  <small>{justification.trim().length}/500 characters</small>
+                  <small>
+                    {t("admin.characters", {
+                      count: justification.trim().length,
+                    })}
+                  </small>
                 </FormGroup>
               </>
             ) : (
               <>
                 <div className="admin-revealed-content">
-                  <span>Revealed content</span>
-                  <p>
-                    {revealedContent ||
-                      "No text content. This message contains attachments only."}
-                  </p>
+                  <span>{t("admin.revealedContent")}</span>
+                  <p>{revealedContent || t("admin.noTextAttachmentOnly")}</p>
                 </div>
                 <RevealedAttachments
                   attachments={revealedAttachments}
@@ -699,9 +705,11 @@ const AdminPanel = () => {
                 />
                 {selectedReport && (
                   <div className="admin-resolution-form">
-                    <h6>Moderation decision</h6>
+                    <h6>{t("moderation.decision")}</h6>
                     <FormGroup>
-                      <Label for="moderation-resolution-action">Action</Label>
+                      <Label for="moderation-resolution-action">
+                        {t("common.action")}
+                      </Label>
                       <Input
                         id="moderation-resolution-action"
                         type="select"
@@ -713,8 +721,8 @@ const AdminPanel = () => {
                           )
                         }
                       >
-                        {Object.entries(RESOLUTION_LABELS).map(
-                          ([value, label]) => {
+                        {Object.entries(RESOLUTION_LABEL_KEYS).map(
+                          ([value, labelKey]) => {
                             const protectsAccount =
                               selectedReport.reportedUser?.role === "admin" ||
                               selectedReport.reportedUser?.isBot;
@@ -728,7 +736,7 @@ const AdminPanel = () => {
                                 key={value}
                                 disabled={protectsAccount && protectedAction}
                               >
-                                {label}
+                                {t(labelKey)}
                               </option>
                             );
                           },
@@ -738,7 +746,7 @@ const AdminPanel = () => {
                     {resolutionAction === "suspend_user" && (
                       <FormGroup>
                         <Label for="moderation-suspension-hours">
-                          Suspension duration
+                          {t("moderation.suspensionDuration")}
                         </Label>
                         <Input
                           id="moderation-suspension-hours"
@@ -751,12 +759,12 @@ const AdminPanel = () => {
                             setSuspensionHours(Number(event.target.value))
                           }
                         />
-                        <small>Hours, from 1 to 720.</small>
+                        <small>{t("moderation.suspensionHoursHelp")}</small>
                       </FormGroup>
                     )}
                     <FormGroup className="mb-0">
                       <Label for="moderation-resolution-note">
-                        Decision note
+                        {t("moderation.decisionNote")}
                       </Label>
                       <Input
                         id="moderation-resolution-note"
@@ -765,13 +773,15 @@ const AdminPanel = () => {
                         maxLength={500}
                         value={resolutionNote}
                         disabled={resolving}
-                        placeholder="Explain the evidence and decision."
+                        placeholder={t("moderation.decisionPlaceholder")}
                         onChange={event =>
                           setResolutionNote(event.target.value)
                         }
                       />
                       <small>
-                        {resolutionNote.trim().length}/500 characters
+                        {t("admin.characters", {
+                          count: resolutionNote.trim().length,
+                        })}
                       </small>
                     </FormGroup>
                   </div>
@@ -786,7 +796,7 @@ const AdminPanel = () => {
               type="button"
               onClick={closeReveal}
             >
-              Close
+              {t("common.close")}
             </Button>
             {revealedContent === null && (
               <Button
@@ -794,7 +804,7 @@ const AdminPanel = () => {
                 type="submit"
                 disabled={revealing || justification.trim().length < 5}
               >
-                {revealing ? <Spinner size="sm" /> : "Record and reveal"}
+                {revealing ? <Spinner size="sm" /> : t("admin.recordAndReveal")}
               </Button>
             )}
             {revealedContent !== null && selectedReport && (
@@ -833,6 +843,8 @@ const RevealedAttachments = ({
   onShow: (attachment: AdminRevealedAttachment) => void;
   onDownload: (attachment: AdminRevealedAttachment) => void;
 }) => {
+  const { t } = useTranslation();
+
   if (!attachments.length) {
     return null;
   }
@@ -844,11 +856,11 @@ const RevealedAttachments = ({
     >
       <div className="admin-revealed-attachments-heading">
         <div>
-          <h6 id="revealed-attachments-title">Attachments</h6>
-          <p>Sensitive media stays covered until you choose to display it.</p>
+          <h6 id="revealed-attachments-title">{t("admin.attachments")}</h6>
+          <p>{t("admin.attachmentsHint")}</p>
         </div>
         <Badge color="danger" pill>
-          {attachments.length} file{attachments.length === 1 ? "" : "s"}
+          {t("admin.file", { count: attachments.length })}
         </Badge>
       </div>
       <div className="admin-revealed-attachment-list">
@@ -882,8 +894,12 @@ const RevealedAttachments = ({
                   size="sm"
                   disabled={isLoading}
                   onClick={() => onDownload(attachment)}
-                  aria-label={`Download ${attachment.fileName}`}
-                  title={`Download ${attachment.fileName}`}
+                  aria-label={t("admin.downloadFile", {
+                    name: attachment.fileName,
+                  })}
+                  title={t("admin.downloadFile", {
+                    name: attachment.fileName,
+                  })}
                 >
                   <i className="bx bx-download" />
                 </Button>
@@ -901,15 +917,19 @@ const RevealedAttachments = ({
                   ) : (
                     <i className="bx bx-low-vision" />
                   )}
-                  <span>{isImage ? "Show image" : "Load audio"}</span>
-                  <small>Potentially sensitive media</small>
+                  <span>
+                    {t(isImage ? "admin.showImage" : "admin.loadAudio")}
+                  </span>
+                  <small>{t("admin.sensitiveMedia")}</small>
                 </button>
               )}
 
               {isImage && isVisible && objectUrl && (
                 <img
                   src={objectUrl}
-                  alt={`Audited attachment ${attachment.fileName}`}
+                  alt={t("admin.auditedAttachment", {
+                    name: attachment.fileName,
+                  })}
                   className="admin-attachment-preview"
                 />
               )}
@@ -920,7 +940,7 @@ const RevealedAttachments = ({
                   src={objectUrl}
                   className="admin-attachment-audio"
                 >
-                  Your browser does not support audio playback.
+                  {t("admin.audioUnsupported")}
                 </audio>
               )}
             </article>
@@ -951,183 +971,206 @@ const ModerationQueue = ({
   onApply: () => void;
   onReview: (report: AdminModerationReport) => void;
   onPage: (offset: number) => void;
-}) => (
-  <section aria-labelledby="moderation-queue-title">
-    <div className="admin-section-heading">
-      <div>
-        <h2 id="moderation-queue-title">Moderation queue</h2>
-        <p>
-          User reports are metadata-only until an administrator records an
-          evidence access reason.
-        </p>
+}) => {
+  const { t, i18n } = useTranslation();
+
+  return (
+    <section aria-labelledby="moderation-queue-title">
+      <div className="admin-section-heading">
+        <div>
+          <h2 id="moderation-queue-title">{t("moderation.queue")}</h2>
+          <p>{t("moderation.queueDescription")}</p>
+        </div>
+        <Badge color={status === "pending" ? "danger" : "secondary"} pill>
+          {data?.pageInfo.total ?? 0} {t(`moderation.${status}`)}
+        </Badge>
       </div>
-      <Badge color={status === "pending" ? "danger" : "secondary"} pill>
-        {data?.pageInfo.total ?? 0} {status}
-      </Badge>
-    </div>
 
-    <div className="admin-filter-bar admin-moderation-filter-bar">
-      <FormGroup>
-        <Label for="moderation-status-filter">Status</Label>
-        <Input
-          id="moderation-status-filter"
-          type="select"
-          value={status}
-          onChange={event =>
-            onStatusChange(event.target.value as MessageReportStatus)
-          }
-        >
-          <option value="pending">Pending</option>
-          <option value="resolved">Resolved</option>
-          <option value="dismissed">Dismissed</option>
-        </Input>
-      </FormGroup>
-      <FormGroup>
-        <Label for="moderation-reason-filter">Reason</Label>
-        <Input
-          id="moderation-reason-filter"
-          type="select"
-          value={reason}
-          onChange={event =>
-            onReasonChange(event.target.value as MessageReportReason | "")
-          }
-        >
-          <option value="">All reasons</option>
-          {Object.entries(REPORT_REASON_LABELS).map(([value, label]) => (
-            <option value={value} key={value}>
-              {label}
-            </option>
-          ))}
-        </Input>
-      </FormGroup>
-      <Button color="primary" disabled={loading} onClick={onApply}>
-        Apply filters
-      </Button>
-    </div>
+      <div className="admin-filter-bar admin-moderation-filter-bar">
+        <FormGroup>
+          <Label for="moderation-status-filter">{t("common.status")}</Label>
+          <Input
+            id="moderation-status-filter"
+            type="select"
+            value={status}
+            onChange={event =>
+              onStatusChange(event.target.value as MessageReportStatus)
+            }
+          >
+            <option value="pending">{t("moderation.pending")}</option>
+            <option value="resolved">{t("moderation.resolved")}</option>
+            <option value="dismissed">{t("moderation.dismissed")}</option>
+          </Input>
+        </FormGroup>
+        <FormGroup>
+          <Label for="moderation-reason-filter">{t("common.reason")}</Label>
+          <Input
+            id="moderation-reason-filter"
+            type="select"
+            value={reason}
+            onChange={event =>
+              onReasonChange(event.target.value as MessageReportReason | "")
+            }
+          >
+            <option value="">{t("moderation.allReasons")}</option>
+            {Object.entries(REPORT_REASON_LABEL_KEYS).map(
+              ([value, labelKey]) => (
+                <option value={value} key={value}>
+                  {t(labelKey)}
+                </option>
+              ),
+            )}
+          </Input>
+        </FormGroup>
+        <Button color="primary" disabled={loading} onClick={onApply}>
+          {t("common.applyFilters")}
+        </Button>
+      </div>
 
-    <div className="admin-table-region">
-      <Table responsive hover className="admin-monitoring-table">
-        <thead>
-          <tr>
-            <th>Reported</th>
-            <th>Reporter</th>
-            <th>Conversation</th>
-            <th>Reason</th>
-            <th>Account history</th>
-            <th>Status</th>
-            <th>
-              <span className="visually-hidden">Actions</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {!loading && data?.items.length === 0 && (
+      <div className="admin-table-region">
+        <Table responsive hover className="admin-monitoring-table">
+          <thead>
             <tr>
-              <td colSpan={7} className="admin-empty-cell">
-                No reports match these filters.
-              </td>
+              <th>{t("moderation.reported")}</th>
+              <th>{t("moderation.reporter")}</th>
+              <th>{t("moderation.conversation")}</th>
+              <th>{t("common.reason")}</th>
+              <th>{t("moderation.accountHistory")}</th>
+              <th>{t("common.status")}</th>
+              <th>
+                <span className="visually-hidden">{t("common.actions")}</span>
+              </th>
             </tr>
-          )}
-          {data?.items.map(report => (
-            <tr key={report.id}>
-              <td>
-                <strong>
-                  {report.reportedUser?.username || "Former user"}
-                </strong>
-                <small>{formatDate(report.createdAt)}</small>
-              </td>
-              <td>
-                <strong>{report.reporter?.username || "Former user"}</strong>
-                <small>{report.reporter?.email || report.reporterId}</small>
-              </td>
-              <td>
-                <strong>
-                  {conversationLabel(report.message.conversation)}
-                </strong>
-                <small>{report.message.conversation.type}</small>
-              </td>
-              <td>
-                <Badge color="warning">
-                  {REPORT_REASON_LABELS[report.reason]}
-                </Badge>
-              </td>
-              <td>
-                <strong>
-                  {report.reportedUser?.warningCount ?? 0} warning
-                  {(report.reportedUser?.warningCount ?? 0) === 1 ? "" : "s"}
-                </strong>
-                <small>
-                  {report.reportedUser?.suspendedUntil
-                    ? `Suspended until ${formatDate(
-                        report.reportedUser.suspendedUntil,
-                      )}`
-                    : "Not suspended"}
-                </small>
-              </td>
-              <td>
-                <Badge
-                  color={
-                    report.status === "pending"
-                      ? "danger"
-                      : report.status === "resolved"
-                        ? "success"
-                        : "secondary"
-                  }
-                >
-                  {report.status}
-                </Badge>
-                {report.resolutionAction && (
-                  <small>{RESOLUTION_LABELS[report.resolutionAction]}</small>
-                )}
-              </td>
-              <td>
-                {report.status === "pending" ? (
-                  <Button
-                    color="danger"
-                    outline
-                    size="sm"
-                    onClick={() => onReview(report)}
+          </thead>
+          <tbody>
+            {!loading && data?.items.length === 0 && (
+              <tr>
+                <td colSpan={7} className="admin-empty-cell">
+                  {t("moderation.noMatches")}
+                </td>
+              </tr>
+            )}
+            {data?.items.map(report => (
+              <tr key={report.id}>
+                <td>
+                  <strong>
+                    {report.reportedUser?.username ||
+                      t("moderation.formerUser")}
+                  </strong>
+                  <small>
+                    {formatDate(report.createdAt, i18n.resolvedLanguage)}
+                  </small>
+                </td>
+                <td>
+                  <strong>
+                    {report.reporter?.username || t("moderation.formerUser")}
+                  </strong>
+                  <small>{report.reporter?.email || report.reporterId}</small>
+                </td>
+                <td>
+                  <strong>
+                    {conversationLabel(report.message.conversation, t)}
+                  </strong>
+                  <small>
+                    {t(`admin.${report.message.conversation.type}`)}
+                  </small>
+                </td>
+                <td>
+                  <Badge color="warning">
+                    {t(REPORT_REASON_LABEL_KEYS[report.reason])}
+                  </Badge>
+                </td>
+                <td>
+                  <strong>
+                    {t("moderation.warning", {
+                      count: report.reportedUser?.warningCount ?? 0,
+                    })}
+                  </strong>
+                  <small>
+                    {report.reportedUser?.suspendedUntil
+                      ? t("moderation.suspendedUntil", {
+                          date: formatDate(
+                            report.reportedUser.suspendedUntil,
+                            i18n.resolvedLanguage,
+                          ),
+                        })
+                      : t("moderation.notSuspended")}
+                  </small>
+                </td>
+                <td>
+                  <Badge
+                    color={
+                      report.status === "pending"
+                        ? "danger"
+                        : report.status === "resolved"
+                          ? "success"
+                          : "secondary"
+                    }
                   >
-                    Review
-                  </Button>
-                ) : (
-                  <span className="text-muted font-size-11">
-                    {report.reviewedByAdmin?.username || "Reviewed"}
-                  </span>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-      <PaginationControls
-        pageInfo={data?.pageInfo}
-        loading={loading}
-        onPage={onPage}
-      />
-    </div>
-  </section>
-);
+                    {t(`moderation.${report.status}`)}
+                  </Badge>
+                  {report.resolutionAction && (
+                    <small>
+                      {t(RESOLUTION_LABEL_KEYS[report.resolutionAction])}
+                    </small>
+                  )}
+                </td>
+                <td>
+                  {report.status === "pending" ? (
+                    <Button
+                      color="danger"
+                      outline
+                      size="sm"
+                      onClick={() => onReview(report)}
+                    >
+                      {t("moderation.review")}
+                    </Button>
+                  ) : (
+                    <span className="text-muted font-size-11">
+                      {report.reviewedByAdmin?.username ||
+                        t("moderation.reviewed")}
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+        <PaginationControls
+          pageInfo={data?.pageInfo}
+          loading={loading}
+          onPage={onPage}
+        />
+      </div>
+    </section>
+  );
+};
 
-const ReportContext = ({ report }: { report: AdminModerationReport }) => (
-  <div className="admin-report-context">
-    <div>
-      <span>Report reason</span>
-      <strong>{REPORT_REASON_LABELS[report.reason]}</strong>
+const ReportContext = ({ report }: { report: AdminModerationReport }) => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="admin-report-context">
+      <div>
+        <span>{t("moderation.reportReason")}</span>
+        <strong>{t(REPORT_REASON_LABEL_KEYS[report.reason])}</strong>
+      </div>
+      <div>
+        <span>{t("moderation.reporter")}</span>
+        <strong>
+          {report.reporter?.username || t("moderation.formerUser")}
+        </strong>
+      </div>
+      <div>
+        <span>{t("moderation.reportedUser")}</span>
+        <strong>
+          {report.reportedUser?.username || t("moderation.formerUser")}
+        </strong>
+      </div>
+      <p>{report.details || t("moderation.noDetails")}</p>
     </div>
-    <div>
-      <span>Reporter</span>
-      <strong>{report.reporter?.username || "Former user"}</strong>
-    </div>
-    <div>
-      <span>Reported user</span>
-      <strong>{report.reportedUser?.username || "Former user"}</strong>
-    </div>
-    <p>
-      {report.details || "The reporter did not provide additional details."}
-    </p>
-  </div>
-);
+  );
+};
 
 const OverviewView = ({
   overview,
@@ -1138,35 +1181,53 @@ const OverviewView = ({
   liveDelta: AdminOverviewLiveDelta | null;
   liveStatus: OverviewLiveStatus;
 }) => {
+  const { t, i18n } = useTranslation();
   const stats = [
-    ["Users", overview.totals.users],
-    ["Conversations", overview.totals.conversations],
-    ["Messages", overview.totals.messages],
-    ["Stored files", overview.totals.attachments],
-    ["Stored data", formatBytes(overview.totals.attachmentBytes)],
-    ["Active sockets", overview.runtime.gauges.activeSockets],
-    ["Open tickets", overview.totals.openSupportTickets],
-    ["Content accesses", overview.totals.messageContentAccesses],
+    [t("admin.metrics.users"), overview.totals.users],
+    [t("admin.metrics.conversations"), overview.totals.conversations],
+    [t("admin.metrics.messages"), overview.totals.messages],
+    [t("admin.metrics.storedFiles"), overview.totals.attachments],
+    [
+      t("admin.metrics.storedData"),
+      formatBytes(overview.totals.attachmentBytes),
+    ],
+    [t("admin.metrics.activeSockets"), overview.runtime.gauges.activeSockets],
+    [t("admin.metrics.openTickets"), overview.totals.openSupportTickets],
+    [
+      t("admin.metrics.contentAccesses"),
+      overview.totals.messageContentAccesses,
+    ],
   ];
   const liveMetrics = [
-    ["HTTP requests", formatLiveChange(liveDelta?.httpRequests)],
-    ["Socket events", formatLiveChange(liveDelta?.socketEvents)],
-    ["Messages created", formatLiveChange(liveDelta?.messagesCreated)],
-    ["Active sockets", liveDelta?.activeSockets ?? 0],
+    [
+      t("admin.metrics.httpRequests"),
+      formatLiveChange(liveDelta?.httpRequests),
+    ],
+    [
+      t("admin.metrics.socketEvents"),
+      formatLiveChange(liveDelta?.socketEvents),
+    ],
+    [
+      t("admin.metrics.messagesCreated"),
+      formatLiveChange(liveDelta?.messagesCreated),
+    ],
+    [t("admin.metrics.activeSockets"), liveDelta?.activeSockets ?? 0],
   ];
   const liveStatusLabel =
     liveStatus === "live"
-      ? "Live"
+      ? t("admin.live")
       : liveStatus === "delayed"
-        ? "Update delayed"
-        : "Connecting";
+        ? t("admin.updateDelayed")
+        : t("admin.connecting");
 
   return (
     <section aria-labelledby="operations-overview-title">
       <div className="admin-section-heading">
         <div>
-          <h2 id="operations-overview-title">Operations overview</h2>
-          <p>Current stored totals and process activity since server start.</p>
+          <h2 id="operations-overview-title">
+            {t("admin.operationsOverview")}
+          </h2>
+          <p>{t("admin.overviewDescription")}</p>
         </div>
         <div className="admin-overview-status">
           <span className={`admin-live-status is-${liveStatus}`} role="status">
@@ -1174,7 +1235,9 @@ const OverviewView = ({
             {liveStatusLabel}
           </span>
           <span className="admin-collected-at">
-            Updated {formatLiveDate(overview.collectedAt)}
+            {t("admin.updatedAt", {
+              date: formatLiveDate(overview.collectedAt, i18n.resolvedLanguage),
+            })}
           </span>
         </div>
       </div>
@@ -1193,8 +1256,8 @@ const OverviewView = ({
         aria-labelledby="live-data-title"
       >
         <div>
-          <h3 id="live-data-title">Live activity</h3>
-          <p>Changes recorded during the latest 5-second refresh.</p>
+          <h3 id="live-data-title">{t("admin.liveActivity")}</h3>
+          <p>{t("admin.liveActivityDescription")}</p>
         </div>
         <dl aria-live="polite">
           {liveMetrics.map(([label, value]) => (
@@ -1205,73 +1268,88 @@ const OverviewView = ({
 
       <div className="admin-overview-bands">
         <section>
-          <h3>Last 24 hours</h3>
+          <h3>{t("admin.last24Hours")}</h3>
           <dl>
-            <Metric label="New users" value={overview.activity24h.newUsers} />
             <Metric
-              label="New conversations"
+              label={t("admin.metrics.newUsers")}
+              value={overview.activity24h.newUsers}
+            />
+            <Metric
+              label={t("admin.metrics.newConversations")}
               value={overview.activity24h.newConversations}
             />
-            <Metric label="Messages" value={overview.activity24h.messages} />
             <Metric
-              label="Attachments"
+              label={t("admin.metrics.messages")}
+              value={overview.activity24h.messages}
+            />
+            <Metric
+              label={t("admin.metrics.attachments")}
               value={overview.activity24h.attachments}
             />
-            <Metric label="Calls" value={overview.activity24h.calls} />
             <Metric
-              label="Content accesses"
+              label={t("admin.metrics.calls")}
+              value={overview.activity24h.calls}
+            />
+            <Metric
+              label={t("admin.metrics.contentAccesses")}
               value={overview.activity24h.messageContentAccesses}
             />
           </dl>
         </section>
         <section>
-          <h3>Runtime traffic</h3>
+          <h3>{t("admin.runtimeTraffic")}</h3>
           <dl>
             <Metric
-              label="HTTP requests"
+              label={t("admin.metrics.httpRequests")}
               value={overview.runtime.counters.httpRequestsTotal}
             />
             <Metric
-              label="HTTP errors"
+              label={t("admin.metrics.httpErrors")}
               value={overview.runtime.counters.httpErrorsTotal}
             />
             <Metric
-              label="Socket events"
+              label={t("admin.metrics.socketEvents")}
               value={overview.runtime.counters.socketEventsTotal}
             />
             <Metric
-              label="Socket errors"
+              label={t("admin.metrics.socketErrors")}
               value={overview.runtime.counters.socketErrorsTotal}
             />
             <Metric
-              label="Average response"
+              label={t("admin.metrics.averageResponse")}
               value={`${overview.runtime.gauges.averageHttpDurationMs} ms`}
             />
             <Metric
-              label="Uptime"
+              label={t("admin.metrics.uptime")}
               value={`${Math.floor(overview.runtime.uptimeSeconds / 60)} min`}
             />
           </dl>
         </section>
         <section>
-          <h3>Conversation mix</h3>
+          <h3>{t("admin.conversationMix")}</h3>
           <dl>
             <Metric
-              label="Direct"
+              label={t("admin.direct")}
               value={overview.totals.directConversations}
             />
-            <Metric label="Groups" value={overview.totals.groupConversations} />
             <Metric
-              label="Management"
+              label={t("admin.metrics.groups")}
+              value={overview.totals.groupConversations}
+            />
+            <Metric
+              label={t("admin.management")}
               value={overview.totals.managementConversations}
             />
             <Metric
-              label="Automation groups"
+              label={t("admin.metrics.automationGroups")}
               value={overview.totals.botManagedGroups}
             />
-            <Metric label="Calls" value={overview.totals.calls} />
             <Metric
-              label="Deleted messages"
+              label={t("admin.metrics.calls")}
+              value={overview.totals.calls}
+            />
+            <Metric
+              label={t("admin.metrics.deletedMessages")}
               value={overview.totals.deletedMessages}
             />
           </dl>
@@ -1307,130 +1385,89 @@ const MessageTable = ({
   loading: boolean;
   onReveal: (message: AdminMessageMetadata) => void;
   onPage: (offset: number) => void;
-}) => (
-  <div className="admin-table-region">
-    <Table responsive hover className="admin-monitoring-table">
-      <thead>
-        <tr>
-          <th>Sent</th>
-          <th>Sender</th>
-          <th>Conversation</th>
-          <th>Type</th>
-          <th>Files</th>
-          <th>Content</th>
-          <th>
-            <span className="visually-hidden">Actions</span>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {!loading && data?.items.length === 0 && (
-          <tr>
-            <td colSpan={7} className="admin-empty-cell">
-              No message metadata matches these filters.
-            </td>
-          </tr>
-        )}
-        {data?.items.map(message => (
-          <tr key={message.id}>
-            <td>{formatDate(message.createdAt)}</td>
-            <td>
-              <strong>{message.sender?.username || "ellO system"}</strong>
-              <small>{message.sender?.email || "System event"}</small>
-            </td>
-            <td>
-              <strong>{conversationLabel(message.conversation)}</strong>
-              <small>
-                {message.conversation.type} ·{" "}
-                {message.conversation.participantCount} participants
-              </small>
-            </td>
-            <td>
-              <Badge
-                color={message.messageType === "system" ? "info" : "light"}
-              >
-                {message.messageType}
-              </Badge>
-            </td>
-            <td>
-              {message.attachmentCount
-                ? `${message.attachmentCount} · ${formatBytes(
-                    message.attachmentBytes,
-                  )}`
-                : "-"}
-            </td>
-            <td>
-              <span className={`admin-content-state ${message.contentState}`}>
-                <i
-                  className={
-                    message.contentState === "deleted"
-                      ? "bx bx-trash"
-                      : "bx bx-lock-alt"
-                  }
-                />
-                {message.contentState}
-              </span>
-            </td>
-            <td>
-              <Button
-                color="danger"
-                outline
-                size="sm"
-                disabled={message.contentState === "deleted"}
-                onClick={() => onReveal(message)}
-              >
-                Reveal
-              </Button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </Table>
-    <PaginationControls
-      pageInfo={data?.pageInfo}
-      loading={loading}
-      onPage={onPage}
-    />
-  </div>
-);
+}) => {
+  const { t, i18n } = useTranslation();
 
-const AuditView = ({
-  data,
-  loading,
-  onPage,
-}: {
-  data: AdminAuditList | null;
-  loading: boolean;
-  onPage: (offset: number) => void;
-}) => (
-  <section aria-labelledby="access-log-title">
-    <div className="admin-section-heading">
-      <div>
-        <h2 id="access-log-title">Message access log</h2>
-        <p>Every successful content reveal is listed with its justification.</p>
-      </div>
-    </div>
+  return (
     <div className="admin-table-region">
       <Table responsive hover className="admin-monitoring-table">
         <thead>
           <tr>
-            <th>Accessed</th>
-            <th>Administrator</th>
-            <th>Message context</th>
-            <th>Reason</th>
-            <th>Justification</th>
+            <th>{t("admin.sent")}</th>
+            <th>{t("admin.sender")}</th>
+            <th>{t("moderation.conversation")}</th>
+            <th>{t("admin.type")}</th>
+            <th>{t("admin.files")}</th>
+            <th>{t("admin.content")}</th>
+            <th>
+              <span className="visually-hidden">{t("common.actions")}</span>
+            </th>
           </tr>
         </thead>
         <tbody>
           {!loading && data?.items.length === 0 && (
             <tr>
-              <td colSpan={5} className="admin-empty-cell">
-                No message content has been accessed.
+              <td colSpan={7} className="admin-empty-cell">
+                {t("admin.noMessageMetadata")}
               </td>
             </tr>
           )}
-          {data?.items.map(audit => (
-            <AuditRow audit={audit} key={audit.id} />
+          {data?.items.map(message => (
+            <tr key={message.id}>
+              <td>{formatDate(message.createdAt, i18n.resolvedLanguage)}</td>
+              <td>
+                <strong>
+                  {message.sender?.username || t("admin.elloSystem")}
+                </strong>
+                <small>{message.sender?.email || t("admin.systemEvent")}</small>
+              </td>
+              <td>
+                <strong>{conversationLabel(message.conversation, t)}</strong>
+                <small>
+                  {t(`admin.${message.conversation.type}`)} ·{" "}
+                  {t("admin.participant", {
+                    count: message.conversation.participantCount,
+                  })}
+                </small>
+              </td>
+              <td>
+                <Badge
+                  color={message.messageType === "system" ? "info" : "light"}
+                >
+                  {t(`admin.messageType.${message.messageType}`)}
+                </Badge>
+              </td>
+              <td>
+                {message.attachmentCount
+                  ? `${message.attachmentCount} · ${formatBytes(
+                      message.attachmentBytes,
+                    )}`
+                  : "-"}
+              </td>
+              <td>
+                <span className={`admin-content-state ${message.contentState}`}>
+                  <i
+                    className={
+                      message.contentState === "deleted"
+                        ? "bx bx-trash"
+                        : "bx bx-lock-alt"
+                    }
+                  />
+                  {t(`admin.contentState.${message.contentState}`)}
+                </span>
+              </td>
+              <td>
+                <Button
+                  color="danger"
+                  outline
+                  size="sm"
+                  disabled={message.contentState === "deleted"}
+                  onClick={() => onReveal(message)}
+                >
+                  {t("admin.reveal")}
+                </Button>
+              </td>
+            </tr>
           ))}
         </tbody>
       </Table>
@@ -1440,30 +1477,88 @@ const AuditView = ({
         onPage={onPage}
       />
     </div>
-  </section>
-);
+  );
+};
 
-const AuditRow = ({ audit }: { audit: AdminMessageAccessAudit }) => (
-  <tr>
-    <td>{formatDate(audit.createdAt)}</td>
-    <td>
-      <strong>{audit.admin?.username || "Former admin"}</strong>
-      <small>{audit.admin?.email || audit.message.id}</small>
-    </td>
-    <td>
-      <strong>
-        {audit.message.conversation?.name ||
-          audit.message.conversation?.type ||
-          "Deleted conversation"}
-      </strong>
-      <small>{audit.message.sender?.username || "ellO system"}</small>
-    </td>
-    <td>
-      <Badge color="secondary">{REASON_LABELS[audit.reason]}</Badge>
-    </td>
-    <td className="admin-justification-cell">{audit.justification}</td>
-  </tr>
-);
+const AuditView = ({
+  data,
+  loading,
+  onPage,
+}: {
+  data: AdminAuditList | null;
+  loading: boolean;
+  onPage: (offset: number) => void;
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <section aria-labelledby="access-log-title">
+      <div className="admin-section-heading">
+        <div>
+          <h2 id="access-log-title">{t("admin.messageAccessLog")}</h2>
+          <p>{t("admin.accessLogDescription")}</p>
+        </div>
+      </div>
+      <div className="admin-table-region">
+        <Table responsive hover className="admin-monitoring-table">
+          <thead>
+            <tr>
+              <th>{t("admin.accessed")}</th>
+              <th>{t("admin.administrator")}</th>
+              <th>{t("admin.messageContext")}</th>
+              <th>{t("common.reason")}</th>
+              <th>{t("admin.justification")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {!loading && data?.items.length === 0 && (
+              <tr>
+                <td colSpan={5} className="admin-empty-cell">
+                  {t("admin.noContentAccess")}
+                </td>
+              </tr>
+            )}
+            {data?.items.map(audit => (
+              <AuditRow audit={audit} key={audit.id} />
+            ))}
+          </tbody>
+        </Table>
+        <PaginationControls
+          pageInfo={data?.pageInfo}
+          loading={loading}
+          onPage={onPage}
+        />
+      </div>
+    </section>
+  );
+};
+
+const AuditRow = ({ audit }: { audit: AdminMessageAccessAudit }) => {
+  const { t, i18n } = useTranslation();
+  const conversation =
+    audit.message.conversation?.name ||
+    (audit.message.conversation?.type
+      ? t(`admin.${audit.message.conversation.type}`)
+      : t("admin.deletedConversation"));
+
+  return (
+    <tr>
+      <td>{formatDate(audit.createdAt, i18n.resolvedLanguage)}</td>
+      <td>
+        <strong>{audit.admin?.username || t("admin.formerAdmin")}</strong>
+        <small>{audit.admin?.email || audit.message.id}</small>
+      </td>
+      <td>
+        <strong>{conversation}</strong>
+        <small>{audit.message.sender?.username || t("admin.elloSystem")}</small>
+      </td>
+      <td>
+        <Badge color="secondary">{t(REASON_LABEL_KEYS[audit.reason])}</Badge>
+      </td>
+      <td className="admin-justification-cell">{audit.justification}</td>
+    </tr>
+  );
+};
 
 const PaginationControls = ({
   pageInfo,
@@ -1479,6 +1574,8 @@ const PaginationControls = ({
   loading: boolean;
   onPage: (offset: number) => void;
 }) => {
+  const { t } = useTranslation();
+
   if (!pageInfo) {
     return null;
   }
@@ -1488,7 +1585,7 @@ const PaginationControls = ({
   return (
     <div className="admin-pagination">
       <span>
-        {start}-{end} of {pageInfo.total}
+        {t("admin.resultRange", { start, end, total: pageInfo.total })}
       </span>
       <div>
         <Button
@@ -1496,8 +1593,8 @@ const PaginationControls = ({
           size="sm"
           disabled={loading || pageInfo.offset === 0}
           onClick={() => onPage(Math.max(0, pageInfo.offset - pageInfo.limit))}
-          aria-label="Previous page"
-          title="Previous page"
+          aria-label={t("admin.previousPage")}
+          title={t("admin.previousPage")}
         >
           <i className="bx bx-chevron-left" />
         </Button>
@@ -1506,8 +1603,8 @@ const PaginationControls = ({
           size="sm"
           disabled={loading || !pageInfo.hasMore}
           onClick={() => onPage(pageInfo.offset + pageInfo.limit)}
-          aria-label="Next page"
-          title="Next page"
+          aria-label={t("admin.nextPage")}
+          title={t("admin.nextPage")}
         >
           <i className="bx bx-chevron-right" />
         </Button>

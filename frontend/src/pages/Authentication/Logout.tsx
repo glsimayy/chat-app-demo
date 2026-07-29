@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Row, Col } from "reactstrap";
 
@@ -13,6 +14,7 @@ import withRouter from "../../components/withRouter";
 import { logoutUser } from "../../redux/actions";
 
 const Logout = (props: any) => {
+  const { t } = useTranslation();
   // global store
   const { dispatch } = useRedux();
 
@@ -35,17 +37,14 @@ const Logout = (props: any) => {
               </div>
             </div>
             <div className="mt-4 pt-2">
-              <h5>You are Logged Out</h5>
-              <p className="text-muted font-size-15">
-                Thank you for using{" "}
-                <span className="fw-semibold text-dark">ellO</span>
-              </p>
+              <h5>{t("auth.loggedOut")}</h5>
+              <p className="text-muted font-size-15">{t("auth.thanks")}</p>
               <div className="mt-4">
                 <Link
                   to="/auth-login"
                   className="btn btn-primary w-100 waves-effect waves-light"
                 >
-                  Sign In
+                  {t("auth.signIn")}
                 </Link>
               </div>
             </div>

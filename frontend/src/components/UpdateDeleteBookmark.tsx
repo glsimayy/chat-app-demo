@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Button,
   Modal,
@@ -30,6 +31,7 @@ const UpdateDeleteBookmark = ({
   onUpdate,
   bookmark,
 }: UpdateDeleteBookmarkProps) => {
+  const { t } = useTranslation();
   /*
    data input handeling
    */
@@ -56,37 +58,35 @@ const UpdateDeleteBookmark = ({
         className="modal-title-custom text-white font-size-16"
         toggle={onClose}
       >
-        Edit Saved Message
+        {t("bookmark.editSaved")}
       </ModalHeader>
       <ModalBody>
         <Form>
           <FormGroup>
             <Label htmlFor="update-bookmark" className="mb-2">
-              Custom Label
+              {t("bookmark.customLabel")}
             </Label>
             <Input
               type="text"
               name="bookmarkTitle"
               id="update-bookmark"
               maxLength={120}
-              placeholder="Add a label"
+              placeholder={t("bookmark.addLabel")}
               value={data.bookmarkTitle || ""}
               onChange={(e: any) => {
                 onChangeData("bookmarkTitle", e.target.value);
               }}
             />
-            <small className="text-muted">
-              Leave empty to use the message text.
-            </small>
+            <small className="text-muted">{t("bookmark.labelHint")}</small>
           </FormGroup>
         </Form>
       </ModalBody>
       <ModalFooter>
         <Button type="button" color="none" onClick={onClose}>
-          Close
+          {t("common.close")}
         </Button>
         <Button color="primary" onClick={onSubmit}>
-          Update
+          {t("common.update")}
         </Button>{" "}
       </ModalFooter>
     </Modal>

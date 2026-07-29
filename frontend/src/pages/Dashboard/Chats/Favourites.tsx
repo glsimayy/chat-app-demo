@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 // interface
 import { UserTypes } from "../../../data/chat";
@@ -12,10 +13,12 @@ interface FavouritesProps {
 }
 
 const Favourites = ({ users, selectedChat, onSelectChat }: FavouritesProps) => {
+  const { t } = useTranslation();
+
   return (
     <>
       <h5 className="mb-3 px-4 mt-4 font-size-11 text-muted text-uppercase">
-        Pinned Chats
+        {t("chat.pinnedChats")}
       </h5>
 
       <div className="chat-message-list">

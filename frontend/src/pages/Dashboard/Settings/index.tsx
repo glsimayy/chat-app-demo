@@ -34,14 +34,11 @@ import ThemeSettings from "./ThemeSettings";
 import Privacy from "./Privacy";
 import Security from "./Security";
 import Help from "./Help";
+import LanguageSettings from "./LanguageSettings";
+import { useTranslation } from "react-i18next";
 
 interface CollapseItemTypes {
-  value:
-    | SETTINGS_COLLAPSES.PROFILE
-    | SETTINGS_COLLAPSES.HELP
-    | SETTINGS_COLLAPSES.PRIVACY
-    | SETTINGS_COLLAPSES.SECURITY
-    | SETTINGS_COLLAPSES.THEME;
+  value: SETTINGS_COLLAPSES;
   label: string;
   icon: string;
   component: any;
@@ -49,22 +46,8 @@ interface CollapseItemTypes {
 
 interface AccordianItemProps {
   item: CollapseItemTypes;
-  onChange: (
-    id:
-      | null
-      | SETTINGS_COLLAPSES.PROFILE
-      | SETTINGS_COLLAPSES.HELP
-      | SETTINGS_COLLAPSES.PRIVACY
-      | SETTINGS_COLLAPSES.SECURITY
-      | SETTINGS_COLLAPSES.THEME,
-  ) => void;
-  selectedMenu:
-    | null
-    | SETTINGS_COLLAPSES.PROFILE
-    | SETTINGS_COLLAPSES.HELP
-    | SETTINGS_COLLAPSES.PRIVACY
-    | SETTINGS_COLLAPSES.SECURITY
-    | SETTINGS_COLLAPSES.THEME;
+  onChange: (id: SETTINGS_COLLAPSES | null) => void;
+  selectedMenu: SETTINGS_COLLAPSES | null;
 }
 const AccordianItem = ({
   item,
@@ -111,6 +94,7 @@ const AccordianItem = ({
 };
 interface IndexProps {}
 const Index = (props: IndexProps) => {
+  const { t } = useTranslation();
   // global store
   const { dispatch, useAppSelector } = useRedux();
 
@@ -144,10 +128,10 @@ const Index = (props: IndexProps) => {
       const nextSettings = await getSettingsApi();
       setSettings(nextSettings);
       dispatch(getProfileDetails());
-      showSuccessNotification("Profile updated across ellO.");
+      showSuccessNotification(t("settings.profileUpdated"));
       return true;
     } catch (error: any) {
-      showErrorNotification(String(error || "Profile could not be updated."));
+      showErrorNotification(String(error || t("settings.profileUpdateFailed")));
       return false;
     }
   };
@@ -157,9 +141,7 @@ const Index = (props: IndexProps) => {
       const profileImage = await compressProfileImage(file);
       await saveProfile({ profileImage });
     } catch (error: any) {
-      showErrorNotification(
-        String(error || "Profile image could not be saved."),
-      );
+      showErrorNotification(String(error || t("settings.profileImageFailed")));
     }
   };
 
@@ -173,20 +155,15 @@ const Index = (props: IndexProps) => {
   /*
   collapse handeling
   */
-  const [selectedMenu, setSelectedMenu] = useState<
-    | null
-    | SETTINGS_COLLAPSES.PROFILE
-    | SETTINGS_COLLAPSES.HELP
-    | SETTINGS_COLLAPSES.PRIVACY
-    | SETTINGS_COLLAPSES.SECURITY
-    | SETTINGS_COLLAPSES.THEME
-  >(null);
+  const [selectedMenu, setSelectedMenu] = useState<SETTINGS_COLLAPSES | null>(
+    null,
+  );
 
   const collapseItems: CollapseItemTypes[] = settings
     ? [
         {
           value: SETTINGS_COLLAPSES.PROFILE,
-          label: "Personal Info",
+          label: t("settings.personalInfo"),
           icon: "bx bxs-user",
           component: (
             <PersonalInfo
@@ -196,8 +173,14 @@ const Index = (props: IndexProps) => {
           ),
         },
         {
+          value: SETTINGS_COLLAPSES.LANGUAGE,
+          label: t("settings.language"),
+          icon: "bx bx-globe",
+          component: <LanguageSettings />,
+        },
+        {
           value: SETTINGS_COLLAPSES.THEME,
-          label: "Themes",
+          label: t("settings.themes"),
           icon: "bx bxs-adjust-alt",
           component: (
             <ThemeSettings theme={settings.theme} onChangeData={onChangeData} />
@@ -205,7 +188,7 @@ const Index = (props: IndexProps) => {
         },
         {
           value: SETTINGS_COLLAPSES.PRIVACY,
-          label: "Privacy",
+          label: t("settings.privacy"),
           icon: "bx bxs-lock",
           component: (
             <Privacy
@@ -216,7 +199,7 @@ const Index = (props: IndexProps) => {
         },
         {
           value: SETTINGS_COLLAPSES.SECURITY,
-          label: "Security",
+          label: t("settings.security"),
           icon: "bx bxs-check-shield",
           component: (
             <Security
@@ -227,22 +210,14 @@ const Index = (props: IndexProps) => {
         },
         {
           value: SETTINGS_COLLAPSES.HELP,
-          label: "Help",
+          label: t("settings.help"),
           icon: "bx bxs-help-circle",
           component: <Help />,
         },
       ]
     : [];
 
-  const onChangeCollapse = (
-    id:
-      | null
-      | SETTINGS_COLLAPSES.PROFILE
-      | SETTINGS_COLLAPSES.HELP
-      | SETTINGS_COLLAPSES.PRIVACY
-      | SETTINGS_COLLAPSES.SECURITY
-      | SETTINGS_COLLAPSES.THEME,
-  ) => {
+  const onChangeCollapse = (id: SETTINGS_COLLAPSES | null) => {
     setSelectedMenu(id);
   };
 

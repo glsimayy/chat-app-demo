@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button, Collapse, Card, CardBody, Input, Label } from "reactstrap";
 
@@ -20,6 +21,7 @@ const MoreMenu = ({
   onShareLocation,
   onOpenContacts,
 }: MoreMenuProps) => {
+  const { t } = useTranslation();
   const onSelect = (e: any) => {
     const files = [...e.target.files];
     if (files) {
@@ -69,7 +71,7 @@ const MoreMenu = ({
                   </Label>
                 </div>
                 <h5 className="font-size-11 text-uppercase mt-2  mb-0 text-body text-truncate">
-                  Attached
+                  {t("chat.attached")}
                 </h5>
               </div>
             </div>
@@ -81,8 +83,8 @@ const MoreMenu = ({
                   type="button"
                   color="link"
                   className="avatar-sm mx-auto p-0 stretched-link"
-                  title="Open camera"
-                  aria-label="Open camera"
+                  title={t("chat.openCamera")}
+                  aria-label={t("chat.openCamera")}
                   onClick={onOpenCamera}
                 >
                   <span className="avatar-title font-size-18 bg-soft-primary text-primary rounded-circle">
@@ -90,7 +92,7 @@ const MoreMenu = ({
                   </span>
                 </Button>
                 <h5 className="font-size-11 text-uppercase mt-3 mb-0 text-body text-truncate">
-                  Camera
+                  {t("chat.camera")}
                 </h5>
               </div>
             </div>
@@ -117,7 +119,7 @@ const MoreMenu = ({
                   </Label>
                 </div>
                 <h5 className="font-size-11 text-uppercase mt-2 mb-0 text-body text-truncate">
-                  Gallery
+                  {t("chat.gallery")}
                 </h5>
               </div>
             </div>
@@ -143,7 +145,7 @@ const MoreMenu = ({
                   </Label>
                 </div>
                 <h5 className="font-size-11 text-uppercase mt-2 mb-0 text-body text-truncate">
-                  Audio
+                  {t("chat.audio")}
                 </h5>
               </div>
             </div>
@@ -154,8 +156,8 @@ const MoreMenu = ({
                   type="button"
                   color="link"
                   className="avatar-sm mx-auto p-0 stretched-link"
-                  title="Share location"
-                  aria-label="Share location"
+                  title={t("chat.shareLocation")}
+                  aria-label={t("chat.shareLocation")}
                   onClick={onShareLocation}
                 >
                   <span className="avatar-title font-size-18 bg-soft-primary text-primary rounded-circle">
@@ -163,7 +165,7 @@ const MoreMenu = ({
                   </span>
                 </Button>
                 <h5 className="font-size-11 text-uppercase mt-3 mb-0 text-body text-truncate">
-                  Location
+                  {t("chat.location")}
                 </h5>
               </div>
             </div>
@@ -175,8 +177,8 @@ const MoreMenu = ({
                   type="button"
                   color="link"
                   className="avatar-sm mx-auto p-0 stretched-link"
-                  title="Share contact"
-                  aria-label="Share contact"
+                  title={t("chat.shareContact")}
+                  aria-label={t("chat.shareContact")}
                   onClick={onOpenContacts}
                 >
                   <span className="avatar-title font-size-18 bg-soft-primary text-primary rounded-circle">
@@ -184,7 +186,7 @@ const MoreMenu = ({
                   </span>
                 </Button>
                 <h5 className="font-size-11 text-uppercase mt-3 mb-0 text-body text-truncate">
-                  Contacts
+                  {t("nav.contacts")}
                 </h5>
               </div>
             </div>

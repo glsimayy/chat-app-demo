@@ -1,19 +1,36 @@
 import React, { useEffect, useMemo, useState } from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import { Button, Modal, ModalBody, Spinner } from "reactstrap";
 import imagePlaceholder from "../../assets/images/users/user-dummy-img.jpg";
 import { AudioCallContextValue } from "./types";
 
 interface AudioCallOverlayProps extends AudioCallContextValue {}
 
-const statusLabels = {
-  calling: "Calling...",
-  incoming: "Incoming audio call",
-  connecting: "Connecting securely...",
-  reconnecting: "Reconnecting...",
-  active: "Connected",
-  ended: "Call ended",
-  failed: "Call could not be completed",
+const statusLabelKeys = {
+  calling: "calls.status.calling",
+  incoming: "calls.status.incoming",
+  connecting: "calls.status.connecting",
+  reconnecting: "calls.status.reconnecting",
+  active: "calls.status.active",
+  ended: "calls.status.ended",
+  failed: "calls.status.failed",
 } as const;
+
+const diagnosticSummaryKeys: Record<string, string> = {
+  "The network audio path failed.": "calls.summary.pathFailed",
+  "The network audio path was interrupted.": "calls.summary.pathInterrupted",
+  "Waiting for the peer audio connection.": "calls.summary.waitingPeer",
+  "No local microphone track is available.": "calls.summary.noMicrophone",
+  "The local microphone track ended.": "calls.summary.microphoneEnded",
+  "The microphone is muted.": "calls.summary.microphoneMuted",
+  "The browser blocked remote audio playback.": "calls.summary.browserBlocked",
+  "Connected, but no outgoing audio data is visible yet.":
+    "calls.summary.noOutgoing",
+  "Connected, but no incoming audio data is visible yet.":
+    "calls.summary.noIncoming",
+  "Two-way audio data is flowing.": "calls.summary.flowing",
+};
 
 const formatDuration = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -33,8 +50,23 @@ const formatBytes = (bytes: number) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const formatState = (state: string) =>
-  state ? `${state.charAt(0).toUpperCase()}${state.slice(1)}` : "Unknown";
+const formatState = (state: string, t: TFunction) =>
+  state
+    ? t(`calls.state.${state}`, { defaultValue: state })
+    : t("calls.unknown");
+
+const translateStatusMessage = (message: string | undefined, t: TFunction) => {
+  if (!message) {
+    return "";
+  }
+  const statusMessageKeys: Record<string, string> = {
+    "Opening microphone...": "calls.openingMicrophone",
+    "Connecting securely...": "calls.status.connecting",
+    "Restoring audio connection...": "calls.restoringConnection",
+    "Reconnecting to the call...": "calls.status.reconnecting",
+  };
+  return statusMessageKeys[message] ? t(statusMessageKeys[message]) : message;
+};
 
 const AudioCallOverlay = ({
   call,
@@ -48,6 +80,7 @@ const AudioCallOverlay = ({
   refreshDiagnostics,
   resumeRemoteAudio,
 }: AudioCallOverlayProps) => {
+  const { t } = useTranslation();
   const [durationSeconds, setDurationSeconds] = useState(0);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">(
@@ -97,22 +130,26 @@ const AudioCallOverlay = ({
     call.status === "reconnecting";
   const isComplete = call.status === "ended" || call.status === "failed";
   const microphoneStatus = !diagnostics?.localTrack.available
-    ? "Unavailable"
+    ? t("calls.unavailable")
     : diagnostics.localTrack.readyState === "ended"
-      ? "Ended"
+      ? t("calls.ended")
       : !diagnostics.localTrack.enabled
-        ? "Muted"
+        ? t("calls.muted")
         : diagnostics.outbound.bytes > 0
-          ? `Sending (${formatBytes(diagnostics.outbound.bytes)})`
-          : "No outgoing data";
+          ? t("calls.sending", {
+              size: formatBytes(diagnostics.outbound.bytes),
+            })
+          : t("calls.noOutgoingData");
   const remoteAudioStatus =
     diagnostics?.playbackState === "blocked"
-      ? "Playback blocked"
+      ? t("calls.playbackBlocked")
       : !diagnostics?.remoteTrack.available
-        ? "No remote track"
+        ? t("calls.noRemoteTrack")
         : diagnostics.inbound.bytes > 0
-          ? `Receiving (${formatBytes(diagnostics.inbound.bytes)})`
-          : "No incoming data";
+          ? t("calls.receiving", {
+              size: formatBytes(diagnostics.inbound.bytes),
+            })
+          : t("calls.noIncomingData");
   const networkPath = diagnostics?.candidatePair
     ? [
         diagnostics.candidatePair.localCandidateType || "unknown",
@@ -122,7 +159,7 @@ const AudioCallOverlay = ({
       ]
         .filter(Boolean)
         .join(" / ")
-    : "Waiting for candidate pair";
+    : t("calls.waitingCandidate");
 
   const copyDiagnostics = async () => {
     if (!diagnostics || !navigator.clipboard) {
@@ -176,16 +213,19 @@ const AudioCallOverlay = ({
               setShowDiagnostics(current => !current);
               void refreshDiagnostics();
             }}
-            aria-label="Call diagnostics"
+            aria-label={t("calls.diagnostics")}
             aria-expanded={showDiagnostics}
-            title="Call diagnostics"
+            title={t("calls.diagnostics")}
           >
             <i className="bx bx-info-circle" aria-hidden="true"></i>
           </Button>
 
           <div className="audio-call-status" aria-live="polite">
             {isWaiting && <Spinner size="sm" className="me-2" />}
-            <span>{call.statusMessage || statusLabels[call.status]}</span>
+            <span>
+              {translateStatusMessage(call.statusMessage, t) ||
+                t(statusLabelKeys[call.status])}
+            </span>
           </div>
 
           <div className="audio-call-avatar mx-auto" aria-hidden="true">
@@ -203,8 +243,8 @@ const AudioCallOverlay = ({
             {call.status === "active"
               ? formatDuration(durationSeconds)
               : call.direction === "incoming"
-                ? "Wants to talk with you"
-                : "Audio call"}
+                ? t("calls.wantsToTalk")
+                : t("calls.audioCall")}
           </p>
 
           {showDiagnostics && (
@@ -213,14 +253,16 @@ const AudioCallOverlay = ({
               aria-labelledby="audio-call-diagnostics-title"
             >
               <div className="audio-call-diagnostics-header">
-                <h3 id="audio-call-diagnostics-title">Call diagnostics</h3>
+                <h3 id="audio-call-diagnostics-title">
+                  {t("calls.diagnostics")}
+                </h3>
                 <div>
                   <Button
                     type="button"
                     color="link"
                     onClick={() => void refreshDiagnostics()}
-                    aria-label="Refresh call diagnostics"
-                    title="Refresh"
+                    aria-label={t("calls.refreshDiagnostics")}
+                    title={t("support.refresh")}
                   >
                     <i className="bx bx-refresh" aria-hidden="true"></i>
                   </Button>
@@ -228,8 +270,8 @@ const AudioCallOverlay = ({
                     type="button"
                     color="link"
                     onClick={() => void copyDiagnostics()}
-                    aria-label="Copy call diagnostics"
-                    title="Copy report"
+                    aria-label={t("calls.copyDiagnostics")}
+                    title={t("calls.copyReport")}
                     disabled={!diagnostics}
                   >
                     <i className="bx bx-copy" aria-hidden="true"></i>
@@ -243,30 +285,32 @@ const AudioCallOverlay = ({
                     className={`audio-call-diagnostics-summary is-${diagnostics.level}`}
                     aria-live="polite"
                   >
-                    {diagnostics.summary}
+                    {diagnosticSummaryKeys[diagnostics.summary]
+                      ? t(diagnosticSummaryKeys[diagnostics.summary])
+                      : diagnostics.summary}
                   </p>
                   <dl>
                     <div>
-                      <dt>Connection</dt>
+                      <dt>{t("calls.connection")}</dt>
                       <dd data-testid="call-diagnostics-connection">
-                        {formatState(diagnostics.connectionState)} /{" "}
-                        {formatState(diagnostics.iceConnectionState)}
+                        {formatState(diagnostics.connectionState, t)} /{" "}
+                        {formatState(diagnostics.iceConnectionState, t)}
                       </dd>
                     </div>
                     <div>
-                      <dt>Microphone</dt>
+                      <dt>{t("calls.microphone")}</dt>
                       <dd data-testid="call-diagnostics-microphone">
                         {microphoneStatus}
                       </dd>
                     </div>
                     <div>
-                      <dt>Remote audio</dt>
+                      <dt>{t("calls.remoteAudio")}</dt>
                       <dd data-testid="call-diagnostics-remote-audio">
                         {remoteAudioStatus}
                       </dd>
                     </div>
                     <div>
-                      <dt>Network path</dt>
+                      <dt>{t("calls.networkPath")}</dt>
                       <dd data-testid="call-diagnostics-network">
                         {networkPath}
                       </dd>
@@ -281,7 +325,7 @@ const AudioCallOverlay = ({
                       onClick={() => void resumeRemoteAudio()}
                     >
                       <i className="bx bx-play me-1" aria-hidden="true"></i>
-                      Play remote audio
+                      {t("calls.playRemoteAudio")}
                     </Button>
                   )}
                   {copyStatus !== "idle" && (
@@ -290,14 +334,14 @@ const AudioCallOverlay = ({
                       role="status"
                     >
                       {copyStatus === "copied"
-                        ? "Report copied"
-                        : "Report could not be copied"}
+                        ? t("calls.reportCopied")
+                        : t("calls.reportCopyFailed")}
                     </span>
                   )}
                 </>
               ) : (
                 <p className="audio-call-diagnostics-empty mb-0">
-                  Collecting connection data...
+                  {t("calls.collectingData")}
                 </p>
               )}
             </section>
@@ -312,12 +356,12 @@ const AudioCallOverlay = ({
                     color="danger"
                     className="audio-call-action"
                     onClick={rejectCall}
-                    aria-label="Decline audio call"
-                    title="Decline"
+                    aria-label={t("calls.declineAria")}
+                    title={t("calls.decline")}
                   >
                     <i className="mdi mdi-phone-hangup" aria-hidden="true"></i>
                   </Button>
-                  <span>Decline</span>
+                  <span>{t("calls.decline")}</span>
                 </div>
                 <div>
                   <Button
@@ -325,12 +369,12 @@ const AudioCallOverlay = ({
                     color="success"
                     className="audio-call-action"
                     onClick={() => void acceptCall()}
-                    aria-label="Answer audio call"
-                    title="Answer"
+                    aria-label={t("calls.answerAria")}
+                    title={t("calls.answer")}
                   >
                     <i className="bx bxs-phone-call" aria-hidden="true"></i>
                   </Button>
-                  <span>Answer</span>
+                  <span>{t("calls.answer")}</span>
                 </div>
               </>
             ) : isComplete ? (
@@ -340,7 +384,7 @@ const AudioCallOverlay = ({
                 onClick={dismissCall}
                 className="px-4"
               >
-                Close
+                {t("common.close")}
               </Button>
             ) : (
               <>
@@ -352,10 +396,12 @@ const AudioCallOverlay = ({
                       className="audio-call-action"
                       onClick={toggleMute}
                       aria-label={
-                        call.isMuted ? "Unmute microphone" : "Mute microphone"
+                        call.isMuted
+                          ? t("calls.unmuteMicrophone")
+                          : t("calls.muteMicrophone")
                       }
                       aria-pressed={call.isMuted}
-                      title={call.isMuted ? "Unmute" : "Mute"}
+                      title={t(call.isMuted ? "calls.unmute" : "calls.mute")}
                     >
                       <i
                         className={`bx ${
@@ -364,7 +410,9 @@ const AudioCallOverlay = ({
                         aria-hidden="true"
                       ></i>
                     </Button>
-                    <span>{call.isMuted ? "Unmute" : "Mute"}</span>
+                    <span>
+                      {t(call.isMuted ? "calls.unmute" : "calls.mute")}
+                    </span>
                   </div>
                 )}
                 <div>
@@ -373,12 +421,12 @@ const AudioCallOverlay = ({
                     color="danger"
                     className="audio-call-action"
                     onClick={endCall}
-                    aria-label="End audio call"
-                    title="End call"
+                    aria-label={t("calls.endCallAria")}
+                    title={t("calls.endCall")}
                   >
                     <i className="mdi mdi-phone-hangup" aria-hidden="true"></i>
                   </Button>
-                  <span>End</span>
+                  <span>{t("calls.end")}</span>
                 </div>
               </>
             )}

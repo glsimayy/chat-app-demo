@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import { BasicDetailsTypes } from "../../../data/myProfile";
 
@@ -7,7 +8,8 @@ interface MyProfileProps {
 }
 
 const MyProfile = ({ basicDetails }: MyProfileProps) => {
-  const fullName = basicDetails?.fullName || "User";
+  const { t } = useTranslation();
+  const fullName = basicDetails?.fullName || t("profile.user");
   const initials = fullName.slice(0, 2).toUpperCase();
 
   return (
@@ -18,8 +20,10 @@ const MyProfile = ({ basicDetails }: MyProfileProps) => {
         </div>
         <div className="overlay-content">
           <div className="user-chat-nav p-3">
-            <h5 className="text-white mb-0">My profile</h5>
-            <p className="text-white-50 mb-0 font-size-12">Account details</p>
+            <h5 className="text-white mb-0">{t("profile.myProfile")}</h5>
+            <p className="text-white-50 mb-0 font-size-12">
+              {t("profile.accountDetails")}
+            </p>
           </div>
         </div>
       </div>
@@ -30,7 +34,7 @@ const MyProfile = ({ basicDetails }: MyProfileProps) => {
             <img
               src={basicDetails.avatar}
               className="rounded-circle avatar-lg img-thumbnail"
-              alt={`${fullName} profile`}
+              alt={t("profile.profileImage", { name: fullName })}
             />
           ) : (
             <span className="avatar-lg rounded-circle img-thumbnail avatar-title bg-primary text-white font-size-24">
@@ -41,7 +45,7 @@ const MyProfile = ({ basicDetails }: MyProfileProps) => {
 
         <h5 className="font-size-16 mb-1 text-truncate">{fullName}</h5>
         <p className="text-muted font-size-14 text-truncate mb-0">
-          {basicDetails?.title || "Member"}
+          {basicDetails?.title || t("profile.member")}
         </p>
       </div>
     </>

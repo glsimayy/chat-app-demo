@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { NavItem, UncontrolledTooltip } from "reactstrap";
 
 //constants
@@ -10,6 +11,7 @@ interface LightDarkProps {
 }
 
 const LightDarkMode = ({ layoutMode, onChangeLayoutMode }: LightDarkProps) => {
+  const { t } = useTranslation();
   const mode =
     layoutMode === LAYOUT_MODES["DARK"]
       ? LAYOUT_MODES["LIGHT"]
@@ -20,13 +22,18 @@ const LightDarkMode = ({ layoutMode, onChangeLayoutMode }: LightDarkProps) => {
         type="button"
         className="nav-link light-dark"
         onClick={() => onChangeLayoutMode(mode)}
-        aria-label={`Switch to ${mode} mode`}
+        aria-label={t("settings.switchMode", {
+          mode: t(
+            mode === LAYOUT_MODES["DARK"] ? "settings.dark" : "settings.light",
+          ),
+        })}
       >
         <i className="bx bx-moon" id="moon"></i>{" "}
       </button>{" "}
       <UncontrolledTooltip placement="right" target="color-mode">
-        <span className="light-mode">Light</span>
-        <span className="dark-mode">Dark</span> Mode{" "}
+        <span className="light-mode">{t("settings.light")}</span>
+        <span className="dark-mode">{t("settings.dark")}</span>{" "}
+        {t("settings.mode")}
       </UncontrolledTooltip>{" "}
     </NavItem>
   );
