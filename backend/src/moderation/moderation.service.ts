@@ -118,8 +118,9 @@ export class ModerationService implements OnModuleInit {
     };
   }
 
-  findAll(query: FindMessageReportsQueryDto) {
+  findAll(adminId: string, query: FindMessageReportsQueryDto) {
     const filtered = Array.from(this.reports.values())
+      .filter((report) => this.isVisibleToAdmin(report, adminId))
       .filter((report) => !query.status || report.status === query.status)
       .filter((report) => !query.reason || report.reason === query.reason)
       .sort(
@@ -150,6 +151,14 @@ export class ModerationService implements OnModuleInit {
     if (!report) {
       throw new NotFoundException("Message report not found");
     }
+
+    const message = this.conversationsService.findMessageForAdmin(
+      report.messageId,
+    );
+    if (!message || message.senderId === adminId) {
+      throw new NotFoundException("Message report not found");
+    }
+
     if (report.status !== MessageReportStatus.Pending) {
       throw new ConflictException("Message report is already resolved");
     }
@@ -160,12 +169,6 @@ export class ModerationService implements OnModuleInit {
       report.messageId,
     );
 
-    const message = this.conversationsService.findMessageForAdmin(
-      report.messageId,
-    );
-    if (!message) {
-      throw new NotFoundException("Reported message not found");
-    }
     const reportedUser = message.senderId
       ? this.usersService.findByIdSync(message.senderId)
       : undefined;
@@ -259,6 +262,13 @@ export class ModerationService implements OnModuleInit {
         : null,
       message,
     };
+  }
+
+  private isVisibleToAdmin(report: MessageReportRecord, adminId: string) {
+    const message = this.conversationsService.findMessageForAdmin(
+      report.messageId,
+    );
+    return Boolean(message && message.senderId !== adminId);
   }
 
   private toIdentity(userId: string) {

@@ -1,5 +1,6 @@
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
+import * as bcrypt from "bcrypt";
 import request from "supertest";
 import { AdminMonitoringService } from "../src/admin-monitoring/admin-monitoring.service";
 import { AppModule } from "../src/app.module";
@@ -7,6 +8,7 @@ import { AuthService } from "../src/auth/auth.service";
 import { configureApplication } from "../src/config/configure-application";
 import { ConversationsService } from "../src/conversations/conversations.service";
 import { ModerationService } from "../src/moderation/moderation.service";
+import { UserRole } from "../src/users/user-role.enum";
 import { UsersService } from "../src/users/users.service";
 
 describe("App e2e", () => {
@@ -404,6 +406,102 @@ describe("App e2e", () => {
         password: "Password123!",
       }),
     ).rejects.toThrow(/suspended/i);
+  });
+
+  it("hides an admin's own message reports and blocks direct resolution", async () => {
+    const messageOwner = await createAuthAdmin("self_report_owner");
+    const reviewer = await createAuthAdmin("self_report_reviewer");
+    const reporter = await createAuthUser("self_report_reporter");
+    const direct = await request(app.getHttpServer())
+      .post("/api/conversations/direct")
+      .set("authorization", `Bearer ${reporter.accessToken}`)
+      .send({ participantId: messageOwner.user.id })
+      .expect(201);
+    const message = await request(app.getHttpServer())
+      .post(`/api/conversations/${direct.body.data.id}/messages`)
+      .set("authorization", `Bearer ${messageOwner.accessToken}`)
+      .send({
+        content: "An admin-authored message reported by another user.",
+        clientMessageId: crypto.randomUUID(),
+      })
+      .expect(201);
+    const report = await request(app.getHttpServer())
+      .post("/api/message-reports")
+      .set("authorization", `Bearer ${reporter.accessToken}`)
+      .send({
+        messageId: message.body.data.id,
+        reason: "harassment",
+        details: "The report must be isolated from the message owner.",
+      })
+      .expect(201);
+
+    const ownerQueue = await request(app.getHttpServer())
+      .get("/api/admin/moderation/reports")
+      .set("authorization", `Bearer ${messageOwner.accessToken}`)
+      .expect(200);
+    expect(ownerQueue.body.data).toMatchObject({
+      items: [],
+      pageInfo: { total: 0 },
+    });
+
+    const reviewerQueue = await request(app.getHttpServer())
+      .get("/api/admin/moderation/reports")
+      .set("authorization", `Bearer ${reviewer.accessToken}`)
+      .expect(200);
+    expect(reviewerQueue.body.data.items).toEqual([
+      expect.objectContaining({
+        id: report.body.data.id,
+        status: "pending",
+        reportedUser: expect.objectContaining({
+          id: messageOwner.user.id,
+          role: "admin",
+        }),
+      }),
+    ]);
+
+    const ownerEvidence = await request(app.getHttpServer())
+      .post(`/api/admin/messages/${message.body.data.id}/reveal`)
+      .set("authorization", `Bearer ${messageOwner.accessToken}`)
+      .send({
+        reason: "abuse_investigation",
+        justification: "Attempting direct access with the guessed report ID.",
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(`/api/admin/moderation/reports/${report.body.data.id}/resolve`)
+      .set("authorization", `Bearer ${messageOwner.accessToken}`)
+      .send({
+        action: "dismiss",
+        note: "The message owner must not resolve this report.",
+        evidenceAuditId: ownerEvidence.body.data.auditId,
+      })
+      .expect(404);
+
+    const reviewerEvidence = await request(app.getHttpServer())
+      .post(`/api/admin/messages/${message.body.data.id}/reveal`)
+      .set("authorization", `Bearer ${reviewer.accessToken}`)
+      .send({
+        reason: "abuse_investigation",
+        justification: `Reviewing isolated report ${report.body.data.id}.`,
+      })
+      .expect(201);
+    const resolved = await request(app.getHttpServer())
+      .patch(`/api/admin/moderation/reports/${report.body.data.id}/resolve`)
+      .set("authorization", `Bearer ${reviewer.accessToken}`)
+      .send({
+        action: "dismiss",
+        note: "Independent administrator reviewed the report.",
+        evidenceAuditId: reviewerEvidence.body.data.auditId,
+      })
+      .expect(200);
+
+    expect(resolved.body.data).toMatchObject({
+      id: report.body.data.id,
+      status: "dismissed",
+      resolutionAction: "dismiss",
+      reviewedByAdmin: { id: reviewer.user.id },
+    });
   });
 
   it("enforces the complete group authorization matrix", async () => {
@@ -1331,5 +1429,18 @@ describe("App e2e", () => {
       email: `${username}@test.local`,
       password: "Password123!",
     });
+  }
+
+  async function createAuthAdmin(username: string) {
+    const password = "Password123!";
+    const email = `${username}@test.local`;
+    await usersService.create({
+      username,
+      email,
+      passwordHash: await bcrypt.hash(password, 10),
+      role: UserRole.Admin,
+    });
+
+    return authService.login({ email, password });
   }
 });

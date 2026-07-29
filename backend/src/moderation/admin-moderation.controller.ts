@@ -34,8 +34,11 @@ export class AdminModerationController {
   @Get("reports")
   @ApiOperation({ summary: "List masked message reports for moderation" })
   @ApiSuccessResponse(MessageReportListResponseDto)
-  findAll(@Query() query: FindMessageReportsQueryDto) {
-    return this.moderationService.findAll(query);
+  findAll(
+    @CurrentUser() admin: AuthenticatedUser,
+    @Query() query: FindMessageReportsQueryDto,
+  ) {
+    return this.moderationService.findAll(admin.id, query);
   }
 
   @Patch("reports/:reportId/resolve")
