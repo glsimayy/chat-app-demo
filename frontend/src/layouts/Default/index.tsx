@@ -34,16 +34,10 @@ const Index = (props: IndexProps) => {
     dispatch(changelayoutMode(layoutMode));
   }, [dispatch, layoutMode]);
 
-  const onChangeLayoutMode = (value: any) => {
-    if (changelayoutMode) {
-      dispatch(changelayoutMode(value));
-    }
-  };
-
   return (
     <div className="layout-wrapper d-lg-flex">
       {/* side menu */}
-      <SideMenu onChangeLayoutMode={onChangeLayoutMode} />
+      <SideMenu />
 
       {props.children}
       <ToastContainer

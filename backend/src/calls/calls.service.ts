@@ -123,12 +123,13 @@ export class CallsService implements OnModuleInit {
   findForUser(userId: string) {
     return Array.from(this.calls.values())
       .filter(
-        record =>
-          record.callerId === userId || record.recipientId === userId,
+        (record) => record.callerId === userId || record.recipientId === userId,
       )
-      .sort((left, right) => right.startedAt.getTime() - left.startedAt.getTime())
+      .sort(
+        (left, right) => right.startedAt.getTime() - left.startedAt.getTime(),
+      )
       .slice(0, 100)
-      .map(record => {
+      .map((record) => {
         const isOutgoing = record.callerId === userId;
         const peerId = isOutgoing ? record.recipientId : record.callerId;
         const peer = this.usersService.findByIdSync(peerId);
@@ -155,6 +156,10 @@ export class CallsService implements OnModuleInit {
           },
         };
       });
+  }
+
+  getAdminMonitoringRecords() {
+    return Array.from(this.calls.values()).map((record) => ({ ...record }));
   }
 
   async clearAll() {

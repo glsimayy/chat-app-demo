@@ -1,12 +1,7 @@
 import React, { useEffect, useState } from "react";
 
 import { Link } from "react-router-dom";
-import {
-  Nav,
-  NavItem,
-  NavLink,
-  UncontrolledTooltip,
-} from "reactstrap";
+import { Nav, NavItem, NavLink, UncontrolledTooltip } from "reactstrap";
 import { createSelector } from "reselect";
 // hooks
 import { useRedux } from "../../hooks/index";
@@ -16,7 +11,6 @@ import { changeSelectedChat, changeTab } from "../../redux/actions";
 
 // costants
 import { TABS } from "../../constants/index";
-import LightDarkMode from "../../components/LightDarkMode";
 
 import { getCurrentAuthUser } from "../../api/backendAdapters";
 
@@ -69,24 +63,8 @@ const Logo = () => {
 
 interface MenuNavItemProps {
   item: MenuItemType;
-  selectedTab:
-    | TABS.BOOKMARK
-    | TABS.CALLS
-    | TABS.CHAT
-    | TABS.CONTACTS
-    | TABS.SUPPORT
-    | TABS.SETTINGS
-    | TABS.USERS;
-  onChangeTab: (
-    id:
-      | TABS.BOOKMARK
-      | TABS.CALLS
-      | TABS.CHAT
-      | TABS.CONTACTS
-      | TABS.SUPPORT
-      | TABS.SETTINGS
-      | TABS.USERS,
-  ) => void;
+  selectedTab: TABS;
+  onChangeTab: (id: TABS) => void;
 }
 const MenuNavItem = ({ item, selectedTab, onChangeTab }: MenuNavItemProps) => {
   const onClick = () => {
@@ -114,24 +92,8 @@ const MenuNavItem = ({ item, selectedTab, onChangeTab }: MenuNavItemProps) => {
 };
 
 interface ProfileMenuButtonProps {
-  onChangeTab: (
-    id:
-      | TABS.BOOKMARK
-      | TABS.CALLS
-      | TABS.CHAT
-      | TABS.CONTACTS
-      | TABS.SUPPORT
-      | TABS.SETTINGS
-    | TABS.USERS,
-  ) => void;
-  selectedTab:
-    | TABS.BOOKMARK
-    | TABS.CALLS
-    | TABS.CHAT
-    | TABS.CONTACTS
-    | TABS.SUPPORT
-    | TABS.SETTINGS
-    | TABS.USERS;
+  onChangeTab: (id: TABS) => void;
+  selectedTab: TABS;
 }
 const ProfileMenuButton = ({
   onChangeTab,
@@ -149,7 +111,7 @@ const ProfileMenuButton = ({
   const initials = (profile?.username || "U").slice(0, 2).toUpperCase();
 
   return (
-    <NavItem className="profile-user-menu" id="profile-user-menu">
+    <NavItem className="profile-user-menu mt-auto" id="profile-user-menu">
       <button
         type="button"
         aria-label="Open profile menu"
@@ -177,54 +139,41 @@ const ProfileMenuButton = ({
   );
 };
 
-const SideMenu = ({ onChangeLayoutMode }: any) => {
+const SideMenu = () => {
   // global store
   const { dispatch, useAppSelector } = useRedux();
 
-  const menuItems: MenuItemType[] = MENU_ITEMS;
-  // const { activeTab, layoutMode } = useAppSelector(state => ({
-  //   activeTab: state.Layout.activeTab,
-  //   layoutMode: state.Layout.layoutMode,
-  // }));
-
+  const [profile, setProfile] = useState(() => getCurrentAuthUser());
+  const menuItems: MenuItemType[] = MENU_ITEMS.filter(
+    item => !item.adminOnly || profile?.role === "admin",
+  );
   const errorData = createSelector(
     (state: any) => state.Layout,
     state => ({
       activeTab: state.activeTab,
-      layoutMode: state.layoutMode,
     }),
   );
   // Inside your component
-  const { activeTab, layoutMode } = useAppSelector(errorData);
+  const { activeTab } = useAppSelector(errorData);
 
   /* 
     tab activation
     */
-  const [selectedTab, setSelectedTab] = useState<
-    | TABS.BOOKMARK
-    | TABS.CALLS
-    | TABS.CHAT
-    | TABS.CONTACTS
-    | TABS.SUPPORT
-    | TABS.SETTINGS
-    | TABS.USERS
-  >(TABS.CHAT);
-  const onChangeTab = (
-    id:
-      | TABS.BOOKMARK
-      | TABS.CALLS
-      | TABS.CHAT
-      | TABS.CONTACTS
-      | TABS.SUPPORT
-      | TABS.SETTINGS
-      | TABS.USERS,
-  ) => {
+  const [selectedTab, setSelectedTab] = useState<TABS>(TABS.CHAT);
+  const onChangeTab = (id: TABS) => {
     setSelectedTab(id);
     dispatch(changeTab(id));
-    if (id === TABS.SUPPORT) {
+    if (id === TABS.SUPPORT || id === TABS.ADMIN) {
       dispatch(changeSelectedChat(null));
     }
   };
+
+  useEffect(() => {
+    const refreshProfile = () => setProfile(getCurrentAuthUser());
+    window.addEventListener("ello:profile-updated", refreshProfile);
+    return () =>
+      window.removeEventListener("ello:profile-updated", refreshProfile);
+  }, []);
 
   useEffect(() => {
     setSelectedTab(activeTab);
@@ -247,12 +196,6 @@ const SideMenu = ({ onChangeLayoutMode }: any) => {
               onChangeTab={onChangeTab}
             />
           ))}
-
-          {/* change mode */}
-          <LightDarkMode
-            layoutMode={layoutMode}
-            onChangeLayoutMode={onChangeLayoutMode}
-          />
 
           {/* profile menu dropdown */}
           <ProfileMenuButton

@@ -1,245 +1,180 @@
 # ellO Codex Handoff
 
-Last updated: 2026-07-28
-Source setup: desktop
-Next setup: not selected
+Last updated: 2026-07-29
+Source setup: laptop
+Next setup: desktop
 
-This is the source of truth for resuming ellO work on either machine. Read the
-whole file before changing code or Git state.
+This file is the source of truth for continuing the current ellO work. Read it
+before changing code, Docker state, or Git history.
 
-## Transfer Note
-
-The laptop-to-desktop transfer completed successfully and current work is on
-the desktop `main` branch. The user authorized committing and pushing the chat
-background picker update and this handoff after local validation.
-
-A separate OneDrive ZIP is retained only as a backup:
-
-```text
-C:\Users\emovi\OneDrive\Masaüstü\ello-desktop-handoff-2026-07-27.zip
-```
-
-Depending on Windows localization, File Explorer may display `Masaüstü` as
-`Desktop`; use the actual OneDrive Desktop folder on the target machine.
-
-Normal desktop continuation should use Git, not the ZIP. PostgreSQL data lives
-in a machine-local Docker volume and is not included in Git or the backup.
-
-## Exact Prompt For Next Codex
-
-Give the next Codex task this prompt, replacing the setup name if needed:
+## Exact Prompt For Desktop Codex
 
 ```text
 SETUP: desktop
 Open the existing chat-app-demo checkout, read docs/CODEX_HANDOFF.md,
-preserve any existing local changes, switch/pull main, verify Docker without
-exposing .env values, and continue from Next Work.
+preserve unknown local changes, fetch origin, switch/pull emir_v0.1+ without
+merging it into main, verify the root .env without exposing values, start
+Docker, and continue from Next Work.
 ```
 
-## Repository State
+## Git State
 
 - Repository: `https://github.com/glsimayy/chat-app-demo.git`
-- Continue branch: `main`
-- Remote tracking branch: `origin/main`
-- Feature branch `codex/post-handoff-demo-fixes` was fast-forward merged into
-  `main` on 2026-07-27.
-- Reply fix commit: `228babb fix: persist chat replies end to end`
-- Technical reference commit:
-  `de585d7 docs: add API and database reference reports`
-- Bot automation and support realtime commit:
-  `c29d359 feat: expand bot automation and realtime support`
-- WebRTC diagnostics commit:
-  `9bd7a79 feat: add WebRTC call diagnostics`
-- The commit containing this handoff also contains the chat background picker
-  update. Verify it with `git log -1 --oneline` after pulling.
-- Do not switch to `emir_frontend`; that work is already in current history.
+- Continue branch: `emir_v0.1+`
+- Remote branch: `origin/emir_v0.1+`
+- Base branch: `main`
+- Keep `emir_v0.1+` separate. Do not merge it into `main` unless the user
+  explicitly asks.
+- This branch started from `main` commit `5e24b39`.
+- Use the newest commit on `origin/emir_v0.1+` as the handoff commit.
 
-Desktop preparation:
+Desktop commands:
 
 ```powershell
 git fetch origin
-git switch main
-git pull --ff-only origin main
+git switch 'emir_v0.1+'
+git pull --ff-only origin 'emir_v0.1+'
 git rev-parse --short HEAD
 git status --short --branch
 ```
 
+If the branch does not exist locally:
+
+```powershell
+git switch --track -c 'emir_v0.1+' origin/'emir_v0.1+'
+```
+
 The expected result is a clean worktree aligned with
-`origin/main`. If the desktop repo already has changes, stop and inspect them
-before pulling. Do not overwrite unknown work.
+`origin/emir_v0.1+`. If the desktop checkout already has changes, inspect them
+before pulling and do not overwrite unknown work.
 
-## Latest Branch Work
+## Work Included In This Branch
 
-### Reply Fix
+### Admin Control Center
 
-The reply composer previously showed the selected message but the sent message
-did not persist `replyToMessageId`.
+An admin-only operations area was added with:
 
-The fix:
+- stored user, conversation, message, attachment, ticket, call, and audit
+  totals
+- process and Socket.IO counters
+- live overview refresh every five seconds while the tab is visible
+- interval deltas for HTTP requests, socket events, created messages, and
+  active sockets
+- masked message metadata browsing
+- reason-and-justification-gated content reveal
+- attachment metadata, explicit reveal, preview, and download
+- immutable message content access logs
 
-- passes `replyToMessageId` explicitly from the composer
-- preserves `replyOf` for optimistic rendering
-- sends the same reply target through Socket.IO and REST fallback
-- removes false `0 Files` text from text-only reply previews
-- adds a Playwright regression scenario for replying to a BOT message
+Message content remains masked by default. Revealing content creates an audit
+record. Attachment access requires the matching audit.
 
-Laptop verification:
+### Moderation Reports
+
+Users can report eligible user messages. The admin moderation queue supports:
+
+- report reason and status filters
+- masked evidence until an administrator records an access reason
+- dismiss, delete-message, warn-user, and suspend-user decisions
+- decision notes and audited evidence linkage
+- clearer decision button states: blocked state explains what is missing and
+  ready state uses a high-contrast green action
+
+System messages cannot be reported. The frontend removes the report action and
+the backend independently rejects a direct API attempt.
+
+### Deterministic Catch-up
+
+Group conversations have an LLM-free Catch-up panel. It summarizes a selected
+recent window using deterministic message counts, participants, repeated topic
+terms, notable phrases, attachments, and system activity.
+
+### Composer Improvements
+
+This branch also contains:
+
+- per-user, per-conversation message drafts
+- voice-message recording and audio preview
+- responsive composer and mobile bottom buffer adjustments
+- related frontend unit coverage
+
+### Temporary Server Reliability
+
+`scripts/start-temporary-server.ps1` now waits for the Cloudflare Quick Tunnel
+hostname to resolve and for public frontend health before reporting success.
+No old Quick Tunnel URL should be assumed valid.
+
+## Latest Verification
+
+Completed on the laptop on 2026-07-29:
 
 - frontend typecheck passed
-- all 18 frontend unit tests passed
+- frontend tests passed: 36/36
 - frontend production build passed
-- targeted BOT-message reply Playwright test passed
+- backend typecheck passed
+- backend E2E tests passed: 16/16
+- Docker frontend and backend images rebuilt successfully
+- PostgreSQL, backend, Java webhook, and frontend were healthy
+- `GET http://localhost:3000/api/health` returned `status: ok`
+- live Admin Overview was checked in the browser
+- five-second overview deltas and second-level timestamps updated correctly
+- no horizontal overflow was present in the checked desktop viewport
 
-### Database Model Documentation
+The normal React Router v7 future-flag warnings still appear in one frontend
+test. They do not fail the suite.
 
-Created:
+## Next Work
 
-- `docs/database-data-model.md`
-- `output/pdf/ellodb-veri-modeli.pdf`
-- `scripts/generate-database-model-report.py`
+The user requested the following three features immediately before the handoff.
+They were inspected only; implementation has not started.
 
-Updated the database audit to cover the current schema. Last laptop
-verification:
+1. Group mentions
+   - Only active members of the current group may be mentioned.
+   - Support both `@username` and `@email@domain`.
+   - Treat the second `@` inside an email as part of the same mention.
+   - Prefer a member autocomplete menu over free-form guessing.
+   - Highlight recognized mentions in rendered messages.
+   - Add parser/autocomplete tests, especially email mentions.
 
-- 46 expected indexes
-- 22 expected foreign keys
-- 11-page A4 database model PDF
-- all PDF pages rendered and visually checked
+2. Turkish language support
+   - Add a Turkish/English choice inside user Settings.
+   - Persist the selected language.
+   - Translate the application interface, validation/status text, moderation
+     UI, admin UI, and known system-message templates.
+   - Do not rewrite stored user-authored message content.
+   - Standard system messages are currently stored in English, so translate
+     known templates at presentation time or introduce stable event keys
+     without breaking existing rows.
 
-### API And Java Webhook Documentation
+3. Admin self-report isolation
+   - If a report targets an admin's own message, that admin must not see the
+     report in their moderation queue.
+   - The same admin must also be blocked from resolving the report by directly
+     calling the endpoint with a guessed report ID.
+   - Another admin must still be able to see and resolve it.
+   - Add E2E coverage for queue filtering and the direct resolution guard.
 
-Created:
+Recommended order:
 
-- `docs/api-java-webhook-reference.md`
-- `docs/openapi.snapshot.json`
-- `output/pdf/ello-api-java-webhook-dokumani.pdf`
-- `scripts/generate-api-webhook-report.py`
-
-Last laptop verification:
-
-- 45 OpenAPI paths
-- 56 REST operations
-- 57 schemas
-- 20 documented Socket.IO client events
-- 48-page A4 PDF
-- no empty pages, clipped content, or broken Turkish glyphs
-- all 20 Java webhook tests passed with JDK 21
-
-### Temporary Internet Server
-
-Created:
-
-- `scripts/start-temporary-server.ps1`
-- `scripts/stop-temporary-server.ps1`
-- `docs/temporary-public-server.md`
-- root npm commands `server:temporary`, `server:temporary:build`, and
-  `server:temporary:stop`
-
-The start script:
-
-- validates Docker and root `.env`
-- starts Docker Compose
-- waits for frontend health
-- removes a stale tunnel container
-- starts a Cloudflare Quick Tunnel
-- prints the temporary public URL
-
-A Windows PowerShell issue was fixed: `cloudflared` writes normal information
-logs to stderr, so the script now captures those lines without treating them
-as terminating errors.
-
-The script was syntax checked and live tested. Public frontend `/healthz`
-returned `200` and public `/api/health` returned `ok`.
-
-Quick Tunnel details:
-
-- no deployment is created
-- the URL changes on restart
-- city/POP selection is not available
-- only frontend `5173` is tunneled
-- backend `3000`, Java `8080`, and PostgreSQL `5432` stay loopback-only
-- no previous public URL should be assumed valid
-
-### Expanded Bot Automation And Support Realtime
-
-The BOT API now supports the automation group lifecycle beyond group creation:
-
-- create or get an idempotent group
-- inspect and update group settings
-- list, add, remove, and promote/demote participants
-- create, edit, and delete bot-authored messages
-
-Examples are in `docs/bot-api-examples.md`. Bot operations use
-`x-bot-secret`; normal user JWTs are not used for these endpoints.
-
-Support tickets now emit `ticket:created` and `ticket:updated` Socket.IO
-events. The frontend refreshes the relevant ticket state from those events, so
-admin and requester views update without a manual refresh. The cross-session
-Playwright scenario passed.
-
-### WebRTC Diagnostics And Audio Verification
-
-The call overlay now includes a diagnostics panel for:
-
-- peer and ICE connection state
-- microphone sending bytes
-- remote audio receiving bytes
-- selected network path and candidate type
-- actionable recovery messages
-
-Recovery logic can restart ICE or rebuild the peer connection when needed.
-Local audio passed, and two-way audio also passed between phone and desktop
-through the Cloudflare HTTPS URL. The observed successful path was
-`host / host / udp`.
-
-No authenticated TURN service is bundled. The current STUN/host path can work
-on permissive networks, but a production TURN server is still recommended for
-restrictive NAT or firewall combinations.
-
-### Chat Background Picker
-
-The Settings > Themes background selector was replaced with a responsive
-three-column preview grid:
-
-- nine named and keyboard-accessible radio choices
-- stable rectangular previews instead of nearly invisible circles
-- selected border, label color, and check indicator
-- preview-only contrast enhancement for the very pale source PNGs
-- no filter applied to the actual chat background
-
-The mobile settings header overlap was also fixed. Validation completed on
-desktop and a `390px` viewport with no horizontal overflow. The targeted
-Playwright test verifies all nine choices, the default selection, and actual
-chat background switching.
-
-Current frontend verification on 2026-07-28:
-
-- typecheck passed
-- all 23 unit tests passed
-- production build passed
-- targeted theme Playwright test passed
-- Docker frontend was rebuilt and is healthy
+1. Implement and test the backend self-report isolation first because it is a
+   security boundary.
+2. Add the mention parser and group-member autocomplete.
+3. Add the language provider and Settings control, then migrate visible
+   surfaces section by section.
+4. Run all backend/frontend tests, typechecks, builds, and Docker browser checks.
+5. Keep work on `emir_v0.1+`; do not merge to `main` without an explicit request.
 
 ## Root Environment
 
-The root `.env` is intentionally ignored by Git and is not in the repository
-or handoff ZIP.
+The root `.env` is ignored by Git and is machine-local.
 
-Required values:
+Required secrets:
 
 - `JWT_SECRET`
 - `BOT_WEBHOOK_SECRET`
 - `WEBHOOK_SECRET`
 
-Laptop verification on 2026-07-27:
-
-- all three values exist
-- all are at least 32 characters
-- none use documented placeholders
-- values were not printed
-
-On desktop, inspect only presence, length, uniqueness, and placeholder status.
-Never print or commit the values.
+On desktop, inspect only presence, minimum length, uniqueness, and placeholder
+status. Never print or commit secret values.
 
 If `.env` is missing:
 
@@ -247,17 +182,12 @@ If `.env` is missing:
 Copy-Item .env.compose.example .env
 ```
 
-Then replace every secret placeholder with a unique random value of at least 32
-characters. `POSTGRES_PASSWORD` and the password inside `DATABASE_URL` must
-match.
+Replace placeholders with unique random values of at least 32 characters.
+`POSTGRES_PASSWORD` and the password inside `DATABASE_URL` must match.
 
-## Docker State
+## Docker
 
-Docker Desktop and all four long-running services were healthy on the desktop
-after the final frontend rebuild on 2026-07-28. No public tunnel should be
-assumed active.
-
-Start on desktop:
+Start or rebuild:
 
 ```powershell
 docker compose config --quiet
@@ -267,51 +197,23 @@ docker compose ps
 
 Expected long-running services:
 
-| Service | URL | Expected |
-| --- | --- | --- |
-| Frontend | `http://localhost:5173` | healthy |
-| Backend | `http://localhost:3000/api/health` | healthy |
-| Java webhook | `http://localhost:8080/health` | healthy |
-| PostgreSQL | `127.0.0.1:5432` | healthy |
+| Service | URL |
+| --- | --- |
+| Frontend | `http://localhost:5173` |
+| Backend health | `http://localhost:3000/api/health` |
+| Swagger | `http://localhost:3000/api/docs` |
+| Java webhook | `http://localhost:8080/health` |
+| PostgreSQL | `127.0.0.1:5432` |
 
-Swagger:
+Do not use `docker compose down -v` and do not reset demo data unless the user
+explicitly requests it. PostgreSQL data is machine-local and is not transferred
+by Git.
 
-```text
-http://localhost:3000/api/docs
-```
-
-## Historical Demo Database Baseline
-
-At the final laptop check, the database was reset to:
-
-- 6 fixed users
-- 3 visible sample groups
-- 3 private management conversations
-- 6 messages total: one system and one welcome message per visible group
-- 0 support tickets
-- 0 contact invitations
-- 0 call records
-
-Visible groups:
-
-| Group | Owner | Managers | Members can send | Members can leave |
-| --- | --- | --- | --- | --- |
-| Staj Proje Ekibi | emiradmin | asliadmin, gulsimaadmin | yes | yes |
-| Backend Koordinasyon | asliadmin | emiradmin | no | no |
-| Demo ve Test Ekibi | gulsimaadmin | emiradmin, asliadmin | yes | yes |
-
-Every group contains all six fixed users.
-
-The desktop database has since been used for browser, support, BOT, and call
-tests. Do not assume the counts above are still current. Treat this section as
-the reproducible demo baseline only. Do not use `docker compose down -v` or
-reset demo data unless the user explicitly requests it.
-
-## Fixed Test Accounts
+## Fixed Development Accounts
 
 All passwords are `123456`.
 
-| Automation ID | Username | Email | Role |
+| ID | Username | Email | Role |
 | --- | --- | --- | --- |
 | 1 | emiradmin | emiradmin@ello.com | admin |
 | 2 | emiruser | emiruser@ello.com | user |
@@ -320,36 +222,23 @@ All passwords are `123456`.
 | 5 | gulsimaadmin | gulsimaadmin@ello.com | admin |
 | 6 | gulsimauser | gulsimauser@ello.com | user |
 
-The Automation Bot is recreated automatically on the first BOT API operation
-and does not need to be part of the initial six-user state.
+The Automation Bot is created automatically by the first BOT API operation.
 
-## Local And Temporary Server Commands
+## Useful Commands
 
-Local-only stack:
+Local stack:
 
 ```powershell
 docker compose up -d
 ```
 
-Open:
-
-```text
-http://localhost:5173
-```
-
 Temporary public test server:
-
-```powershell
-npm.cmd run server:temporary
-```
-
-Rebuild and open:
 
 ```powershell
 npm.cmd run server:temporary:build
 ```
 
-Stop public access but keep local services:
+Stop only public access:
 
 ```powershell
 npm.cmd run server:temporary:stop
@@ -361,31 +250,12 @@ Stop local services without deleting PostgreSQL data:
 docker compose stop
 ```
 
-## Next Work
-
-Recommended continuation order:
-
-1. Pull `main` and verify a clean worktree.
-2. Start Docker and wait for all long-running services to become healthy.
-3. Open Settings > Themes and confirm the nine visible background previews.
-4. Keep the current database unless the user requests the documented demo
-   reset.
-5. Select the next product priority with the user.
-6. Consider authenticated TURN only if cross-network call reliability becomes
-   a release requirement.
-7. Continue from `main`; push new work only when the user explicitly asks.
-
-## Final Sanity Commands
+Final sanity:
 
 ```powershell
 git status --short --branch
-git rev-parse --short HEAD
 docker compose ps
 Invoke-RestMethod http://localhost:3000/api/health
 Invoke-WebRequest -UseBasicParsing http://localhost:5173/healthz
 Invoke-RestMethod http://localhost:8080/health
-Invoke-RestMethod http://localhost:8080/ready
-Invoke-WebRequest -UseBasicParsing http://localhost:3000/api/docs
 ```
-
-The project now continues from `main`.

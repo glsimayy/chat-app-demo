@@ -205,6 +205,185 @@ test("development accounts authenticate with the expected roles", async ({
   await loginThroughUi(page, accounts.admin);
 });
 
+test("admin monitoring masks content and records justified access", async ({
+  browser,
+  request,
+}) => {
+  const directResponse = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.admin.accessToken}` },
+    data: { participantId: sessions.user1.user.id },
+  });
+  expect(directResponse.ok(), await directResponse.text()).toBeTruthy();
+  const direct = (await directResponse.json()).data;
+  const content = `admin-audit-e2e-${Date.now()}`;
+  const attachmentName = "moderation-sample.png";
+  const attachment = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZlVQAAAAASUVORK5CYII=",
+    "base64",
+  );
+  const messageResponse = await request.post(
+    `${apiUrl}/conversations/${direct.id}/messages/attachments`,
+    {
+      headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+      multipart: {
+        content,
+        clientMessageId: crypto.randomUUID(),
+        files: {
+          name: attachmentName,
+          mimeType: "image/png",
+          buffer: attachment,
+        },
+      },
+    },
+  );
+  expect(messageResponse.ok(), await messageResponse.text()).toBeTruthy();
+
+  const [admin, member] = await Promise.all([
+    createAuthenticatedPage(browser, sessions.admin),
+    createAuthenticatedPage(browser, sessions.user1),
+  ]);
+
+  try {
+    await expect(
+      member.page.getByRole("link", { name: "Admin Control Center" }),
+    ).toHaveCount(0);
+
+    await admin.page
+      .getByRole("link", { name: "Admin Control Center" })
+      .click();
+    await expect(
+      admin.page.getByRole("heading", {
+        name: "Admin Control Center",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await admin.page.getByRole("button", { name: "Message audit" }).click();
+    await expect(admin.page.getByText("Content masked")).toBeVisible();
+    await expect(admin.page.getByText(content, { exact: true })).toHaveCount(0);
+
+    await admin.page.getByRole("button", { name: "Reveal" }).click();
+    await expect(
+      admin.page.getByRole("button", { name: "Record and reveal" }),
+    ).toBeDisabled();
+    const justification = "Automated admin audit acceptance test.";
+    await admin.page.getByLabel("Justification").fill(justification);
+    await admin.page.getByRole("button", { name: "Record and reveal" }).click();
+    await expect(admin.page.getByText(content, { exact: true })).toBeVisible();
+    await expect(
+      admin.page.getByText(attachmentName, { exact: true }),
+    ).toBeVisible();
+    await admin.page.getByRole("button", { name: "Show image" }).click();
+    const preview = admin.page.getByRole("img", {
+      name: `Audited attachment ${attachmentName}`,
+    });
+    await expect(preview).toBeVisible();
+    await expect(preview).toHaveAttribute("src", /^blob:/);
+
+    await admin.page
+      .locator(".modal-footer")
+      .getByRole("button", { name: "Close", exact: true })
+      .click();
+    await expect(
+      admin.page.getByRole("heading", { name: "Reveal message content" }),
+    ).not.toBeVisible();
+    await admin.page.getByRole("button", { name: "Access log" }).click();
+    await expect(
+      admin.page.getByText(justification, { exact: true }),
+    ).toBeVisible();
+  } finally {
+    await closeContexts(admin.context, member.context);
+  }
+});
+
+test("users report messages and admins resolve them from the moderation queue", async ({
+  browser,
+  request,
+}) => {
+  const directResponse = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.user2.accessToken}` },
+    data: { participantId: sessions.user1.user.id },
+  });
+  expect(directResponse.ok(), await directResponse.text()).toBeTruthy();
+  const direct = (await directResponse.json()).data;
+  const content = `reported-message-e2e-${Date.now()}`;
+  const messageResponse = await request.post(
+    `${apiUrl}/conversations/${direct.id}/messages`,
+    {
+      headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+      data: {
+        content,
+        clientMessageId: crypto.randomUUID(),
+      },
+    },
+  );
+  expect(messageResponse.ok(), await messageResponse.text()).toBeTruthy();
+  const message = (await messageResponse.json()).data;
+
+  const [reporter, admin] = await Promise.all([
+    createAuthenticatedPage(browser, sessions.user2),
+    createAuthenticatedPage(browser, sessions.admin),
+  ]);
+
+  try {
+    await openConversation(reporter.page, accounts.user1.username);
+    const messageRow = reporter.page.locator(
+      `[data-message-id="${message.id}"]`,
+    );
+    await messageRow.hover();
+    await messageRow.getByLabel("Message actions").click();
+    await reporter.page
+      .locator(".message-actions-menu.show")
+      .getByText("Report", { exact: true })
+      .click();
+    await reporter.page.getByLabel("Reason").selectOption("impersonation");
+    await reporter.page
+      .getByLabel("Additional details")
+      .fill("Account identity appears intentionally misleading.");
+    const reportResponse = reporter.page.waitForResponse(
+      response =>
+        response.request().method() === "POST" &&
+        response.url().endsWith("/message-reports"),
+    );
+    await reporter.page.getByRole("button", { name: "Submit report" }).click();
+    expect((await reportResponse).status()).toBe(201);
+
+    await admin.page
+      .getByRole("link", { name: "Admin Control Center" })
+      .click();
+    await admin.page.getByRole("button", { name: "Moderation" }).click();
+    const reportRow = admin.page
+      .locator("tbody tr")
+      .filter({ hasText: accounts.user1.username })
+      .filter({ hasText: "Impersonation" });
+    await expect(reportRow).toBeVisible();
+    await reportRow.getByRole("button", { name: "Review" }).click();
+
+    await admin.page
+      .getByLabel("Justification")
+      .fill("Reviewing reported impersonation evidence.");
+    await admin.page.getByRole("button", { name: "Record and reveal" }).click();
+    await expect(admin.page.getByText(content, { exact: true })).toBeVisible();
+    await admin.page.getByLabel("Action").selectOption("delete_message");
+    await admin.page
+      .getByLabel("Decision note")
+      .fill("Confirmed policy violation; message removed.");
+    const resolutionResponse = admin.page.waitForResponse(
+      response =>
+        response.request().method() === "PATCH" &&
+        response.url().includes("/admin/moderation/reports/") &&
+        response.url().endsWith("/resolve"),
+    );
+    await admin.page.getByRole("button", { name: "Record decision" }).click();
+    expect((await resolutionResponse).status()).toBe(200);
+    await expect(
+      admin.page.getByRole("heading", { name: "Review moderation report" }),
+    ).not.toBeVisible();
+    await expect(reportRow).toHaveCount(0);
+  } finally {
+    await closeContexts(reporter.context, admin.context);
+  }
+});
+
 test("protected routes redirect unauthenticated visitors", async ({ page }) => {
   await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
 
@@ -1270,6 +1449,85 @@ test("image attachments upload and render from the chat composer", async ({
     const image = user.page.locator(`img[alt="${fileName}"]`);
     await expect(image).toBeVisible();
     await expect(image).toHaveAttribute("src", /^blob:/);
+  } finally {
+    await user.context.close();
+  }
+});
+
+test("message drafts survive reload and clear after sending", async ({
+  browser,
+  request,
+}) => {
+  const response = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+    data: { participantId: sessions.user2.user.id },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+
+  const user = await createAuthenticatedPage(browser, sessions.user1);
+  const draft = `draft-e2e-${Date.now()}`;
+
+  try {
+    await openConversation(user.page, sessions.user2.user.username);
+    await user.page.locator("#chat-input").fill(draft);
+    await user.page.reload({ waitUntil: "domcontentloaded" });
+    await openConversation(user.page, sessions.user2.user.username);
+    await expect(user.page.locator("#chat-input")).toHaveValue(draft);
+
+    await user.page.getByRole("button", { name: "Send message" }).click();
+    await expect(user.page.getByText(draft, { exact: true })).toBeVisible();
+    await user.page.reload({ waitUntil: "domcontentloaded" });
+    await openConversation(user.page, sessions.user2.user.username);
+    await expect(user.page.locator("#chat-input")).toHaveValue("");
+  } finally {
+    await user.context.close();
+  }
+});
+
+test("users can record and play a voice message", async ({
+  browser,
+  request,
+}) => {
+  const response = await request.post(`${apiUrl}/conversations/direct`, {
+    headers: { Authorization: `Bearer ${sessions.user1.accessToken}` },
+    data: { participantId: sessions.user2.user.id },
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+
+  const user = await createAuthenticatedPage(browser, sessions.user1, {
+    permissions: ["microphone"],
+  });
+
+  try {
+    await openConversation(user.page, sessions.user2.user.username);
+    await user.page
+      .getByRole("button", { name: "Record voice message" })
+      .click();
+    await expect(user.page.getByLabel(/Recording voice message/)).toBeVisible();
+    await user.page.waitForTimeout(700);
+    await user.page
+      .getByRole("button", { name: "Stop and attach voice recording" })
+      .click();
+    await expect(
+      user.page.getByText("Voice message ready to send", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      user.page.getByLabel("Voice message preview", { exact: true }),
+    ).toBeVisible();
+
+    const uploadResponse = user.page.waitForResponse(
+      apiResponse =>
+        apiResponse.request().method() === "POST" &&
+        apiResponse.url().includes("/messages/attachments"),
+    );
+    await user.page.getByRole("button", { name: "Send message" }).click();
+    expect((await uploadResponse).status()).toBe(201);
+
+    const player = user.page
+      .locator('audio[aria-label^="Play voice-message-"]')
+      .last();
+    await expect(player).toBeVisible();
+    await expect(player).toHaveAttribute("src", /^blob:/);
   } finally {
     await user.context.close();
   }

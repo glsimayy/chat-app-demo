@@ -8,6 +8,7 @@ import { SupportTicketPriority } from "../../tickets/support-ticket-priority.enu
 import { SupportTicketStatus } from "../../tickets/support-ticket-status.enum";
 import { SupportTicketActivityAction } from "../../tickets/support-ticket-activity-action.enum";
 import { ContactInvitationStatus } from "../../contact-invitations/contact-invitation-status.enum";
+import { CatchUpWindow } from "../../conversations/catch-up-window.enum";
 
 export class UserResponseDto {
   @ApiProperty({ format: "uuid" })
@@ -486,6 +487,103 @@ export class MessageSearchResponseDto {
   pageInfo!: MessageSearchPageInfoResponseDto;
 }
 
+export class ConversationCatchUpParticipantResponseDto {
+  @ApiProperty({ format: "uuid" })
+  userId!: string;
+
+  @ApiProperty({ example: "emiradmin" })
+  username!: string;
+
+  @ApiProperty({ example: 12 })
+  messageCount!: number;
+}
+
+export class ConversationCatchUpTopicResponseDto {
+  @ApiProperty({ example: "deployment" })
+  label!: string;
+
+  @ApiProperty({ example: 8 })
+  count!: number;
+}
+
+export class ConversationCatchUpMomentResponseDto {
+  @ApiProperty({ format: "uuid" })
+  messageId!: string;
+
+  @ApiProperty({ enum: ["decision", "action", "highlight"] })
+  kind!: "decision" | "action" | "highlight";
+
+  @ApiProperty({ format: "uuid" })
+  senderId!: string;
+
+  @ApiProperty({ example: "emiradmin" })
+  senderUsername!: string;
+
+  @ApiProperty({ example: "Deployment will start at 17:00." })
+  preview!: string;
+
+  @ApiProperty({ format: "date-time" })
+  createdAt!: string;
+
+  @ApiProperty({ example: 2 })
+  replyCount!: number;
+
+  @ApiProperty({ example: 1 })
+  attachmentCount!: number;
+}
+
+export class ConversationCatchUpResponseDto {
+  @ApiProperty({ format: "uuid" })
+  conversationId!: string;
+
+  @ApiProperty({ enum: CatchUpWindow })
+  window!: CatchUpWindow;
+
+  @ApiProperty({ format: "date-time" })
+  startAt!: string;
+
+  @ApiProperty({ format: "date-time" })
+  endAt!: string;
+
+  @ApiProperty({ format: "date-time" })
+  generatedAt!: string;
+
+  @ApiProperty({
+    example: "12 messages were posted by 3 participants in the last 2 hours.",
+  })
+  summary!: string;
+
+  @ApiProperty()
+  messageCount!: number;
+
+  @ApiProperty()
+  participantCount!: number;
+
+  @ApiProperty()
+  replyCount!: number;
+
+  @ApiProperty()
+  attachmentCount!: number;
+
+  @ApiProperty()
+  systemEventCount!: number;
+
+  @ApiProperty()
+  analyzedMessageCount!: number;
+
+  @ApiProperty()
+  truncated!: boolean;
+
+  @ApiProperty({ type: [ConversationCatchUpParticipantResponseDto] })
+  activeParticipants!: ConversationCatchUpParticipantResponseDto[];
+
+  @ApiProperty({ type: [ConversationCatchUpTopicResponseDto] })
+  topics!: ConversationCatchUpTopicResponseDto[];
+
+  @ApiProperty({ type: [ConversationCatchUpMomentResponseDto] })
+  keyMoments!: ConversationCatchUpMomentResponseDto[];
+}
+
 export class ReadStateResponseDto {
   @ApiProperty({ format: "uuid" })
   conversationId!: string;
@@ -523,6 +621,9 @@ export class HealthResponseDto {
 }
 
 export class DevResetResponseDto {
+  @ApiProperty({ type: Object })
+  adminMonitoring!: Record<string, number>;
+
   @ApiProperty({ type: Object })
   bookmarks!: Record<string, number>;
 

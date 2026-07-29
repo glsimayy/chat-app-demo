@@ -161,11 +161,18 @@ export class ChatGateway
       const payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
         secret: this.configService.get<string>("JWT_SECRET", "dev-secret"),
       });
+      const currentUser = await this.usersService.findRecordById(payload.sub);
+      if (!currentUser || this.usersService.isSuspended(currentUser)) {
+        throw new WsException({
+          code: "UNAUTHORIZED",
+          message: "User account is unavailable",
+        });
+      }
 
       client.data.user = {
-        id: payload.sub,
-        email: payload.email,
-        role: payload.role,
+        id: currentUser.id,
+        email: currentUser.email,
+        role: currentUser.role,
       };
       client.data.conversationIds = new Set<string>();
 
@@ -878,6 +885,14 @@ export class ChatGateway
       throw new WsException({
         code: "UNAUTHORIZED",
         message: "Unauthorized socket connection",
+      });
+    }
+
+    if (this.usersService.getModerationProfile(user.id)?.suspendedUntil) {
+      client.disconnect(true);
+      throw new WsException({
+        code: "UNAUTHORIZED",
+        message: "User account is suspended",
       });
     }
 

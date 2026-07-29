@@ -23,6 +23,8 @@ import { getCurrentAuthUser } from "../../api/backendAdapters";
 import { getUsers } from "../../api/chats";
 import { AudioCallProvider } from "../../features/audio-call/AudioCallProvider";
 import { PresenceProvider } from "../../features/presence/PresenceProvider";
+import { TABS } from "../../constants";
+import AdminPanel from "./Admin";
 
 interface IndexProps {}
 const Index = (props: IndexProps) => {
@@ -33,14 +35,15 @@ const Index = (props: IndexProps) => {
   //   selectedChat: state.Chats.selectedChat,
   // }));
   const errorData = createSelector(
-    (state: any) => state.Chats,
+    (state: any) => state,
     state => ({
-      selectedChat: state.selectedChat,
-      error: state.error,
+      selectedChat: state.Chats.selectedChat,
+      error: state.Chats.error,
+      activeTab: state.Layout.activeTab,
     }),
   );
   // Inside your component
-  const { selectedChat, error } = useAppSelector(errorData);
+  const { selectedChat, error, activeTab } = useAppSelector(errorData);
 
   const retryChatLists = () => {
     dispatch(getDirectMessages());
@@ -122,40 +125,46 @@ const Index = (props: IndexProps) => {
   }, [dispatch, selectedChat]);
 
   const { isChannel } = useConversationUserType();
+  const isAdminPanel =
+    activeTab === TABS.ADMIN && getCurrentAuthUser()?.role === "admin";
+
+  if (isAdminPanel) {
+    return <AdminPanel />;
+  }
 
   return (
     <PresenceProvider>
       <AudioCallProvider>
         <Leftbar />
 
-      <div
-        className={classnames("user-chat", "w-100", "overflow-hidden", {
-          "user-chat-show": selectedChat,
-        })}
-        id="user-chat"
-      >
-        <div className="user-chat-overlay" id="user-chat-overlay"></div>
-        {error && (
-          <Alert
-            color="danger"
-            className="rounded-0 mb-0 d-flex align-items-center justify-content-between gap-3"
-          >
-            <span>{error}</span>
-            <Button color="danger" outline size="sm" onClick={retryChatLists}>
-              Retry
-            </Button>
-          </Alert>
-        )}
-        {selectedChat !== null ? (
-          <div className="chat-content d-lg-flex">
-            <div className="w-100 overflow-hidden position-relative">
-              <ConversationUser isChannel={isChannel} />
+        <div
+          className={classnames("user-chat", "w-100", "overflow-hidden", {
+            "user-chat-show": selectedChat,
+          })}
+          id="user-chat"
+        >
+          <div className="user-chat-overlay" id="user-chat-overlay"></div>
+          {error && (
+            <Alert
+              color="danger"
+              className="rounded-0 mb-0 d-flex align-items-center justify-content-between gap-3"
+            >
+              <span>{error}</span>
+              <Button color="danger" outline size="sm" onClick={retryChatLists}>
+                Retry
+              </Button>
+            </Alert>
+          )}
+          {selectedChat !== null ? (
+            <div className="chat-content d-lg-flex">
+              <div className="w-100 overflow-hidden position-relative">
+                <ConversationUser isChannel={isChannel} />
+              </div>
+              <UserProfileDetails isChannel={isChannel} />
             </div>
-            <UserProfileDetails isChannel={isChannel} />
-          </div>
-        ) : (
-          <Welcome />
-        )}
+          ) : (
+            <Welcome />
+          )}
         </div>
       </AudioCallProvider>
     </PresenceProvider>

@@ -331,6 +331,10 @@ export class TicketsService implements OnModuleInit {
     return this.persistUpdate(ticket.version, updated, changes);
   }
 
+  getAdminMonitoringRecords() {
+    return Array.from(this.tickets.values()).map((ticket) => ({ ...ticket }));
+  }
+
   async clearAll() {
     const deletedTickets = this.tickets.size;
     if (this.prismaService?.enabled) {

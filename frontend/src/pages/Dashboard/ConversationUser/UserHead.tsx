@@ -11,7 +11,9 @@ interface UserHeadProps {
   chatUserDetails: any;
   onOpenUserDetails: () => void;
   onToggleSearch: () => void;
+  onToggleCatchUp: () => void;
   isSearchOpen: boolean;
+  isCatchUpOpen: boolean;
   isChannel: boolean;
 }
 
@@ -19,7 +21,9 @@ const UserHead = ({
   chatUserDetails,
   onOpenUserDetails,
   onToggleSearch,
+  onToggleCatchUp,
   isSearchOpen,
+  isCatchUpOpen,
   isChannel,
 }: UserHeadProps) => {
   const { dispatch } = useRedux();
@@ -123,6 +127,18 @@ const UserHead = ({
           </div>
         </Col>
         <Col className="col-4 col-sm-3 text-end">
+          <button
+            onClick={onToggleCatchUp}
+            type="button"
+            className={classnames("btn nav-btn", {
+              active: isCatchUpOpen,
+            })}
+            title="Catch up on recent activity"
+            aria-label="Catch up on recent activity"
+            aria-pressed={isCatchUpOpen}
+          >
+            <i className="bx bx-history"></i>
+          </button>
           <button
             onClick={onToggleSearch}
             type="button"

@@ -73,6 +73,36 @@ enum SupportTicketActivityAction {
   note_updated
 }
 
+enum AdminMessageAccessReason {
+  support_request
+  abuse_investigation
+  security_incident
+  system_test
+  other
+}
+
+enum MessageReportReason {
+  harassment
+  sexual_content
+  violence_or_threat
+  spam
+  impersonation
+  other
+}
+
+enum MessageReportStatus {
+  pending
+  resolved
+  dismissed
+}
+
+enum ModerationResolutionAction {
+  dismiss
+  delete_message
+  warn_user
+  suspend_user
+}
+
 model User {
   id                         String                    @id @default(uuid()) @db.Uuid
   automationId               Int?                      @unique
@@ -83,6 +113,9 @@ model User {
   about                      String?
   location                   String?
   profileImage               String?                   @db.Text
+  moderationWarningCount     Int                       @default(0)
+  suspendedUntil             DateTime?
+  suspensionReason           String?                   @db.Text
   createdAt                  DateTime                  @default(now())
   updatedAt                  DateTime                  @updatedAt
   conversationsCreated       Conversation[]            @relation("ConversationCreator")
@@ -98,6 +131,9 @@ model User {
   callsPlaced                CallRecord[]              @relation("CallCaller")
   callsReceived              CallRecord[]              @relation("CallRecipient")
   callsEnded                 CallRecord[]              @relation("CallEndedBy")
+  adminMessageAccessAudits   AdminMessageAccessAudit[] @relation("AdminMessageAccessActor")
+  messageReportsSubmitted    MessageReport[]           @relation("MessageReportReporter")
+  messageReportsReviewed     MessageReport[]           @relation("MessageReportReviewer")
 
   @@index([role])
   @@map("users")
@@ -207,23 +243,25 @@ model ConversationParticipant {
 }
 
 model Message {
-  id               String              @id @default(uuid()) @db.Uuid
-  clientMessageId  String?             @db.Uuid
-  conversationId   String              @db.Uuid
-  senderId         String?             @db.Uuid
-  replyToMessageId String?             @db.Uuid
-  content          String
-  messageType      MessageType         @default(user)
-  isForwarded      Boolean             @default(false)
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime?
-  deletedAt        DateTime?
-  conversation     Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender           User?               @relation(fields: [senderId], references: [id], onDelete: SetNull)
-  replyTo          Message?            @relation("MessageReplies", fields: [replyToMessageId], references: [id], onDelete: SetNull)
-  replies          Message[]           @relation("MessageReplies")
-  attachments      MessageAttachment[]
-  bookmarks        MessageBookmark[]
+  id                String                    @id @default(uuid()) @db.Uuid
+  clientMessageId   String?                   @db.Uuid
+  conversationId    String                    @db.Uuid
+  senderId          String?                   @db.Uuid
+  replyToMessageId  String?                   @db.Uuid
+  content           String
+  messageType       MessageType               @default(user)
+  isForwarded       Boolean                   @default(false)
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime?
+  deletedAt         DateTime?
+  conversation      Conversation              @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender            User?                     @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  replyTo           Message?                  @relation("MessageReplies", fields: [replyToMessageId], references: [id], onDelete: SetNull)
+  replies           Message[]                 @relation("MessageReplies")
+  attachments       MessageAttachment[]
+  bookmarks         MessageBookmark[]
+  adminAccessAudits AdminMessageAccessAudit[]
+  reports           MessageReport[]
 
   @@unique([senderId, clientMessageId])
   @@index([conversationId, createdAt])
@@ -232,6 +270,47 @@ model Message {
   @@index([messageType])
   @@index([deletedAt])
   @@map("messages")
+}
+
+model AdminMessageAccessAudit {
+  id            String                   @id @default(uuid()) @db.Uuid
+  adminId       String                   @db.Uuid
+  messageId     String                   @db.Uuid
+  reason        AdminMessageAccessReason
+  justification String                   @db.Text
+  createdAt     DateTime                 @default(now())
+  admin         User                     @relation("AdminMessageAccessActor", fields: [adminId], references: [id], onDelete: Restrict)
+  message       Message                  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, createdAt])
+  @@index([messageId, createdAt])
+  @@index([reason])
+  @@map("admin_message_access_audits")
+}
+
+model MessageReport {
+  id                String                      @id @default(uuid()) @db.Uuid
+  messageId         String                      @db.Uuid
+  reporterId        String                      @db.Uuid
+  reason            MessageReportReason
+  details           String?                     @db.Text
+  status            MessageReportStatus         @default(pending)
+  resolutionAction  ModerationResolutionAction?
+  resolutionNote    String?                     @db.Text
+  reviewedByAdminId String?                     @db.Uuid
+  evidenceAuditId   String?                     @db.Uuid
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  resolvedAt        DateTime?
+  message           Message                     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  reporter          User                        @relation("MessageReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reviewedByAdmin   User?                       @relation("MessageReportReviewer", fields: [reviewedByAdminId], references: [id], onDelete: SetNull)
+
+  @@unique([messageId, reporterId])
+  @@index([status, createdAt])
+  @@index([reason, status])
+  @@index([reviewedByAdminId, resolvedAt])
+  @@map("message_reports")
 }
 
 model MessageBookmark {

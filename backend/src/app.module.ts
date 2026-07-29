@@ -2,6 +2,7 @@ import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { AdminMonitoringModule } from "./admin-monitoring/admin-monitoring.module";
 import { AuthModule } from "./auth/auth.module";
 import { BotModule } from "./bot/bot.module";
 import { BookmarksModule } from "./bookmarks/bookmarks.module";
@@ -15,6 +16,7 @@ import { DevModule } from "./dev/dev.module";
 import { DatabaseModule } from "./database/database.module";
 import { HealthModule } from "./health/health.module";
 import { MetricsModule } from "./metrics/metrics.module";
+import { ModerationModule } from "./moderation/moderation.module";
 import { TicketsModule } from "./tickets/tickets.module";
 import { UsersModule } from "./users/users.module";
 
@@ -46,6 +48,8 @@ import { UsersModule } from "./users/users.module";
     ContactInvitationsModule,
     BotModule,
     TicketsModule,
+    AdminMonitoringModule,
+    ModerationModule,
     DevModule,
   ],
   providers: [

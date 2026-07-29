@@ -5,7 +5,10 @@ import {
   DropdownItem,
   Dropdown,
   Button,
+  Form,
+  FormGroup,
   Input,
+  Label,
   Modal,
   ModalBody,
   ModalFooter,
@@ -39,9 +42,14 @@ import RepliedMessage from "./RepliedMessage";
 import { getAttachmentBlob } from "../../../api/chats";
 import { parseSharedContactMessage } from "../../../utils/sharedContact";
 import {
+  createMessageReport,
+  MessageReportReason,
+} from "../../../api/moderation";
+import {
   showErrorNotification,
   showSuccessNotification,
 } from "../../../helpers/notifications";
+import { isMessageReportable } from "../../../utils/messageReporting";
 
 interface MenuProps {
   canModify: boolean;
@@ -55,6 +63,8 @@ interface MenuProps {
   onMarkUnread: () => void;
   markUnreadLoading: boolean;
   onToggleBookmark: () => void;
+  canReport: boolean;
+  onReport: () => void;
 }
 
 const Menu = ({
@@ -69,6 +79,8 @@ const Menu = ({
   onMarkUnread,
   markUnreadLoading,
   onToggleBookmark,
+  canReport,
+  onReport,
 }: MenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -139,6 +151,14 @@ const Menu = ({
         >
           Mark as Unread <i className="bx bx-message-error text-muted ms-2"></i>
         </DropdownItem>
+        {canReport && (
+          <DropdownItem
+            className="d-flex align-items-center justify-content-between text-danger"
+            onClick={onReport}
+          >
+            Report <i className="bx bx-flag text-danger ms-2"></i>
+          </DropdownItem>
+        )}
         {canModify && (
           <DropdownItem
             className="d-flex align-items-center justify-content-between delete-item"
@@ -160,6 +180,8 @@ interface ImageMoreMenuProps {
   onForward: () => void;
   onDelete: () => void;
   onToggleBookmark: () => void;
+  canReport: boolean;
+  onReport: () => void;
 }
 const ImageMoreMenu = ({
   imagelink,
@@ -170,6 +192,8 @@ const ImageMoreMenu = ({
   onForward,
   onDelete,
   onToggleBookmark,
+  canReport,
+  onReport,
 }: ImageMoreMenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -231,6 +255,15 @@ const ImageMoreMenu = ({
                 } text-muted ms-2`}
               ></i>
             </DropdownItem>
+            {canReport && (
+              <DropdownItem
+                className="d-flex align-items-center justify-content-between text-danger"
+                onClick={onReport}
+              >
+                Report image
+                <i className="bx bx-flag text-danger ms-2"></i>
+              </DropdownItem>
+            )}
             {canModify && (
               <DropdownItem
                 tag="a"
@@ -260,6 +293,8 @@ interface ImageProps {
   isBookmarked: boolean;
   bookmarkLoading: boolean;
   onToggleBookmark: () => void;
+  canReport: boolean;
+  onReport: () => void;
 }
 const Image = ({
   message,
@@ -273,6 +308,8 @@ const Image = ({
   isBookmarked,
   bookmarkLoading,
   onToggleBookmark,
+  canReport,
+  onReport,
 }: ImageProps) => {
   const onDelete = () => {
     onDeleteImg(image.id);
@@ -320,6 +357,8 @@ const Image = ({
             onForward={onForward}
             onDelete={onDelete}
             onToggleBookmark={onToggleBookmark}
+            canReport={canReport}
+            onReport={onReport}
           />
         )}
       </div>
@@ -336,6 +375,8 @@ interface ImagesProps {
   isBookmarked: boolean;
   bookmarkLoading: boolean;
   onToggleBookmark: () => void;
+  canReport: boolean;
+  onReport: () => void;
 }
 const Images = ({
   message,
@@ -347,6 +388,8 @@ const Images = ({
   isBookmarked,
   bookmarkLoading,
   onToggleBookmark,
+  canReport,
+  onReport,
 }: ImagesProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selected, setSelected] = useState(0);
@@ -414,6 +457,8 @@ const Images = ({
             isBookmarked={isBookmarked}
             bookmarkLoading={bookmarkLoading}
             onToggleBookmark={onToggleBookmark}
+            canReport={canReport}
+            onReport={onReport}
           />
         ))}
       </div>
@@ -432,9 +477,118 @@ const Images = ({
 interface AttachmentsProps {
   attachments: AttachmentTypes[] | undefined;
 }
+
+interface AudioAttachmentPlayerProps {
+  attachment: AttachmentTypes;
+  downloading: boolean;
+  onDownload: (attachment: AttachmentTypes) => Promise<void>;
+}
+
+const AudioAttachmentPlayer = ({
+  attachment,
+  downloading,
+  onDownload,
+}: AudioAttachmentPlayerProps) => {
+  const [source, setSource] = useState(
+    attachment.requiresAuth ? "" : attachment.downloadLink,
+  );
+  const [loading, setLoading] = useState(Boolean(attachment.requiresAuth));
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    let objectUrl = "";
+
+    if (!attachment.requiresAuth) {
+      setSource(attachment.downloadLink);
+      setLoading(false);
+      setFailed(false);
+      return;
+    }
+
+    setSource("");
+    setLoading(true);
+    setFailed(false);
+    getAttachmentBlob(attachment.downloadLink)
+      .then(blob => {
+        objectUrl = URL.createObjectURL(blob);
+        if (active) {
+          setSource(objectUrl);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setLoading(false);
+          setFailed(true);
+        }
+      });
+
+    return () => {
+      active = false;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [attachment.downloadLink, attachment.id, attachment.requiresAuth]);
+
+  return (
+    <div className="message-audio-attachment">
+      <div className="message-audio-heading">
+        <span className="message-audio-icon" aria-hidden="true">
+          <i className="bx bxs-microphone"></i>
+        </span>
+        <div>
+          <strong>Voice message</strong>
+          <span>{attachment.name}</span>
+          <span>{attachment.desc}</span>
+        </div>
+        <Button
+          type="button"
+          color="link"
+          className="message-audio-download"
+          title={`Download ${attachment.name}`}
+          aria-label={`Download ${attachment.name}`}
+          disabled={downloading}
+          onClick={() => void onDownload(attachment)}
+        >
+          {downloading ? (
+            <Spinner size="sm" />
+          ) : (
+            <i className="bx bxs-download"></i>
+          )}
+        </Button>
+      </div>
+      {loading ? (
+        <div className="message-audio-loading" role="status">
+          <Spinner size="sm" />
+          <span>Loading voice message...</span>
+        </div>
+      ) : failed || !source ? (
+        <span className="text-danger font-size-12">
+          Voice message could not be loaded.
+        </span>
+      ) : (
+        <audio
+          controls
+          preload="metadata"
+          src={source}
+          aria-label={`Play ${attachment.name}`}
+        />
+      )}
+    </div>
+  );
+};
+
 const Attachments = ({ attachments }: AttachmentsProps) => {
   const [downloadingId, setDownloadingId] = useState<string | number | null>(
     null,
+  );
+  const audioAttachments = (attachments || []).filter(attachment =>
+    attachment.mimeType?.startsWith("audio/"),
+  );
+  const fileAttachments = (attachments || []).filter(
+    attachment => !attachment.mimeType?.startsWith("audio/"),
   );
 
   const onDownload = async (attachment: AttachmentTypes) => {
@@ -456,11 +610,19 @@ const Attachments = ({ attachments }: AttachmentsProps) => {
 
   return (
     <>
-      {(attachments || []).map((attachment: AttachmentTypes, key: number) => (
+      {audioAttachments.map(attachment => (
+        <AudioAttachmentPlayer
+          key={attachment.id}
+          attachment={attachment}
+          downloading={downloadingId === attachment.id}
+          onDownload={onDownload}
+        />
+      ))}
+      {fileAttachments.map((attachment: AttachmentTypes, key: number) => (
         <div
-          key={key}
+          key={attachment.id}
           className={classnames("p-3", "border-primary", "border rounded-3", {
-            "mt-2": key !== 0,
+            "mt-2": key !== 0 || audioAttachments.length > 0,
           })}
         >
           <div className="d-flex align-items-center attached-file">
@@ -563,6 +725,11 @@ const Message = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isBookmarkSaving, setIsBookmarkSaving] = useState(false);
   const [isMarkingUnread, setIsMarkingUnread] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reportReason, setReportReason] =
+    useState<MessageReportReason>("harassment");
+  const [reportDetails, setReportDetails] = useState("");
+  const [isReporting, setIsReporting] = useState(false);
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const hasImages = Boolean(message.image?.length);
   const hasAttachments = Boolean(message.attachments?.length);
@@ -605,6 +772,12 @@ const Message = ({
     : "-";
   const fullName = isChannel ? channdelSenderFullname : chatUserFullName;
   const canModify = isFromMe && !message.isDeleted;
+  const canReport = isMessageReportable({
+    isFromMe,
+    isDeleted: Boolean(message.isDeleted),
+    messageType: message.messageType,
+    senderId: senderUserId,
+  });
   const onStartEdit = () => {
     setEditText(message.text || "");
     setIsEditing(true);
@@ -696,6 +869,39 @@ const Message = ({
       setIsBookmarkSaving(false);
     }
   };
+  const closeReport = () => {
+    if (isReporting) {
+      return;
+    }
+    setIsReportOpen(false);
+    setReportReason("harassment");
+    setReportDetails("");
+  };
+  const submitReport = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!canReport) {
+      setIsReportOpen(false);
+      showErrorNotification("System messages cannot be reported");
+      return;
+    }
+
+    try {
+      setIsReporting(true);
+      await createMessageReport({
+        messageId: String(message.mId),
+        reason: reportReason,
+        details: reportDetails.trim() || undefined,
+      });
+      showSuccessNotification("Message reported for moderator review");
+      setIsReportOpen(false);
+      setReportReason("harassment");
+      setReportDetails("");
+    } catch (error) {
+      showErrorNotification(String(error));
+    } finally {
+      setIsReporting(false);
+    }
+  };
   return (
     <li
       data-message-id={String(message.mId)}
@@ -777,6 +983,8 @@ const Message = ({
                   isBookmarked={isBookmarked}
                   bookmarkLoading={isBookmarkSaving}
                   onToggleBookmark={() => void toggleBookmark()}
+                  canReport={canReport}
+                  onReport={() => setIsReportOpen(true)}
                 />
               </>
             ) : (
@@ -858,6 +1066,8 @@ const Message = ({
                   isBookmarked={isBookmarked}
                   bookmarkLoading={isBookmarkSaving}
                   onToggleBookmark={() => void toggleBookmark()}
+                  canReport={canReport}
+                  onReport={() => setIsReportOpen(true)}
                 />
               </>
             )}
@@ -932,6 +1142,68 @@ const Message = ({
             Delete message
           </Button>
         </ModalFooter>
+      </Modal>
+      <Modal centered isOpen={isReportOpen && canReport} toggle={closeReport}>
+        <Form onSubmit={submitReport}>
+          <ModalHeader toggle={closeReport}>Report message</ModalHeader>
+          <ModalBody>
+            <p className="text-muted font-size-13">
+              The message will enter the moderation queue. Its content remains
+              masked until an administrator records a review reason.
+            </p>
+            <FormGroup>
+              <Label for={`report-reason-${message.mId}`}>Reason</Label>
+              <Input
+                id={`report-reason-${message.mId}`}
+                type="select"
+                value={reportReason}
+                disabled={isReporting}
+                onChange={event =>
+                  setReportReason(event.target.value as MessageReportReason)
+                }
+              >
+                <option value="harassment">Harassment</option>
+                <option value="sexual_content">Sexual content</option>
+                <option value="violence_or_threat">Violence or threat</option>
+                <option value="spam">Spam</option>
+                <option value="impersonation">Impersonation</option>
+                <option value="other">Other</option>
+              </Input>
+            </FormGroup>
+            <FormGroup className="mb-0">
+              <Label for={`report-details-${message.mId}`}>
+                Additional details
+              </Label>
+              <Input
+                id={`report-details-${message.mId}`}
+                type="textarea"
+                rows={4}
+                maxLength={500}
+                value={reportDetails}
+                disabled={isReporting}
+                placeholder="Optional context for the moderation team"
+                onChange={event => setReportDetails(event.target.value)}
+              />
+              <small className="text-muted">
+                {reportDetails.length}/500 characters
+              </small>
+            </FormGroup>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              color="light"
+              type="button"
+              disabled={isReporting}
+              onClick={closeReport}
+            >
+              Cancel
+            </Button>
+            <Button color="danger" type="submit" disabled={isReporting}>
+              {isReporting && <Spinner size="sm" className="me-2" />}
+              Submit report
+            </Button>
+          </ModalFooter>
+        </Form>
       </Modal>
       <UserProfileModal
         isOpen={Boolean(profileUserId)}

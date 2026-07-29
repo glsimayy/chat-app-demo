@@ -22,6 +22,7 @@ import UserHead from "./UserHead";
 import Conversation from "./Conversation";
 import ChatInputSection from "./ChatInputSection/index";
 import MessageSearchPanel from "./MessageSearchPanel";
+import CatchUpPanel from "./CatchUpPanel";
 
 // interface
 import { MessagesTypes } from "../../../data/messages";
@@ -94,6 +95,7 @@ const Index = ({ isChannel }: IndexProps) => {
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const [typingUserIds, setTypingUserIds] = useState<Set<string>>(new Set());
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isCatchUpOpen, setIsCatchUpOpen] = useState(false);
   const [focusedMessageId, setFocusedMessageId] = useState<
     string | number | null
   >(null);
@@ -147,6 +149,7 @@ const Index = ({ isChannel }: IndexProps) => {
     setConversationMode("group");
     setManagementConversation(null);
     setIsSearchOpen(false);
+    setIsCatchUpOpen(false);
     setFocusedMessageId(null);
   }, [chatUserDetails.id]);
 
@@ -621,10 +624,25 @@ const Index = ({ isChannel }: IndexProps) => {
       <UserHead
         chatUserDetails={chatUserDetails}
         onOpenUserDetails={onOpenUserDetails}
-        onToggleSearch={() => setIsSearchOpen(current => !current)}
+        onToggleSearch={() => {
+          setIsSearchOpen(current => !current);
+          setIsCatchUpOpen(false);
+        }}
+        onToggleCatchUp={() => {
+          setIsCatchUpOpen(current => !current);
+          setIsSearchOpen(false);
+        }}
         isSearchOpen={isSearchOpen}
+        isCatchUpOpen={isCatchUpOpen}
         isChannel={isChannel}
       />
+      {isCatchUpOpen && activeConversationId && (
+        <CatchUpPanel
+          conversationId={activeConversationId}
+          onClose={() => setIsCatchUpOpen(false)}
+          onSelectMessage={focusMessage}
+        />
+      )}
       {isSearchOpen && activeConversationId && (
         <MessageSearchPanel
           conversationId={activeConversationId}
@@ -716,6 +734,7 @@ const Index = ({ isChannel }: IndexProps) => {
         replyData={replyData}
         onSetReplyData={onSetReplyData}
         chatUserDetails={activeChatDetails}
+        draftKey={`${currentAuthUser?.id || "anonymous"}:${activeConversationId || "none"}`}
         canSend={canSendMessage}
         disabledMessage={
           !groupIsActive

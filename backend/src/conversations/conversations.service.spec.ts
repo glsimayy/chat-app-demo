@@ -1,4 +1,5 @@
 import { ConversationsService } from "./conversations.service";
+import { CatchUpWindow } from "./catch-up-window.enum";
 
 describe("ConversationsService contacts", () => {
   const userA = {
@@ -116,5 +117,47 @@ describe("ConversationsService contacts", () => {
     });
     expect(metrics.recordMessageCreated).toHaveBeenCalledTimes(1);
     expect(realtime.emit).toHaveBeenCalledTimes(3);
+  });
+
+  it("builds a deterministic catch-up for authorized participants", async () => {
+    const { service } = createService();
+    const conversation = await service.createDirectConversation(userA.id, {
+      participantId: userB.id,
+    });
+    const decision = await service.createMessage(conversation.id, userA.id, {
+      content: "Karar: Docker deployment bugün onaylandı.",
+    });
+    await service.createMessage(conversation.id, userB.id, {
+      content: "TODO: deployment testlerini teslim etmemiz gerekiyor.",
+      replyToMessageId: decision.id,
+    });
+
+    const catchUp = await service.catchUpMessages(conversation.id, userA.id, {
+      window: CatchUpWindow.TwoHours,
+    });
+
+    expect(catchUp).toMatchObject({
+      conversationId: conversation.id,
+      window: CatchUpWindow.TwoHours,
+      messageCount: 2,
+      participantCount: 2,
+      replyCount: 1,
+      truncated: false,
+    });
+    expect(catchUp.summary).toContain("2 messages were posted");
+    expect(catchUp.activeParticipants.map((user) => user.username)).toEqual(
+      expect.arrayContaining(["alpha", "beta"]),
+    );
+    expect(catchUp.topics.map((topic) => topic.label)).toContain("deployment");
+    expect(catchUp.keyMoments.map((moment) => moment.kind)).toEqual(
+      expect.arrayContaining(["decision", "action"]),
+    );
+
+    await expect(
+      service.catchUpMessages(
+        conversation.id,
+        "33333333-3333-4333-8333-333333333333",
+      ),
+    ).rejects.toThrow("Conversation not found");
   });
 });

@@ -84,6 +84,77 @@ function Wait-ForTunnelUrl {
     throw "Cloudflare did not provide a public URL within $TimeoutSeconds seconds."
 }
 
+function Wait-ForPublicTunnel {
+    param(
+        [string]$PublicUrl,
+        [int]$TimeoutSeconds
+    )
+
+    if (-not (Get-Command Resolve-DnsName -ErrorAction SilentlyContinue)) {
+        Write-Warning "Public DNS readiness could not be checked on this system."
+        return
+    }
+
+    if (-not (Get-Command curl.exe -ErrorAction SilentlyContinue)) {
+        Write-Warning "Public tunnel health could not be checked because curl.exe is unavailable."
+        return
+    }
+
+    $hostName = ([Uri]$PublicUrl).DnsSafeHost
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+
+    Write-Host "Waiting for the public URL to become reachable..."
+    while ((Get-Date) -lt $deadline) {
+        try {
+            $record = Resolve-DnsName `
+                -Name $hostName `
+                -Server "1.1.1.1" `
+                -Type A `
+                -ErrorAction Stop |
+                Where-Object { $_.IPAddress } |
+                Select-Object -First 1
+
+            if ($record.IPAddress) {
+                & curl.exe `
+                    --silent `
+                    --show-error `
+                    --fail `
+                    --max-time 10 `
+                    --resolve "$($hostName):443:$($record.IPAddress)" `
+                    "$PublicUrl/healthz" *> $null
+
+                if ($LASTEXITCODE -eq 0) {
+                    return
+                }
+            }
+        } catch {
+            # Quick-tunnel DNS records commonly need a few seconds to propagate.
+        }
+
+        Start-Sleep -Seconds 2
+    }
+
+    throw "Cloudflare created a URL, but it did not become reachable within $TimeoutSeconds seconds."
+}
+
+function Test-SystemDns {
+    param([string]$PublicUrl)
+
+    if (-not (Get-Command Resolve-DnsName -ErrorAction SilentlyContinue)) {
+        return $true
+    }
+
+    try {
+        Resolve-DnsName `
+            -Name ([Uri]$PublicUrl).DnsSafeHost `
+            -Type A `
+            -ErrorAction Stop *> $null
+        return $true
+    } catch {
+        return $false
+    }
+}
+
 Set-Location $repoRoot
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
@@ -135,11 +206,18 @@ Invoke-Docker -Arguments @(
 $publicUrl = Wait-ForTunnelUrl `
     -ContainerName $tunnelName `
     -TimeoutSeconds $WaitSeconds
+Wait-ForPublicTunnel `
+    -PublicUrl $publicUrl `
+    -TimeoutSeconds $WaitSeconds
 
 Write-Host ""
 Write-Host "ellO is ready." -ForegroundColor Green
 Write-Host "Local:  http://localhost:5173"
 Write-Host "Public: $publicUrl" -ForegroundColor Cyan
+if (-not (Test-SystemDns -PublicUrl $publicUrl)) {
+    Write-Warning "The tunnel is live, but Windows DNS still has the earlier NXDOMAIN response cached."
+    Write-Host "Wait briefly or enable Secure DNS (Cloudflare 1.1.1.1) in the browser before opening the link."
+}
 Write-Host ""
 Write-Host "The public URL is temporary. Stop it with:"
 Write-Host "npm.cmd run server:temporary:stop"

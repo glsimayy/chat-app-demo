@@ -65,7 +65,9 @@ export class ContactInvitationsService implements OnModuleInit {
 
     const recipient = await this.usersService.findById(recipientRecord.id);
     if (!recipient || recipient.isBot) {
-      throw new BadRequestException("Automation bots cannot receive invitations");
+      throw new BadRequestException(
+        "Automation bots cannot receive invitations",
+      );
     }
     if (
       this.conversationsService.hasDirectConversation(senderId, recipient.id)
@@ -74,7 +76,7 @@ export class ContactInvitationsService implements OnModuleInit {
     }
 
     const pending = Array.from(this.invitations.values()).find(
-      invitation =>
+      (invitation) =>
         invitation.status === ContactInvitationStatus.Pending &&
         ((invitation.senderId === senderId &&
           invitation.recipientId === recipient.id) ||
@@ -103,8 +105,7 @@ export class ContactInvitationsService implements OnModuleInit {
       await this.prismaService.client.contactInvitation.create({
         data: {
           ...invitation,
-          status:
-            invitation.status as unknown as PrismaContactInvitationStatus,
+          status: invitation.status as unknown as PrismaContactInvitationStatus,
         },
       });
     }
@@ -121,12 +122,14 @@ export class ContactInvitationsService implements OnModuleInit {
   findReceived(userId: string) {
     return Array.from(this.invitations.values())
       .filter(
-        invitation =>
+        (invitation) =>
           invitation.recipientId === userId &&
           invitation.status === ContactInvitationStatus.Pending,
       )
-      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
-      .map(invitation => this.toView(invitation));
+      .sort(
+        (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+      )
+      .map((invitation) => this.toView(invitation));
   }
 
   async respond(

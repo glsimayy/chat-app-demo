@@ -10,8 +10,7 @@ import {
 
 export class AddBotGroupParticipantsDto {
   @ApiProperty({
-    description:
-      "User UUIDs or built-in automation IDs to add or reactivate",
+    description: "User UUIDs or built-in automation IDs to add or reactivate",
     example: ["2", "4"],
   })
   @IsArray()

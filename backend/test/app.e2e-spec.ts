@@ -1,10 +1,12 @@
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
+import { AdminMonitoringService } from "../src/admin-monitoring/admin-monitoring.service";
 import { AppModule } from "../src/app.module";
 import { AuthService } from "../src/auth/auth.service";
 import { configureApplication } from "../src/config/configure-application";
 import { ConversationsService } from "../src/conversations/conversations.service";
+import { ModerationService } from "../src/moderation/moderation.service";
 import { UsersService } from "../src/users/users.service";
 
 describe("App e2e", () => {
@@ -12,6 +14,8 @@ describe("App e2e", () => {
   let conversationsService: ConversationsService;
   let usersService: UsersService;
   let authService: AuthService;
+  let adminMonitoringService: AdminMonitoringService;
+  let moderationService: ModerationService;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -26,9 +30,13 @@ describe("App e2e", () => {
     conversationsService = app.get(ConversationsService);
     usersService = app.get(UsersService);
     authService = app.get(AuthService);
+    adminMonitoringService = app.get(AdminMonitoringService);
+    moderationService = app.get(ModerationService);
   });
 
   beforeEach(async () => {
+    await adminMonitoringService.clearAll();
+    await moderationService.clearAll();
     await conversationsService.clearAll();
     await usersService.clearAll();
   });
@@ -65,6 +73,337 @@ describe("App e2e", () => {
       statusCode: 400,
     });
     expect(response.body.message).toContain("property role should not exist");
+  });
+
+  it("keeps message content masked and audits every admin reveal", async () => {
+    const admin = await createAuthUser("audit_admin");
+    const member = await createAuthUser("audit_member");
+    const direct = await request(app.getHttpServer())
+      .post("/api/conversations/direct")
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .send({ participantId: member.user.id })
+      .expect(201);
+    const createdMessage = await request(app.getHttpServer())
+      .post(`/api/conversations/${direct.body.data.id}/messages`)
+      .set("authorization", `Bearer ${member.accessToken}`)
+      .send({
+        content: "Sensitive support context",
+        clientMessageId: crypto.randomUUID(),
+      })
+      .expect(201);
+    const image = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZlVQAAAAASUVORK5CYII=",
+      "base64",
+    );
+    const attachmentMessage = await request(app.getHttpServer())
+      .post(`/api/conversations/${direct.body.data.id}/messages/attachments`)
+      .set("authorization", `Bearer ${member.accessToken}`)
+      .field("clientMessageId", crypto.randomUUID())
+      .attach("files", image, {
+        filename: "moderation-sample.png",
+        contentType: "image/png",
+      })
+      .expect(201);
+    const attachmentId = attachmentMessage.body.data.attachments[0].id;
+
+    await request(app.getHttpServer())
+      .get("/api/admin/messages")
+      .set("authorization", `Bearer ${member.accessToken}`)
+      .expect(403);
+
+    const listed = await request(app.getHttpServer())
+      .get("/api/admin/messages")
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .expect(200);
+    const metadata = listed.body.data.items.find(
+      (item: { id: string }) => item.id === createdMessage.body.data.id,
+    );
+
+    expect(metadata).toMatchObject({
+      id: createdMessage.body.data.id,
+      contentState: "masked",
+      sender: { id: member.user.id },
+      conversation: { id: direct.body.data.id, type: "direct" },
+    });
+    expect(metadata).not.toHaveProperty("content");
+
+    await request(app.getHttpServer())
+      .post(`/api/admin/messages/${createdMessage.body.data.id}/reveal`)
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .send({
+        reason: "support_request",
+        justification: "no",
+      })
+      .expect(400);
+
+    const revealed = await request(app.getHttpServer())
+      .post(`/api/admin/messages/${createdMessage.body.data.id}/reveal`)
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .send({
+        reason: "support_request",
+        justification: "Investigating ticket TICKET-4821 with user consent.",
+      })
+      .expect(201);
+
+    expect(revealed.body.data).toMatchObject({
+      messageId: createdMessage.body.data.id,
+      content: "Sensitive support context",
+      attachments: [],
+    });
+
+    await request(app.getHttpServer())
+      .get(
+        `/api/admin/messages/${attachmentMessage.body.data.id}/attachments/${attachmentId}`,
+      )
+      .query({ auditId: revealed.body.data.auditId })
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .expect(403);
+
+    const attachmentReveal = await request(app.getHttpServer())
+      .post(`/api/admin/messages/${attachmentMessage.body.data.id}/reveal`)
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .send({
+        reason: "abuse_investigation",
+        justification: "Reviewing a reported image attachment for moderation.",
+      })
+      .expect(201);
+    expect(attachmentReveal.body.data).toMatchObject({
+      messageId: attachmentMessage.body.data.id,
+      content: "",
+      attachments: [
+        expect.objectContaining({
+          id: attachmentId,
+          fileName: "moderation-sample.png",
+          mimeType: "image/png",
+          fileSize: image.length,
+        }),
+      ],
+    });
+
+    const auditedAttachment = await request(app.getHttpServer())
+      .get(
+        `/api/admin/messages/${attachmentMessage.body.data.id}/attachments/${attachmentId}`,
+      )
+      .query({ auditId: attachmentReveal.body.data.auditId })
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .expect("content-type", /image\/png/)
+      .expect(200);
+    expect(auditedAttachment.body).toEqual(image);
+
+    const audits = await request(app.getHttpServer())
+      .get("/api/admin/message-access-audits")
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .expect(200);
+
+    expect(audits.body.data.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          reason: "support_request",
+          justification: "Investigating ticket TICKET-4821 with user consent.",
+          admin: expect.objectContaining({ id: admin.user.id }),
+          message: expect.objectContaining({ id: createdMessage.body.data.id }),
+        }),
+        expect.objectContaining({
+          reason: "abuse_investigation",
+          message: expect.objectContaining({
+            id: attachmentMessage.body.data.id,
+          }),
+        }),
+      ]),
+    );
+
+    const overview = await request(app.getHttpServer())
+      .get("/api/admin/overview")
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .expect(200);
+    expect(overview.body.data.totals).toMatchObject({
+      users: 2,
+      directConversations: 1,
+      messages: 2,
+      attachments: 1,
+      messageContentAccesses: 2,
+    });
+  });
+
+  it("reports messages and enforces audited moderation decisions", async () => {
+    const admin = await createAuthUser("moderation_admin");
+    const sender = await createAuthUser("moderation_sender");
+    const reporter = await createAuthUser("moderation_reporter");
+    const direct = await request(app.getHttpServer())
+      .post("/api/conversations/direct")
+      .set("authorization", `Bearer ${reporter.accessToken}`)
+      .send({ participantId: sender.user.id })
+      .expect(201);
+    const firstMessage = await request(app.getHttpServer())
+      .post(`/api/conversations/${direct.body.data.id}/messages`)
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .send({
+        content: "Reported moderation evidence",
+        clientMessageId: crypto.randomUUID(),
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post("/api/message-reports")
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .send({
+        messageId: firstMessage.body.data.id,
+        reason: "harassment",
+      })
+      .expect(400);
+
+    const systemGroup = await request(app.getHttpServer())
+      .post("/api/conversations/groups")
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .send({
+        name: "System message reporting guard",
+        participantIds: [reporter.user.id],
+      })
+      .expect(201);
+    const systemGroupHistory = await request(app.getHttpServer())
+      .get(`/api/conversations/${systemGroup.body.data.id}/messages`)
+      .set("authorization", `Bearer ${reporter.accessToken}`)
+      .expect(200);
+    const systemMessage = systemGroupHistory.body.data.items.find(
+      (message: { messageType: string }) => message.messageType === "system",
+    );
+    expect(systemMessage).toBeDefined();
+
+    await request(app.getHttpServer())
+      .post("/api/message-reports")
+      .set("authorization", `Bearer ${reporter.accessToken}`)
+      .send({
+        messageId: systemMessage.id,
+        reason: "other",
+      })
+      .expect(400);
+
+    const report = await request(app.getHttpServer())
+      .post("/api/message-reports")
+      .set("authorization", `Bearer ${reporter.accessToken}`)
+      .send({
+        messageId: firstMessage.body.data.id,
+        reason: "harassment",
+        details: "Repeated targeted abuse in a direct conversation.",
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post("/api/message-reports")
+      .set("authorization", `Bearer ${reporter.accessToken}`)
+      .send({
+        messageId: firstMessage.body.data.id,
+        reason: "harassment",
+      })
+      .expect(409);
+
+    await request(app.getHttpServer())
+      .get("/api/admin/moderation/reports")
+      .set("authorization", `Bearer ${reporter.accessToken}`)
+      .expect(403);
+
+    const queue = await request(app.getHttpServer())
+      .get("/api/admin/moderation/reports")
+      .query({ status: "pending" })
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .expect(200);
+    expect(queue.body.data.items).toEqual([
+      expect.objectContaining({
+        id: report.body.data.id,
+        status: "pending",
+        reason: "harassment",
+        reporter: expect.objectContaining({ id: reporter.user.id }),
+        reportedUser: expect.objectContaining({ id: sender.user.id }),
+        message: expect.objectContaining({
+          id: firstMessage.body.data.id,
+          contentState: "masked",
+        }),
+      }),
+    ]);
+    expect(queue.body.data.items[0].message).not.toHaveProperty("content");
+
+    await request(app.getHttpServer())
+      .patch(`/api/admin/moderation/reports/${report.body.data.id}/resolve`)
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .send({
+        action: "delete_message",
+        note: "Confirmed abusive content and removed the message.",
+        evidenceAuditId: crypto.randomUUID(),
+      })
+      .expect(403);
+
+    const evidence = await request(app.getHttpServer())
+      .post(`/api/admin/messages/${firstMessage.body.data.id}/reveal`)
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .send({
+        reason: "abuse_investigation",
+        justification: `Reviewing moderation report ${report.body.data.id}.`,
+      })
+      .expect(201);
+    const resolved = await request(app.getHttpServer())
+      .patch(`/api/admin/moderation/reports/${report.body.data.id}/resolve`)
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .send({
+        action: "delete_message",
+        note: "Confirmed abusive content and removed the message.",
+        evidenceAuditId: evidence.body.data.auditId,
+      })
+      .expect(200);
+    expect(resolved.body.data).toMatchObject({
+      status: "resolved",
+      resolutionAction: "delete_message",
+      reviewedByAdmin: { id: admin.user.id },
+      message: { contentState: "deleted" },
+    });
+
+    const secondMessage = await request(app.getHttpServer())
+      .post(`/api/conversations/${direct.body.data.id}/messages`)
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .send({
+        content: "Second reported message",
+        clientMessageId: crypto.randomUUID(),
+      })
+      .expect(201);
+    const suspensionReport = await request(app.getHttpServer())
+      .post("/api/message-reports")
+      .set("authorization", `Bearer ${reporter.accessToken}`)
+      .send({
+        messageId: secondMessage.body.data.id,
+        reason: "violence_or_threat",
+      })
+      .expect(201);
+    const suspensionEvidence = await request(app.getHttpServer())
+      .post(`/api/admin/messages/${secondMessage.body.data.id}/reveal`)
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .send({
+        reason: "abuse_investigation",
+        justification: `Reviewing moderation report ${suspensionReport.body.data.id}.`,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(
+        `/api/admin/moderation/reports/${suspensionReport.body.data.id}/resolve`,
+      )
+      .set("authorization", `Bearer ${admin.accessToken}`)
+      .send({
+        action: "suspend_user",
+        note: "Confirmed threat; temporary suspension applied.",
+        evidenceAuditId: suspensionEvidence.body.data.auditId,
+        suspensionHours: 1,
+      })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .get("/api/auth/me")
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .expect(401);
+    await expect(
+      authService.login({
+        email: sender.user.email,
+        password: "Password123!",
+      }),
+    ).rejects.toThrow(/suspended/i);
   });
 
   it("enforces the complete group authorization matrix", async () => {
@@ -175,6 +514,68 @@ describe("App e2e", () => {
           message.clientMessageId === payload.clientMessageId,
       ),
     ).toHaveLength(1);
+  });
+
+  it("summarizes recent conversation activity without exposing outsiders", async () => {
+    const sender = await createAuthUser("catchup_sender");
+    const recipient = await createAuthUser("catchup_recipient");
+    const outsider = await createAuthUser("catchup_outsider");
+    const direct = await request(app.getHttpServer())
+      .post("/api/conversations/direct")
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .send({ participantId: recipient.user.id })
+      .expect(201);
+    const decision = await request(app.getHttpServer())
+      .post(`/api/conversations/${direct.body.data.id}/messages`)
+      .set("authorization", `Bearer ${sender.accessToken}`)
+      .send({
+        content: "Karar: deployment bugün onaylandı.",
+        clientMessageId: crypto.randomUUID(),
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/api/conversations/${direct.body.data.id}/messages`)
+      .set("authorization", `Bearer ${recipient.accessToken}`)
+      .send({
+        content: "TODO: deployment testlerini teslim etmemiz gerekiyor.",
+        clientMessageId: crypto.randomUUID(),
+        replyToMessageId: decision.body.data.id,
+      })
+      .expect(201);
+
+    const catchUp = await request(app.getHttpServer())
+      .get(`/api/conversations/${direct.body.data.id}/messages/catch-up`)
+      .query({ window: "2h" })
+      .set("authorization", `Bearer ${recipient.accessToken}`)
+      .expect(200);
+
+    expect(catchUp.body.data).toMatchObject({
+      conversationId: direct.body.data.id,
+      window: "2h",
+      messageCount: 2,
+      participantCount: 2,
+      replyCount: 1,
+      truncated: false,
+    });
+    expect(catchUp.body.data.topics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "deployment" }),
+      ]),
+    );
+    expect(catchUp.body.data.keyMoments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          messageId: decision.body.data.id,
+          kind: "decision",
+        }),
+      ]),
+    );
+
+    await request(app.getHttpServer())
+      .get(`/api/conversations/${direct.body.data.id}/messages/catch-up`)
+      .set("authorization", `Bearer ${outsider.accessToken}`)
+      .expect(404);
   });
 
   it("marks a conversation unread from a selected message", async () => {

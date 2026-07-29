@@ -8,6 +8,7 @@ export enum LayoutActionTypes {
 export interface LayoutState {
   layoutMode: LAYOUT_MODES.LIGHT | LAYOUT_MODES.DARK;
   activeTab:
+    | TABS.ADMIN
     | TABS.BOOKMARK
     | TABS.CALLS
     | TABS.CHAT

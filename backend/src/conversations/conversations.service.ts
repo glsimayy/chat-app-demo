@@ -39,6 +39,7 @@ import { CreateMessageWithAttachmentsDto } from "./dto/create-message-with-attac
 import { FindConversationsQueryDto } from "./dto/find-conversations-query.dto";
 import { FindMessagesQueryDto } from "./dto/find-messages-query.dto";
 import { SearchMessagesQueryDto } from "./dto/search-messages-query.dto";
+import { CatchUpMessagesQueryDto } from "./dto/catch-up-messages-query.dto";
 import { TransferGroupOwnerDto } from "./dto/transfer-group-owner.dto";
 import { UpdateGroupConversationDto } from "./dto/update-group-conversation.dto";
 import { UpdateMessageDto } from "./dto/update-message.dto";
@@ -46,6 +47,8 @@ import { UpdateParticipantRoleDto } from "./dto/update-participant-role.dto";
 import { MessageType } from "./message-type.enum";
 import { ParticipantRole } from "./participant-role.enum";
 import { RealtimeEventsService } from "./realtime-events.service";
+import { CatchUpWindow } from "./catch-up-window.enum";
+import { buildConversationCatchUp } from "./conversation-catch-up";
 
 interface ConversationPreferenceRecord {
   userId: string;
@@ -946,6 +949,43 @@ export class ConversationsService implements OnModuleInit {
     });
   }
 
+  getAdminMonitoringSnapshot() {
+    return {
+      conversations: Array.from(this.conversations.values()).map(
+        (conversation) => ({
+          ...conversation,
+          participants: conversation.participants.map((participant) => ({
+            ...participant,
+          })),
+        }),
+      ),
+      messages: Array.from(this.messages.values()).flatMap((messages) =>
+        messages.map((message) => ({
+          ...message,
+          attachments: (message.attachments ?? []).map((attachment) => ({
+            ...attachment,
+          })),
+        })),
+      ),
+    };
+  }
+
+  findMessageForAdmin(messageId: string) {
+    for (const messages of this.messages.values()) {
+      const message = messages.find((candidate) => candidate.id === messageId);
+      if (message) {
+        return {
+          ...message,
+          attachments: (message.attachments ?? []).map((attachment) => ({
+            ...attachment,
+          })),
+        };
+      }
+    }
+
+    return undefined;
+  }
+
   async clearAll() {
     const deletedConversations = this.conversations.size;
     const deletedMessageGroups = this.messages.size;
@@ -1256,6 +1296,31 @@ export class ConversationsService implements OnModuleInit {
       throw new NotFoundException("Attachment not found");
     }
 
+    return {
+      attachment,
+      data: await this.loadAttachmentData(attachmentId),
+    };
+  }
+
+  async getAttachmentForAdmin(messageId: string, attachmentId: string) {
+    const message = this.findMessageForAdmin(messageId);
+    if (!message || message.deletedAt) {
+      throw new NotFoundException("Message not found");
+    }
+    const attachment = message.attachments?.find(
+      (item) => item.id === attachmentId,
+    );
+    if (!attachment) {
+      throw new NotFoundException("Attachment not found");
+    }
+
+    return {
+      attachment,
+      data: await this.loadAttachmentData(attachmentId),
+    };
+  }
+
+  private async loadAttachmentData(attachmentId: string) {
     if (this.prismaService?.enabled) {
       const persistedAttachment =
         await this.prismaService.client.messageAttachment.findUnique({
@@ -1267,10 +1332,7 @@ export class ConversationsService implements OnModuleInit {
         throw new NotFoundException("Attachment not found");
       }
 
-      return {
-        attachment,
-        data: Buffer.from(persistedAttachment.data),
-      };
+      return Buffer.from(persistedAttachment.data);
     }
 
     const data = this.attachmentData.get(attachmentId);
@@ -1279,7 +1341,7 @@ export class ConversationsService implements OnModuleInit {
       throw new NotFoundException("Attachment not found");
     }
 
-    return { attachment, data };
+    return data;
   }
 
   getActiveConversationIdsForUser(userId: string) {
@@ -1351,6 +1413,31 @@ export class ConversationsService implements OnModuleInit {
         total: matches.length,
       },
     };
+  }
+
+  async catchUpMessages(
+    conversationId: string,
+    userId: string,
+    query: CatchUpMessagesQueryDto = {},
+  ) {
+    this.findConversationRecordForUser(conversationId, userId);
+    const window = query.window ?? CatchUpWindow.TwoHours;
+    const endAt = new Date();
+    const windowMilliseconds: Record<CatchUpWindow, number> = {
+      [CatchUpWindow.TwoHours]: 2 * 60 * 60 * 1_000,
+      [CatchUpWindow.TwentyFourHours]: 24 * 60 * 60 * 1_000,
+      [CatchUpWindow.SevenDays]: 7 * 24 * 60 * 60 * 1_000,
+    };
+    const startAt = new Date(endAt.getTime() - windowMilliseconds[window]);
+
+    return buildConversationCatchUp({
+      conversationId,
+      window,
+      startAt,
+      endAt,
+      messages: this.messages.get(conversationId) ?? [],
+      resolveUser: (senderId) => this.usersService.findByIdSync(senderId),
+    });
   }
 
   async findMessageForUser(messageId: string, userId: string) {
@@ -1495,7 +1582,32 @@ export class ConversationsService implements OnModuleInit {
     const message = this.findMessageOrThrow(conversation.id, messageId);
 
     this.ensureMessageCanBeChanged(message, userId);
+    return this.deleteMessageRecord(conversation, message);
+  }
 
+  async deleteMessageAsAdmin(messageId: string) {
+    const message = this.findMessageRecordById(messageId);
+    if (!message) {
+      throw new NotFoundException("Message not found");
+    }
+    if (message.messageType !== MessageType.User) {
+      throw new BadRequestException("System messages cannot be deleted");
+    }
+    if (message.deletedAt) {
+      throw new BadRequestException("Message is already deleted");
+    }
+    const conversation = this.conversations.get(message.conversationId);
+    if (!conversation) {
+      throw new NotFoundException("Conversation not found");
+    }
+
+    return this.deleteMessageRecord(conversation, message);
+  }
+
+  private async deleteMessageRecord(
+    conversation: ConversationRecord,
+    message: MessageRecord,
+  ) {
     const now = new Date();
     message.content = "";
     message.updatedAt = now;
@@ -2509,6 +2621,17 @@ export class ConversationsService implements OnModuleInit {
           item.senderId === userId && item.clientMessageId === clientMessageId,
       );
 
+      if (message) {
+        return message;
+      }
+    }
+
+    return undefined;
+  }
+
+  private findMessageRecordById(messageId: string) {
+    for (const messages of this.messages.values()) {
+      const message = messages.find((item) => item.id === messageId);
       if (message) {
         return message;
       }

@@ -7,14 +7,8 @@ export interface MenuItemType {
   icon: string;
   tooltipTitle: string;
   className?: string;
-  tabId:
-    | TABS.BOOKMARK
-    | TABS.CALLS
-    | TABS.CHAT
-    | TABS.CONTACTS
-    | TABS.SUPPORT
-    | TABS.SETTINGS
-    | TABS.USERS;
+  tabId: TABS;
+  adminOnly?: boolean;
 }
 const MENU_ITEMS: MenuItemType[] = [
   {
@@ -54,6 +48,14 @@ const MENU_ITEMS: MenuItemType[] = [
   },
   {
     id: 6,
+    key: "pills-admin-tab",
+    icon: "bx bx-shield-quarter",
+    tooltipTitle: "Admin Control Center",
+    tabId: TABS.ADMIN,
+    adminOnly: true,
+  },
+  {
+    id: 7,
     key: "pills-setting-tab",
     icon: "bx bx-cog",
     tooltipTitle: "Settings",

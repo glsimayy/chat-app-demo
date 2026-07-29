@@ -56,6 +56,21 @@ describe("ChatGateway audio calls", () => {
         isBot: false,
       }),
     ),
+    findRecordById: jest.fn((userId: string) =>
+      Promise.resolve({
+        id: userId,
+        email: `${userId}@ello.test`,
+        username: userId === callerId ? "caller" : "recipient",
+        role: UserRole.User,
+        isBot: false,
+      }),
+    ),
+    isSuspended: jest.fn(() => false),
+    getModerationProfile: jest.fn(() => ({
+      warningCount: 0,
+      suspendedUntil: null,
+      suspensionReason: null,
+    })),
   };
   const socketRateLimiter = {
     consume: jest.fn(),

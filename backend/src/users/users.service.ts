@@ -153,6 +153,9 @@ export class UsersService implements OnModuleInit {
       about: null,
       location: null,
       profileImage: null,
+      moderationWarningCount: 0,
+      suspendedUntil: null,
+      suspensionReason: null,
       createdAt: new Date(),
     };
 
@@ -279,6 +282,64 @@ export class UsersService implements OnModuleInit {
     return this.toPublicUser(user);
   }
 
+  isSuspended(user: UserRecord) {
+    return Boolean(
+      user.suspendedUntil && user.suspendedUntil.getTime() > Date.now(),
+    );
+  }
+
+  getModerationProfile(id: string) {
+    const user = this.users.get(id);
+    if (!user) {
+      return undefined;
+    }
+
+    return {
+      warningCount: user.moderationWarningCount,
+      suspendedUntil: this.isSuspended(user) ? user.suspendedUntil : null,
+      suspensionReason: this.isSuspended(user) ? user.suspensionReason : null,
+    };
+  }
+
+  async addModerationWarning(id: string) {
+    const user = this.users.get(id);
+    if (!user) {
+      return undefined;
+    }
+
+    const warningCount = user.moderationWarningCount + 1;
+    if (this.prismaService?.enabled) {
+      await this.prismaService.client.user.update({
+        where: { id },
+        data: { moderationWarningCount: warningCount },
+      });
+    }
+
+    user.moderationWarningCount = warningCount;
+    return this.getModerationProfile(id);
+  }
+
+  async suspendUser(id: string, suspendedUntil: Date, reason: string) {
+    const user = this.users.get(id);
+    if (!user) {
+      return undefined;
+    }
+
+    if (this.prismaService?.enabled) {
+      await this.prismaService.client.user.update({
+        where: { id },
+        data: {
+          suspendedUntil,
+          suspensionReason: reason,
+        },
+      });
+    }
+
+    user.suspendedUntil = suspendedUntil;
+    user.suspensionReason = reason;
+    return this.getModerationProfile(id);
+  }
+
   findByIdSync(id: string): PublicUser | undefined {
     const user = this.users.get(id);
     return user ? this.toPublicUser(user) : undefined;
@@ -343,7 +404,13 @@ export class UsersService implements OnModuleInit {
   }
 
   toPublicUser(user: UserRecord): PublicUser {
-    const { passwordHash: _passwordHash, ...publicUser } = user;
+    const {
+      passwordHash: _passwordHash,
+      moderationWarningCount: _moderationWarningCount,
+      suspendedUntil: _suspendedUntil,
+      suspensionReason: _suspensionReason,
+      ...publicUser
+    } = user;
     return {
       ...publicUser,
       isBot: user.email === AUTOMATION_BOT.email,
@@ -380,6 +447,9 @@ export class UsersService implements OnModuleInit {
     about: string | null;
     location: string | null;
     profileImage: string | null;
+    moderationWarningCount: number;
+    suspendedUntil: Date | null;
+    suspensionReason: string | null;
     createdAt: Date;
   }): UserRecord {
     return {
@@ -392,6 +462,9 @@ export class UsersService implements OnModuleInit {
       about: user.about,
       location: user.location,
       profileImage: user.profileImage,
+      moderationWarningCount: user.moderationWarningCount,
+      suspendedUntil: user.suspendedUntil,
+      suspensionReason: user.suspensionReason,
       createdAt: user.createdAt,
     };
   }

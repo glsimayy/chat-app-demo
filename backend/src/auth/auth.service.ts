@@ -37,6 +37,12 @@ export class AuthService {
       throw new UnauthorizedException("Invalid email or password");
     }
 
+    if (this.usersService.isSuspended(userRecord)) {
+      throw new UnauthorizedException(
+        `Account suspended until ${userRecord.suspendedUntil?.toISOString()}`,
+      );
+    }
+
     const passwordMatches = await bcrypt.compare(
       dto.password,
       userRecord.passwordHash,

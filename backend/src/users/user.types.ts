@@ -10,9 +10,18 @@ export interface UserRecord {
   about: string | null;
   location: string | null;
   profileImage: string | null;
+  moderationWarningCount: number;
+  suspendedUntil: Date | null;
+  suspensionReason: string | null;
   createdAt: Date;
 }
 
-export type PublicUser = Omit<UserRecord, "passwordHash"> & {
+export type PublicUser = Omit<
+  UserRecord,
+  | "passwordHash"
+  | "moderationWarningCount"
+  | "suspendedUntil"
+  | "suspensionReason"
+> & {
   isBot: boolean;
 };

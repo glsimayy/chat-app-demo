@@ -5,3 +5,6 @@ export * from "./calls";
 export * from "./bookmarks";
 export * from "./chats";
 export * from "./tickets";
+export * from "./adminMonitoring";
+export * from "./moderation";
+export * from "./catchUp";

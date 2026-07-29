@@ -9,6 +9,7 @@ export enum CHATS_TABS {
 }
 
 export enum TABS {
+  ADMIN = "pills-admin",
   USERS = "pills-user",
   CHAT = "pills-chat",
   CONTACTS = "pills-contacts",

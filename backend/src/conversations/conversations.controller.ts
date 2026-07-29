@@ -34,6 +34,7 @@ import {
   MessageListResponseDto,
   MessageResponseDto,
   MessageSearchResponseDto,
+  ConversationCatchUpResponseDto,
   ParticipantLeftResponseDto,
   ReadStateResponseDto,
   UserResponseDto,
@@ -53,6 +54,7 @@ import { CreateMessageWithAttachmentsDto } from "./dto/create-message-with-attac
 import { FindConversationsQueryDto } from "./dto/find-conversations-query.dto";
 import { FindMessagesQueryDto } from "./dto/find-messages-query.dto";
 import { SearchMessagesQueryDto } from "./dto/search-messages-query.dto";
+import { CatchUpMessagesQueryDto } from "./dto/catch-up-messages-query.dto";
 import { TransferGroupOwnerDto } from "./dto/transfer-group-owner.dto";
 import { UpdateGroupConversationDto } from "./dto/update-group-conversation.dto";
 import { UpdateMessageDto } from "./dto/update-message.dto";
@@ -334,6 +336,22 @@ export class ConversationsController {
     @Query() query: SearchMessagesQueryDto,
   ) {
     return this.conversationsService.searchMessages(
+      conversationId,
+      user.id,
+      query,
+    );
+  }
+
+  @Get(":conversationId/messages/catch-up")
+  @ApiSuccessResponse(ConversationCatchUpResponseDto, {
+    description: "Deterministic conversation activity summary",
+  })
+  catchUpMessages(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("conversationId") conversationId: string,
+    @Query() query: CatchUpMessagesQueryDto,
+  ) {
+    return this.conversationsService.catchUpMessages(
       conversationId,
       user.id,
       query,
