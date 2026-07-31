@@ -1030,6 +1030,50 @@ Payload:
 }
 ```
 
+## Catch-up, Admin Monitoring ve Moderasyon
+
+Conversation catch-up:
+
+```http
+GET /api/conversations/{conversationId}/messages/catch-up?window=2h
+Authorization: Bearer <jwt>
+```
+
+`window` degeri `2h`, `24h` veya `7d` olabilir. Servis LLM kullanmaz; gorunur
+mesajlardan mesaj/katilimci/reply/attachment sayilarini, aktif kullanicilari,
+konulari ve karar/aksiyon/highlight anlarini deterministik olarak cikarir.
+
+Admin monitoring endpointleri global `admin` rolu ister:
+
+- `GET /api/admin/overview`
+- `GET /api/admin/messages`
+- `POST /api/admin/messages/{messageId}/reveal`
+- `GET /api/admin/messages/{messageId}/attachments/{attachmentId}?auditId=...`
+- `GET /api/admin/message-access-audits`
+
+Mesaj listesi icerigi maskeli tutar. Reveal istegi `reason` ve 5-500 karakter
+`justification` ister; uretilen audit yalnizca ayni admin ve mesaj icin
+gecerlidir.
+
+Kullanici raporu:
+
+```http
+POST /api/message-reports
+Authorization: Bearer <jwt>
+```
+
+Admin moderasyon:
+
+- `GET /api/admin/moderation/reports`
+- `PATCH /api/admin/moderation/reports/{reportId}/resolve`
+
+System, silinmis ve kullanicinin kendi mesaji raporlanamaz. Raporlanan mesaji
+gonderen kisi admin ise bu admin raporu goremez ve dogrudan resolve edemez.
+Moderasyon karari ayni admin ve mesaj icin alinmis `evidenceAuditId` ister.
+
+Ayrintili payload ve enum listeleri
+`docs/api-java-webhook-reference.md` dosyasindadir.
+
 ## Database Tarafi
 
 Backend PostgreSQL ve Prisma ile kalici calisir. Uygulanan model, iliskiler,

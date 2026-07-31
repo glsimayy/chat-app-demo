@@ -62,6 +62,9 @@ TAG_ORDER = [
     "bookmarks",
     "contact invitations",
     "support tickets",
+    "message reports",
+    "admin monitoring",
+    "admin moderation",
     "bot",
     "dev",
 ]
@@ -769,6 +772,7 @@ def build_pdf(markdown: str, openapi: dict):
         [Paragraph(f"- {operation_count} REST operasyonu ve {schema_count} OpenAPI şeması", styles["body"])],
         [Paragraph("- JWT, grup rolleri, BOT ve webhook güvenlik sınırları", styles["body"])],
         [Paragraph("- Mesaj, attachment, ticket, call ve realtime sözleşmeleri", styles["body"])],
+        [Paragraph("- Catch-up, admin monitoring, audit ve moderasyon sözleşmeleri", styles["body"])],
         [Paragraph("- Java timeout, retry, readiness ve hata çevirme davranışı", styles["body"])],
         [Paragraph("- Docker, test, troubleshooting ve production kontrol listesi", styles["body"])],
     ]
@@ -789,7 +793,7 @@ def build_pdf(markdown: str, openapi: dict):
         [
             cover_table,
             Spacer(1, 14 * mm),
-            Paragraph("v0.1 · 27.07.2026 · Secret içermeyen sürüm", styles["cover_subtitle"]),
+            Paragraph("v0.1 · 31.07.2026 · Secret içermeyen sürüm", styles["cover_subtitle"]),
             PageBreak(),
             Paragraph("İçindekiler", styles["toc_title"]),
         ]
@@ -826,7 +830,7 @@ def build_pdf(markdown: str, openapi: dict):
             textColor=MUTED,
         ),
     ]
-    story.extend([toc, PageBreak()])
+    story.append(toc)
     story.extend(parse_markdown(markdown, styles))
     doc.multiBuild(story)
 

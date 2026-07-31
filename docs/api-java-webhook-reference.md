@@ -1,7 +1,7 @@
 # ellO API ve Java Webhook Teknik Referansı
 
 Sürüm: v0.1  
-Güncelleme tarihi: 27.07.2026  
+Güncelleme tarihi: 31.07.2026
 Kaynaklar: çalışan Swagger sözleşmesi, NestJS controller/DTO/service kodları,
 Socket.IO gateway'i ve Spring Boot Java webhook implementation'ı.
 
@@ -24,6 +24,10 @@ Kapsanan parçalar:
   durumları.
 - Mesaj ve sohbet bookmark/arşiv tercihleri.
 - Contact invitation, destek ticket ve çağrı geçmişi endpointleri.
+- LLM kullanmayan deterministik conversation catch-up özeti.
+- Admin operasyon görünümü, maskeli mesaj/attachment erişimi ve erişim audit'i.
+- Kullanıcı mesaj raporları, moderasyon kararları ve admin self-report
+  izolasyonu.
 - Dış otomasyonlar için BOT API.
 - `/chat` Socket.IO namespace'i, presence, typing, mesaj ve WebRTC signaling
   olayları.
@@ -45,8 +49,8 @@ controller, DTO, service ve gateway kodudur.
 | OpenAPI JSON | `http://localhost:3000/api/docs-json` |
 | Socket.IO | `http://localhost:3000/chat` |
 | Java webhook | `http://localhost:8080` |
-| OpenAPI path / operasyon | 47 path / 61 operasyon |
-| OpenAPI component şeması | 57 |
+| OpenAPI path / operasyon | 56 path / 70 operasyon |
+| OpenAPI component şeması | 70 |
 | Client -> server socket olayı | 20 |
 | Kalıcı veritabanı | PostgreSQL 16 + Prisma |
 
@@ -62,6 +66,9 @@ controller, DTO, service ve gateway kodudur.
 | Request DTO doğrulamaları | `backend/src/**/dto/*.ts` |
 | Socket.IO gateway | `backend/src/chat/chat.gateway.ts` |
 | Socket validation/error | `backend/src/chat/dto` ve `backend/src/chat/socket-exception.filter.ts` |
+| Deterministik catch-up | `backend/src/conversations/conversation-catch-up.ts` |
+| Admin monitoring | `backend/src/admin-monitoring` |
+| Mesaj moderasyonu | `backend/src/moderation` |
 | Java webhook | `java-webhook/src/main/java/com/ello/webhook` |
 | Java yapılandırması | `java-webhook/src/main/resources/application.properties` |
 | Docker topolojisi | `docker-compose.yml` |
@@ -800,7 +807,124 @@ Mevcut kullanıcının en son birebir sesli aramalarını döndürür:
 
 Çağrı başlatma REST ile değil Socket.IO üzerinden yapılır.
 
-<!-- pagebreak -->
+### 9.6. Conversation Catch-up
+
+`GET /api/conversations/{conversationId}/messages/catch-up`
+
+Query:
+
+| Alan | Değer | Varsayılan |
+| --- | --- | --- |
+| `window` | `2h`, `24h`, `7d` | `2h` |
+
+Catch-up, harici servis veya LLM çağırmaz. Kullanıcının görmeye yetkili olduğu
+mesajları deterministik kurallarla analiz eder ve şu alanları döndürür:
+
+- Mesaj, katılımcı, reply, attachment ve sistem olayı sayıları.
+- En aktif beş katılımcı.
+- Türkçe ve İngilizce stop-word filtresinden sonra en sık geçen altı konu.
+- Karar, aksiyon ve highlight olarak sınıflandırılan en fazla altı önemli an.
+- Analiz edilen mesaj sayısı ve 1000 mesaj sınırı nedeniyle kesilme bilgisi.
+
+Karar sınıflandırmasında `karar`, `anlaştık`, `onaylandı`, `decision`,
+`agreed` ve `approved` benzeri işaretler; aksiyon sınıflandırmasında
+`yapılacak`, `gerekiyor`, `teslim`, `görev`, `todo`, `deadline` ve `must`
+benzeri işaretler kullanılır. Reply sayısı, attachment, forward durumu ve uzun
+mesajlar önemli an skorunu yükseltir. Sonuç özet niteliğindedir; hukuki veya
+moderasyon kararı olarak kullanılmamalıdır.
+
+### 9.7. Admin Monitoring
+
+Bu endpointlerin tamamı Bearer JWT ve global `admin` rolü ister:
+
+| Endpoint | İşlem |
+| --- | --- |
+| `GET /api/admin/overview` | Kalıcı toplamlar, son 24 saat ve runtime metrics |
+| `GET /api/admin/messages` | İçerik göstermeden mesaj metadata listesi |
+| `POST /api/admin/messages/{messageId}/reveal` | Gerekçe kaydıyla içerik açma |
+| `GET /api/admin/messages/{messageId}/attachments/{attachmentId}` | Audit kapsamındaki eki okuma |
+| `GET /api/admin/message-access-audits` | İçerik erişim geçmişi |
+
+Overview; kullanıcı/admin, conversation türleri, BOT grupları, mesajlar,
+silinen mesajlar, attachment sayısı/boyutu, çağrılar, ticketlar ve içerik
+erişim sayılarını döndürür. `activity24h` son 24 saati, `runtime` ise process
+başlangıcından beri HTTP ve Socket.IO metriklerini gösterir.
+
+`GET /api/admin/messages` mesaj içeriğini hiçbir zaman döndürmez ve içerikte
+arama yapmaz. Desteklenen filtreler:
+
+- `search`: sender kullanıcı adı/e-posta ve conversation adı.
+- `senderId`, `conversationId`, `conversationType`.
+- `from`, `to`, `hasAttachments`.
+- `limit` (1-100) ve `offset`.
+
+İçerik açma body örneği:
+
+```json
+{
+  "reason": "abuse_investigation",
+  "justification": "REPORT-4821 kapsamındaki kullanıcı şikayeti inceleniyor."
+}
+```
+
+Geçerli reason değerleri `support_request`, `abuse_investigation`,
+`security_incident`, `system_test` ve `other` değerleridir. Justification
+5-500 karakter olmalıdır. Response içindeki `auditId`, aynı mesajdaki
+attachment'a erişirken query olarak gönderilir:
+
+```text
+GET /api/admin/messages/{messageId}/attachments/{attachmentId}?auditId={auditId}
+```
+
+Audit başka admin, başka mesaj veya başka attachment incelemesini yetkilendirmez.
+
+### 9.8. Mesaj Raporlama ve Moderasyon
+
+Kullanıcı raporu:
+
+`POST /api/message-reports`
+
+```json
+{
+  "messageId": "message-uuid",
+  "reason": "harassment",
+  "details": "Tekrarlanan kişisel saldırı."
+}
+```
+
+Reason değerleri: `harassment`, `sexual_content`, `violence_or_threat`,
+`spam`, `impersonation`, `other`.
+
+Kurallar:
+
+- Kullanıcı yalnızca görebildiği normal user mesajını raporlayabilir.
+- Sistem mesajı, silinmiş mesaj ve kullanıcının kendi mesajı raporlanamaz.
+- Aynı kullanıcı aynı mesajı ikinci kez raporlayamaz.
+- Raporlanan mesajın sender'ı global admin ise o admin raporu listede göremez
+  ve report ID'yi tahmin ederek resolve endpointini çağıramaz.
+
+Admin moderasyon endpointleri:
+
+| Endpoint | İşlem |
+| --- | --- |
+| `GET /api/admin/moderation/reports` | İçeriği maskeli rapor kuyruğu |
+| `PATCH /api/admin/moderation/reports/{reportId}/resolve` | Moderasyon kararı |
+
+Rapor içeriğini açmak için önce Admin Monitoring reveal endpointi çağrılır.
+Karar isteği, aynı admin ve mesaj için üretilen `evidenceAuditId` değerini
+taşımak zorundadır:
+
+```json
+{
+  "action": "delete_message",
+  "note": "İçerik politika ihlali olarak doğrulandı.",
+  "evidenceAuditId": "audit-uuid"
+}
+```
+
+Action değerleri `dismiss`, `delete_message`, `warn_user` ve `suspend_user`
+değerleridir. `suspend_user` için opsiyonel `suspensionHours` 1-720 arasında
+olabilir. Global adminler ve Automation Bot warn/suspend işleminden korunur.
 
 ## 10. BOT Otomasyon API
 
@@ -1702,6 +1826,7 @@ Bu bölüm `docs/openapi.snapshot.json` dosyasından otomatik üretilir.
 | `GET` | `/api/conversations/{conversationId}/messages` | Bearer JWT | `-` | 200 | Conversation messages |
 | `POST` | `/api/conversations/{conversationId}/messages` | Bearer JWT | `CreateMessageDto` | 201 | Message created |
 | `POST` | `/api/conversations/{conversationId}/messages/attachments` | Bearer JWT | `multipart/form-data` | 201 | Message with persistent attachments created |
+| `GET` | `/api/conversations/{conversationId}/messages/catch-up` | Bearer JWT | `-` | 200 | Deterministic conversation activity summary |
 | `GET` | `/api/conversations/{conversationId}/messages/search` | Bearer JWT | `-` | 200 | Search messages in conversation |
 | `DELETE` | `/api/conversations/{conversationId}/messages/{messageId}` | Bearer JWT | `-` | 200 | Message deleted |
 | `PATCH` | `/api/conversations/{conversationId}/messages/{messageId}` | Bearer JWT | `UpdateMessageDto` | 200 | Message updated |
@@ -1746,6 +1871,29 @@ Bu bölüm `docs/openapi.snapshot.json` dosyasından otomatik üretilir.
 | `PATCH` | `/api/tickets/{ticketId}` | Bearer JWT | `UpdateSupportTicketDto` | 200 | Support ticket updated by an administrator |
 | `PATCH` | `/api/tickets/{ticketId}/assignee` | Bearer JWT | `AssignSupportTicketDto` | 200 | Support ticket assigned, transferred, or unassigned |
 | `POST` | `/api/tickets/{ticketId}/claim` | Bearer JWT | `ClaimSupportTicketDto` | 200 | Unassigned support ticket claimed by current admin |
+
+### Message Reports
+
+| Method | Path | Auth | Request | Success | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| `POST` | `/api/message-reports` | Bearer JWT | `CreateMessageReportDto` | 201 | Report a visible message for moderator review |
+
+### Admin Monitoring
+
+| Method | Path | Auth | Request | Success | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| `GET` | `/api/admin/message-access-audits` | Bearer JWT | `-` | 200 | List the audit trail for administrative message access |
+| `GET` | `/api/admin/messages` | Bearer JWT | `-` | 200 | List message metadata without returning message contents |
+| `GET` | `/api/admin/messages/{messageId}/attachments/{attachmentId}` | Bearer JWT | `-` | 200 | Read an attachment covered by a matching message access audit |
+| `POST` | `/api/admin/messages/{messageId}/reveal` | Bearer JWT | `RevealAdminMessageDto` | 200 | Reveal one message after recording reason and justification |
+| `GET` | `/api/admin/overview` | Bearer JWT | `-` | 200 | Get operational totals, recent activity and runtime metrics |
+
+### Admin Moderation
+
+| Method | Path | Auth | Request | Success | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| `GET` | `/api/admin/moderation/reports` | Bearer JWT | `-` | 200 | List masked message reports for moderation |
+| `PATCH` | `/api/admin/moderation/reports/{reportId}/resolve` | Bearer JWT | `ResolveMessageReportDto` | 200 | Resolve a report using evidence covered by an admin access audit |
 
 ### Bot
 
@@ -2072,6 +2220,55 @@ dayanır.
 | `items` | `array<MessageResponseDto>` | Yes | - |
 | `pageInfo` | `MessageSearchPageInfoResponseDto` | Yes | - |
 
+#### ConversationCatchUpParticipantResponseDto
+
+| Field | Type | Required | Rules / Description |
+| --- | --- | --- | --- |
+| `userId` | `string` | Yes | format=uuid |
+| `username` | `string` | Yes | - |
+| `messageCount` | `number` | Yes | - |
+
+#### ConversationCatchUpTopicResponseDto
+
+| Field | Type | Required | Rules / Description |
+| --- | --- | --- | --- |
+| `label` | `string` | Yes | - |
+| `count` | `number` | Yes | - |
+
+#### ConversationCatchUpMomentResponseDto
+
+| Field | Type | Required | Rules / Description |
+| --- | --- | --- | --- |
+| `messageId` | `string` | Yes | format=uuid |
+| `kind` | `string` | Yes | enum=decision, action, highlight |
+| `senderId` | `string` | Yes | format=uuid |
+| `senderUsername` | `string` | Yes | - |
+| `preview` | `string` | Yes | - |
+| `createdAt` | `string` | Yes | format=date-time |
+| `replyCount` | `number` | Yes | - |
+| `attachmentCount` | `number` | Yes | - |
+
+#### ConversationCatchUpResponseDto
+
+| Field | Type | Required | Rules / Description |
+| --- | --- | --- | --- |
+| `conversationId` | `string` | Yes | format=uuid |
+| `window` | `string` | Yes | enum=2h, 24h, 7d |
+| `startAt` | `string` | Yes | format=date-time |
+| `endAt` | `string` | Yes | format=date-time |
+| `generatedAt` | `string` | Yes | format=date-time |
+| `summary` | `string` | Yes | - |
+| `messageCount` | `number` | Yes | - |
+| `participantCount` | `number` | Yes | - |
+| `replyCount` | `number` | Yes | - |
+| `attachmentCount` | `number` | Yes | - |
+| `systemEventCount` | `number` | Yes | - |
+| `analyzedMessageCount` | `number` | Yes | - |
+| `truncated` | `boolean` | Yes | - |
+| `activeParticipants` | `array<ConversationCatchUpParticipantResponseDto>` | Yes | - |
+| `topics` | `array<ConversationCatchUpTopicResponseDto>` | Yes | - |
+| `keyMoments` | `array<ConversationCatchUpMomentResponseDto>` | Yes | - |
+
 #### UpdateMessageDto
 
 | Field | Type | Required | Rules / Description |
@@ -2332,10 +2529,82 @@ dayanır.
 | `adminId` | `object \| null` | Yes | format=uuid |
 | `expectedVersion` | `number` | Yes | minimum=1 |
 
+#### AdminOverviewResponseDto
+
+| Field | Type | Required | Rules / Description |
+| --- | --- | --- | --- |
+| `totals` | `object` | Yes | - |
+| `activity24h` | `object` | Yes | - |
+| `runtime` | `object` | Yes | - |
+| `collectedAt` | `string` | Yes | format=date-time |
+
+#### AdminMessageListResponseDto
+
+| Field | Type | Required | Rules / Description |
+| --- | --- | --- | --- |
+| `items` | `array<object>` | Yes | - |
+| `pageInfo` | `object` | Yes | - |
+
+#### AdminMessageRevealResponseDto
+
+| Field | Type | Required | Rules / Description |
+| --- | --- | --- | --- |
+| `auditId` | `string` | Yes | - |
+| `messageId` | `string` | Yes | - |
+| `content` | `string` | Yes | - |
+| `attachments` | `array<object>` | Yes | - |
+| `revealedAt` | `string` | Yes | format=date-time |
+
+#### RevealAdminMessageDto
+
+| Field | Type | Required | Rules / Description |
+| --- | --- | --- | --- |
+| `reason` | `string` | Yes | enum=support_request, abuse_investigation, security_incident, system_test, other |
+| `justification` | `string` | Yes | minLength=5; maxLength=500; Case-specific explanation recorded in the immutable access audit |
+
+#### AdminAccessAuditListResponseDto
+
+| Field | Type | Required | Rules / Description |
+| --- | --- | --- | --- |
+| `items` | `array<object>` | Yes | - |
+| `pageInfo` | `object` | Yes | - |
+
+#### MessageReportResponseDto
+
+| Field | Type | Required | Rules / Description |
+| --- | --- | --- | --- |
+| `id` | `string` | Yes | format=uuid |
+| `status` | `string` | Yes | - |
+
+#### CreateMessageReportDto
+
+| Field | Type | Required | Rules / Description |
+| --- | --- | --- | --- |
+| `messageId` | `string` | Yes | format=uuid |
+| `reason` | `string` | Yes | enum=harassment, sexual_content, violence_or_threat, spam, impersonation, other |
+| `details` | `string` | No | maxLength=500 |
+
+#### MessageReportListResponseDto
+
+| Field | Type | Required | Rules / Description |
+| --- | --- | --- | --- |
+| `items` | `array<object>` | Yes | - |
+| `pageInfo` | `object` | Yes | - |
+
+#### ResolveMessageReportDto
+
+| Field | Type | Required | Rules / Description |
+| --- | --- | --- | --- |
+| `action` | `string` | Yes | enum=dismiss, delete_message, warn_user, suspend_user |
+| `note` | `string` | Yes | minLength=5; maxLength=500; Decision rationale stored with the moderation record |
+| `evidenceAuditId` | `string` | Yes | format=uuid; Matching content access audit created by this administrator for the reported message |
+| `suspensionHours` | `number` | No | minimum=1; maximum=720; default=24; Temporary suspension duration, used only by suspend_user |
+
 #### DevResetResponseDto
 
 | Field | Type | Required | Rules / Description |
 | --- | --- | --- | --- |
+| `adminMonitoring` | `object` | Yes | - |
 | `bookmarks` | `object` | Yes | - |
 | `calls` | `object` | Yes | - |
 | `contactInvitations` | `object` | Yes | - |

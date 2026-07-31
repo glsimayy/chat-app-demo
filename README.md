@@ -1,254 +1,527 @@
-# Chat App Demo
+# ellO Chat Application
 
-Realtime chat demo backend.
+ellO; React, NestJS, PostgreSQL, Socket.IO, WebRTC ve Spring Boot kullanan
+gerçek zamanlı bir ekip mesajlaşma uygulamasıdır. Projede birebir ve grup
+sohbetleri, dosya ekleri, sesli arama, destek talepleri, otomasyon BOT API'si,
+moderasyon ve yönetici izleme paneli bulunur.
 
-## Tum Uygulamayi Calistirma
+Bu README, repoyu hiç kurmamış birinin clone işleminden çalışan uygulamaya
+kadar izlemesi gereken yolu anlatır. En kolay ve projeye en yakın yöntem
+**Docker Compose** kullanmaktır.
 
-Backend ve frontend bagimliliklari kurulduktan sonra repo kok klasorunde:
+## İçindekiler
 
-```bash
-npm install
-npm run dev
+1. [Mimari](#mimari)
+2. [Sıfırdan kurulum - Docker](#sıfırdan-kurulum---docker)
+3. [Uygulamayı açma ve hesaplar](#uygulamayı-açma-ve-hesaplar)
+4. [Durdurma, yeniden başlatma ve güncelleme](#durdurma-yeniden-başlatma-ve-güncelleme)
+5. [Yerel geliştirme](#yerel-geliştirme)
+6. [Test ve doğrulama](#test-ve-doğrulama)
+7. [BOT API ve Java webhook](#bot-api-ve-java-webhook)
+8. [Geçici internet erişimi](#geçici-internet-erişimi)
+9. [Sık karşılaşılan sorunlar](#sık-karşılaşılan-sorunlar)
+10. [Dokümanlar](#dokümanlar)
+
+## Mimari
+
+| Bileşen | Teknoloji | Görev |
+| --- | --- | --- |
+| Frontend | React + TypeScript | Arayüz, REST istemcisi, Socket.IO ve WebRTC |
+| Main Backend | NestJS + TypeScript | Auth, yetki, sohbet, mesaj ve realtime kuralları |
+| Database | PostgreSQL 16 + Prisma | Kalıcı kullanıcı, sohbet, mesaj, ticket ve dosya verisi |
+| Java Webhook | Spring Boot + Java 17 | Dış ticket olaylarını BOT API isteğine dönüştürme |
+| Reverse proxy | Nginx | Frontend üzerinden `/api` ve `/chat` proxy'si |
+
+Docker kurulumunda tarayıcı yalnızca `http://localhost:5173` adresini kullanır.
+Frontend container, API ve Socket.IO trafiğini ilgili servislere yönlendirir.
+
+## Sıfırdan Kurulum - Docker
+
+### 1. Gereksinimleri kur
+
+Yeni makinede şunlar gereklidir:
+
+- [Git](https://git-scm.com/downloads)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- En az 6 GB boş disk alanı
+- Boş `5173`, `3000`, `8080` ve `5432` portları
+
+Windows'ta Docker Desktop için BIOS/UEFI sanallaştırması ve WSL 2 açık
+olmalıdır. Docker Desktop'ı başlatıp sol altta **Engine running** yazısını
+görmeden sonraki adıma geçme.
+
+Docker kurulumunda ayrıca Node.js, PostgreSQL veya Java kurmak gerekmez;
+bunlar container image'ları içinde sağlanır.
+
+### 2. Repoyu clone et
+
+PowerShell, Terminal veya Git Bash aç:
+
+```powershell
+git clone https://github.com/glsimayy/chat-app-demo.git
+cd chat-app-demo
 ```
 
-Bu komut backend'i `http://localhost:3000`, frontend'i
-`http://localhost:5173` adresinde birlikte baslatir. `Ctrl+C` iki sureci de
-kapatir; Windows kapanis onayi sorarsa `Y` girilebilir. PowerShell script
-politikasi `npm` komutunu engelliyorsa ayni komutlar `npm.cmd install` ve
-`npm.cmd run dev` olarak calistirilabilir.
+Doğru klasörde olduğunu kontrol et:
 
-PostgreSQL, backend, Java webhook ve frontend'in production benzeri Docker
-ortaminda birlikte calistirilmasi `docs/full-stack-docker.md` icinde anlatilir.
-
-## Backend
-
-Backend NestJS ile yazildi. Gelistirme ve test ortaminda `DATABASE_URL`
-tanimliysa PostgreSQL + Prisma ile kalici, tanimli degilse in-memory calisir.
-Production ortaminda `DATABASE_URL` zorunludur. In-memory modda server restart
-edilince local veriler sifirlanir.
-
-### Kurulum
-
-```bash
-cd backend
-npm install
+```powershell
+git status
+git rev-parse --short HEAD
 ```
 
-`.env.example` dosyasini referans alarak local `.env` dosyasi olusturulabilir.
+### 3. Ortam dosyasını oluştur
 
-Production notlari:
+Windows PowerShell:
 
-- `JWT_SECRET` ve `BOT_WEBHOOK_SECRET` en az 32 karakter olmalidir.
-- `CORS_ORIGIN` wildcard (`*`) olamaz.
-- `DATABASE_URL` gecerli bir PostgreSQL baglanti adresi olmalidir.
-- `DEMO_USERS_ENABLED`, `DEV_ROUTES_ENABLED` ve `SERVE_DEMO_UI` production'da
-  `false` olmalidir.
-- Swagger varsayilan olarak kapalidir.
-- HTTP ve Socket.IO rate limit ayarlari `.env.example` icinden degistirilebilir.
-
-Kalici local PostgreSQL icin repo root klasorunde:
-
-```bash
-docker compose up -d postgres
-cd backend
-npx prisma migrate deploy
-npm run prisma:generate
-npm run db:audit
+```powershell
+Copy-Item .env.compose.example .env
 ```
 
-Production ADMIN bootstrap, backup/restore ve recovery adimlari
-`docs/database-setup.md` dosyasindadir.
-
-### Calistirma
+macOS veya Linux:
 
 ```bash
-npm run start:dev
+cp .env.compose.example .env
 ```
 
-Local adresler:
+`.env` dosyasını bir metin editöründe aç. Aşağıdaki değerleri mutlaka
+değiştir:
 
-- API: `http://localhost:3000/api`
-- Health: `http://localhost:3000/api/health`
-- Swagger: `http://localhost:3000/api/docs`
-- Demo test ekrani: `http://localhost:3000/demo` (`SERVE_DEMO_UI=true`)
-- Socket.IO namespace: `http://localhost:3000/chat`
-- Runtime metrics (admin): `http://localhost:3000/api/metrics`
-- Dev reset: `POST http://localhost:3000/api/dev/reset`
-  (`DEV_ROUTES_ENABLED=true`)
+- `POSTGRES_PASSWORD`
+- `DATABASE_URL` içindeki PostgreSQL parolası
+- `JWT_SECRET`
+- `BOT_WEBHOOK_SECRET`
+- `WEBHOOK_SECRET`
 
-Development modunda `DEMO_USERS_ENABLED=true` ise backend her acildiginda su
-demo hesaplari hazirlanir:
+`POSTGRES_PASSWORD` ve `DATABASE_URL` içindeki parola birebir aynı olmalıdır:
 
-| Bot ID | Rol   | Kullanici adi  | E-posta                 | Sifre    |
-| ------ | ----- | -------------- | ----------------------- | -------- |
-| `1`    | Admin | `emiradmin`    | `emiradmin@ello.com`    | `123456` |
-| `2`    | User  | `emiruser`     | `emiruser@ello.com`     | `123456` |
-| `3`    | Admin | `aslıadmin`    | `asliadmin@ello.com`    | `123456` |
-| `4`    | User  | `aslıuser`     | `asliuser@ello.com`     | `123456` |
-| `5`    | Admin | `gülsimaadmin` | `gulsimaadmin@ello.com` | `123456` |
-| `6`    | User  | `gülsimauser`  | `gulsimauser@ello.com`  | `123456` |
+```dotenv
+POSTGRES_PASSWORD=<guclu-ve-url-uyumlu-parola>
+DATABASE_URL=postgresql://postgres:<ayni-parola>@postgres:5432/chat_app_demo
+```
 
-Bot endpointlerindeki `participantIds`, `managerIds`, `ownerId` ve URL'deki
-`userId` alanlari built-in hesaplar icin UUID yerine bu kisa Bot ID degerlerini
+PowerShell'de 64 karakterlik rastgele bir secret üretmek için:
+
+```powershell
+$bytes = New-Object byte[] 32
+$rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+$rng.GetBytes($bytes)
+$rng.Dispose()
+[BitConverter]::ToString($bytes).Replace("-", "").ToLowerInvariant()
+```
+
+Komutu üç kez çalıştırıp farklı çıktıları `JWT_SECRET`,
+`BOT_WEBHOOK_SECRET` ve `WEBHOOK_SECRET` alanlarına yaz. `.env` dosyasını
+commit etme veya ekip sohbetinde paylaşma.
+
+### 4. Yapılandırmayı kontrol et
+
+Repo kökünde:
+
+```powershell
+docker compose config --quiet
+```
+
+Komut çıktı vermeden tamamlanırsa Compose dosyası ve zorunlu değişkenler
+geçerlidir. Hata alınırsa `.env` içindeki eksik veya hatalı değeri düzelt.
+
+### 5. Tüm sistemi build edip başlat
+
+```powershell
+docker compose up -d --build
+```
+
+İlk build, image'lar indirildiği için birkaç dakika sürebilir. Servisleri
+kontrol et:
+
+```powershell
+docker compose ps
+docker compose ps -a
+```
+
+Uzun süre çalışan `postgres`, `backend`, `java-webhook` ve `frontend`
+servislerinin durumu `healthy` olmalıdır. Tek seferlik `migrate` ve
+`built-in-users-bootstrap` servislerinin `Exited (0)` olması normaldir.
+
+### 6. Health kontrollerini çalıştır
+
+```powershell
+Invoke-RestMethod http://localhost:3000/api/health
+Invoke-RestMethod http://localhost:8080/health
+Invoke-RestMethod http://localhost:8080/ready
+```
+
+Beklenen sonuç:
+
+- Backend health: `status = ok`
+- Java health: servis ayakta
+- Java readiness: backend'e erişebiliyor
+
+## Uygulamayı Açma ve Hesaplar
+
+Tarayıcıdan aç:
+
+- Uygulama: [http://localhost:5173](http://localhost:5173)
+- Swagger: [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
+- Backend health: [http://localhost:3000/api/health](http://localhost:3000/api/health)
+
+Docker başlangıcında aşağıdaki altı geliştirme hesabı idempotent biçimde
+hazırlanır. Tüm şifreler `123456` değeridir.
+
+| BOT ID | Kullanıcı adı | E-posta | Rol |
+| --- | --- | --- | --- |
+| `1` | `emiradmin` | `emiradmin@ello.com` | Admin |
+| `2` | `emiruser` | `emiruser@ello.com` | User |
+| `3` | `aslıadmin` | `asliadmin@ello.com` | Admin |
+| `4` | `aslıuser` | `asliuser@ello.com` | User |
+| `5` | `gülsimaadmin` | `gulsimaadmin@ello.com` | Admin |
+| `6` | `gülsimauser` | `gulsimauser@ello.com` | User |
+
+İlk temiz kurulumda sohbet listesi boş olabilir. Kullanıcılar doğrudan sohbet
+başlatabilir; admin hesapları manuel grup oluşturabilir. BOT endpointlerindeki
+kullanıcı alanları bu hesaplar için UUID yerine `1`-`6` BOT ID değerlerini de
 kabul eder.
 
-### Kontrol
+## Durdurma, Yeniden Başlatma ve Güncelleme
 
-Server acikken:
+### Veriyi koruyarak kapat
 
-```bash
-npm run typecheck
-npm run test:typecheck
-npm test
-npm run test:e2e
-npm run build
-npm run prisma:validate
-npm run db:audit
-npm run test:smoke
-npm run test:load
+```powershell
+docker compose down
 ```
 
-Unit ve e2e testleri config, CORS, rate limit, validation ve yetki kurallarini
-kontrol eder. `test:smoke` ise calisan server uzerinde asagidaki akislarin
-tamamini birlikte kontrol eder:
+PostgreSQL verisi Docker volume içinde kalır.
 
-- health
-- auth
-- direct conversation
-- message pagination
-- Socket.IO message send/update/delete
-- Socket.IO presence
-- reconnect conversation sync
-- idempotent message retry
-- PostgreSQL-backed image/file attachments with participant-only downloads
-- bot group create
-- group rename
+### Tekrar aç
 
-Bu kontroller `.github/workflows/backend-ci.yml` ile her ilgili push ve pull
-request'te gercek PostgreSQL 16 servisi uzerinde otomatik calisir.
+```powershell
+docker compose up -d
+```
 
-## Java Webhook
+### Yeni commitleri aldıktan sonra güncelle
 
-Ticket webhook adaptoru `java-webhook` klasorundedir. Java 17 veya daha yeni
-bir JDK ile:
+```powershell
+git pull
+docker compose up -d --build
+```
+
+Migration ve sabit kullanıcı bootstrap işlemi otomatik çalışır.
+
+### Logları izle
+
+```powershell
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose logs -f java-webhook
+```
+
+Çıkmak için `Ctrl+C` kullanılır; container'lar çalışmaya devam eder.
+
+### Bütün yerel veriyi sil
+
+Yalnızca gerçekten temiz bir veritabanı istendiğinde:
+
+```powershell
+docker compose down --volumes
+docker compose up -d --build
+```
+
+`--volumes` bütün yerel kullanıcı, sohbet, mesaj, dosya ve ticket verisini geri
+alınamaz biçimde siler. Normal kapatma için kullanılmamalıdır.
+
+## Yerel Geliştirme
+
+Docker dışı geliştirme için ayrıca şunlar gerekir:
+
+- Node.js 20 veya daha yeni LTS
+- npm
+- Java 17 veya daha yeni JDK
+- PostgreSQL 16; en kolay yöntem yalnızca PostgreSQL container'ını kullanmaktır
+
+### 1. Bağımlılıkları kur
+
+Repo kökünde:
+
+```powershell
+npm.cmd install
+npm.cmd --prefix backend install
+npm.cmd --prefix frontend install
+```
+
+### 2. Development env dosyalarını hazırla
+
+```powershell
+Copy-Item backend/.env.example backend/.env
+Copy-Item frontend/.env.example frontend/.env
+```
+
+`backend/.env` içindeki local PostgreSQL adresi `localhost:5432` kullanır.
+Root `.env` içindeki Docker adresi ise `postgres:5432` kullanır; bu iki adresi
+birbirine karıştırma.
+
+### 3. PostgreSQL ve migration'ı hazırla
+
+```powershell
+docker compose up -d postgres
+npm.cmd --prefix backend run prisma:generate
+Push-Location backend
+npx.cmd prisma migrate deploy
+npm.cmd run db:bootstrap-built-in-users
+Pop-Location
+```
+
+### 4. Backend ve frontend'i birlikte çalıştır
+
+```powershell
+npm.cmd run dev
+```
+
+Bu komut:
+
+- Backend'i `http://localhost:3000`
+- Frontend'i `http://localhost:5173`
+
+adresinde başlatır. İkisini kapatmak için terminalde `Ctrl+C` kullan.
+
+### 5. Java webhook'u ayrı çalıştır
+
+Yeni bir PowerShell penceresinde:
 
 ```powershell
 cd java-webhook
-$env:WEBHOOK_SECRET = "local-webhook-secret"
-$env:BOT_WEBHOOK_SECRET = "backend ile ayni bot secret"
+$env:WEBHOOK_SECRET = "<root .env ile ayni webhook secret>"
+$env:BOT_WEBHOOK_SECRET = "<backend ile ayni bot secret>"
 $env:CHAT_BACKEND_BASE_URL = "http://localhost:3000"
 .\mvnw.cmd spring-boot:run
 ```
 
-Servis `http://localhost:8080/webhook/ticket-created` endpoint'ini acar ve
-dogruladigi istegi NestJS `POST /api/bot/create-group` endpoint'ine iletir.
-Kurulum ve payload ornegi `java-webhook/README.md` icindedir.
-Java testleri `.github/workflows/java-webhook-ci.yml` ile otomatik calisir.
+Java webhook, temel sohbet ekranını açmak için zorunlu değildir; dış ticket
+entegrasyonunu test etmek için gereklidir.
 
-## Takim Dokumanlari
+## Test ve Doğrulama
 
-- Backend kontratlari: `docs/backend-contracts.md`
-- Bot API PowerShell ornekleri: `docs/bot-api-examples.md`
-- Detayli API ve Java webhook referansi: `docs/api-java-webhook-reference.md`
-- API ve Java webhook PDF: `output/pdf/ello-api-java-webhook-dokumani.pdf`
-- Database kurulumu: `docs/database-setup.md`
-- Guncel database veri modeli: `docs/database-data-model.md`
-- Database veri modeli PDF: `output/pdf/ellodb-veri-modeli.pdf`
-- Gecici internet sunucusu: `docs/temporary-public-server.md`
-- Gunluk kayit: `docs/daily-log.md`
-- Postman koleksiyonu: `docs/postman/chat-app-demo.postman_collection.json`
+### Tam stack smoke testi
 
-## Frontend
+Docker açıkken:
 
-```bash
+```powershell
+npm.cmd run test:full-stack
+```
+
+Bu test health, Swagger, roller, direct/group realtime mesajlaşma ve Java
+ticket webhook akışını kontrol eder. Mevcut veriyi silmez ancak tekrar
+kullanılabilen test hesapları oluşturur.
+
+### Backend
+
+```powershell
+npm.cmd --prefix backend run typecheck
+npm.cmd --prefix backend run test:typecheck
+npm.cmd --prefix backend test
+npm.cmd --prefix backend run test:e2e
+npm.cmd --prefix backend run build
+npm.cmd --prefix backend run prisma:validate
+```
+
+### Frontend
+
+```powershell
+npm.cmd --prefix frontend run typecheck
+npm.cmd --prefix frontend run test:ci
+npm.cmd --prefix frontend run build
+```
+
+Playwright ilk kez kullanılacaksa:
+
+```powershell
 cd frontend
-npm install
-npm start
+npx.cmd playwright install chromium
+npm.cmd run test:e2e
 ```
 
-Frontend `npm start` ile sabit olarak `http://localhost:5173` adresinde calisir.
-API ve Socket adresleri `frontend/.env.example` referans alinarak
-`REACT_APP_API_URL` ve `REACT_APP_SOCKET_URL` ile degistirilebilir. Varsayilan
-adresler `http://localhost:3000/api` ve `http://localhost:3000/chat` olur.
-Mesajlar socket bagliyken ACK ile gonderilir, baglanti yoksa ayni
-`clientMessageId` ile REST fallback kullanilir.
+### Java webhook
 
-Birebir sesli aramalar WebRTC kullanir. Socket.IO yalnizca yetkili iki
-kullanici arasindaki arama sinyallerini tasir; ses sunucuda depolanmaz.
-Gelen, giden, tamamlanan, reddedilen ve cevapsiz aramalar PostgreSQL'deki
-cagri gecmisine yazilir ve Calls sekmesinde gosterilir.
-`REACT_APP_WEBRTC_ICE_SERVERS` JSON listesiyle STUN/TURN sunuculari
-yapilandirilir. `localhost` disindaki mikrofon erisimi icin frontend HTTPS
-uzerinden sunulmalidir. Farkli aglar arasinda guvenilir baglanti icin production
-ortaminda kimlik dogrulamali bir TURN sunucusu kullanilmalidir.
-
-Frontend kontrolleri:
-
-```bash
-npm run typecheck
-npm run test:ci
-npm run build
-npx playwright install chromium
-npm run test:e2e
+```powershell
+cd java-webhook
+.\mvnw.cmd test
 ```
 
-Playwright test backend'i bilerek in-memory calisir; yerel PostgreSQL'e test
-kullanicisi veya sohbeti yazmaz. Test development hesaplariyla admin login,
-direct message, group message, presence ve birebir WebRTC sesli arama
-akislarini gercek frontend, backend ve Socket.IO uzerinde kontrol eder.
+## BOT API ve Java Webhook
 
-## Ana Ozellikler
+BOT API, normal kullanıcı JWT'si yerine şu header'ı kullanır:
 
-- JWT auth
-- User search
-- Direct conversation
-- Group conversation
-- Group rename
-- Group owner/manager roles and message policies
-- Private manager chat linked to each group
-- Active, closed and archived group states
-- Message create/update/delete
-- Message pagination
-- Conversation icinde mesaj arama
-- Kullaniciya ozel kalici mesaj bookmark'lari
-- Kalici birebir sesli arama gecmisi
-- Socket oturumuna dayali gercek zamanli online/offline durumu
-- Read tracking
-- Participant add/remove
-- Socket.IO realtime messaging
-- Typing indicator
-- Read receipt
-- Online presence
-- Socket reconnect ve conversation sync
-- `clientMessageId` ile tekrar gonderim korumasi
-- Admin runtime metrics
-- Kullanici destek talebi olusturma ve kendi taleplerini takip etme
-- Admin destek taleplerinde arama, filtreleme, durum ve cevap yonetimi
-- Coklu admin ticket havuzu, admin atama/devretme ve islem gecmisi
-- Ticket guncellemelerinde optimistic version ile `409 Conflict` korumasi
-- Structured HTTP ve Socket.IO loglari
-- Dis uygulamadan bot grubu olusturma: `POST /api/bot/groups`
-- Otomasyon grubunu ve uyelerini okuma: `GET /api/bot/groups/:conversationId`
-- Otomasyon grubuna uye ekleme: `POST /api/bot/groups/:conversationId/participants`
-- Otomasyon grubundan uye cikarma: `DELETE /api/bot/groups/:conversationId/participants/:userId`
-- Bot adina mesaj gonderme: `POST /api/bot/groups/:conversationId/messages`
-- Bot mesajini duzenleme/silme: `PATCH|DELETE /api/bot/groups/:conversationId/messages/:messageId`
-- Bot grubu ayarlarini degistirme: `PATCH /api/bot/groups/:conversationId`
-- Bot grubunda manager atama: `PATCH /api/bot/groups/:conversationId/participants/:userId/role`
-- Java ticket webhook alias'i: `POST /api/bot/create-group`
+```http
+x-bot-secret: <BOT_WEBHOOK_SECRET>
+```
 
-## Notlar
+Swagger'da sağ üstteki **Authorize** düğmesi normal JWT içindir. BOT
+endpointinin kendi `x-bot-secret` alanına root `.env` dosyasındaki
+`BOT_WEBHOOK_SECRET` değeri girilir.
 
-- Development modunda hazir admin hesabi olusturulur; yeni kayitlar `user` olur.
-- Grup olusturma REST endpointi admin ister.
-- Bot group endpointi JWT yerine `x-bot-secret` header'i kullanir.
-- Auth endpointleri HTTP rate limit, Socket.IO eventleri socket bazli rate limit uygular.
-- Database model kontrati `docs/backend-contracts.md` icinde tutulur.
-- `DATABASE_URL` sadece development/test icin opsiyoneldir; production'da zorunludur.
-- Smoke test local server'da test kullanicilari olusturur. Manuel demo oncesi `POST /api/dev/reset` ile gelistirme verisi temizlenebilir.
-- v0.1 release kapilari ve production baslatma sirasi `docs/release-v0.1.md`
-  icinde tutulur.
-- v0.1 ozellikleri, bekleyen teslimler ve bilinen kisitlar
-  `docs/release-notes-v0.1.md` icinde tutulur.
-- Birlesik Docker Compose kurulum ve calistirma adimlari
-  `docs/full-stack-docker.md` icinde tutulur.
+Temel BOT işlemleri:
+
+- `POST /api/bot/groups`: otomasyon grubu oluştur
+- `GET /api/bot/groups/{conversationId}`: grubu oku
+- `POST /api/bot/groups/{conversationId}/participants`: üye ekle
+- `DELETE /api/bot/groups/{conversationId}/participants/{userId}`: üye çıkar
+- `POST /api/bot/groups/{conversationId}/messages`: bot adına mesaj gönder
+- `PATCH /api/bot/groups/{conversationId}`: grup ayarlarını değiştir
+
+Java servisine gelen dış ticket isteği:
+
+```http
+POST http://localhost:8080/webhook/ticket-created
+X-Webhook-Token: <WEBHOOK_SECRET>
+Content-Type: application/json
+```
+
+Java servis isteği doğrular ve NestJS
+`POST /api/bot/create-group` endpointine iletir. Ayrıntılı payload, timeout,
+retry ve hata sözleşmeleri:
+
+- [API ve Java webhook teknik referansı](docs/api-java-webhook-reference.md)
+- [Java webhook kısa rehberi](java-webhook/README.md)
+- [Postman koleksiyonu](docs/postman/chat-app-demo.postman_collection.json)
+
+## Geçici İnternet Erişimi
+
+Uygulamayı kısa süreliğine farklı ağdaki ekip arkadaşlarıyla test etmek için:
+
+```powershell
+npm.cmd run server:temporary:build
+```
+
+Komut Docker stack'i build eder ve geçici Cloudflare Quick Tunnel URL'si
+üretir. Terminal açık kalmalıdır; Quick Tunnel production yayını değildir ve
+URL her çalıştırmada değişebilir.
+
+Kapatmak için:
+
+```powershell
+npm.cmd run server:temporary:stop
+```
+
+Detaylar ve hata giderme:
+[docs/temporary-public-server.md](docs/temporary-public-server.md).
+
+## Sık Karşılaşılan Sorunlar
+
+### Docker engine çalışmıyor
+
+Hata örneği:
+
+```text
+failed to connect to the docker API
+```
+
+Docker Desktop'ı aç, **Engine running** durumunu bekle ve komutu tekrar çalıştır.
+
+### Virtualization support not detected
+
+BIOS/UEFI içinden Intel VT-x veya AMD-V'yi aç. Windows özelliklerinden
+**Virtual Machine Platform** ve **Windows Subsystem for Linux** bileşenlerini
+etkinleştirip bilgisayarı yeniden başlat.
+
+### Backend health 404 dönüyor
+
+Doğru adres:
+
+```text
+http://localhost:3000/api/health
+```
+
+Container ve logları kontrol et:
+
+```powershell
+docker compose ps
+docker compose logs --tail 150 backend
+```
+
+### Login "Invalid email or password" diyor
+
+Kullanıcı adı yerine tabloda verilen e-posta adresini ve `123456` şifresini
+kullan. Bootstrap sonucunu kontrol et:
+
+```powershell
+docker compose ps -a built-in-users-bootstrap
+docker compose logs built-in-users-bootstrap
+```
+
+### Port kullanımda
+
+Windows'ta hangi işlemin portu kullandığını gör:
+
+```powershell
+Get-NetTCPConnection -LocalPort 5173,3000,8080,5432 -ErrorAction SilentlyContinue |
+  Select-Object LocalPort, State, OwningProcess
+```
+
+Eski ellO container'larını `docker compose down` ile kapat veya ilgili başka
+uygulamanın portunu değiştir.
+
+### `.env` sonrası Compose başlamıyor
+
+Önce:
+
+```powershell
+docker compose config --quiet
+```
+
+`POSTGRES_PASSWORD` ile `DATABASE_URL` parolasının aynı olduğunu ve üç secret
+alanının placeholder olmadığını kontrol et. Secret değerlerini log veya ekran
+görüntüsünde paylaşma.
+
+### Mesaj veya presence anlık güncellenmiyor
+
+Tarayıcı geliştirici araçlarında `/chat` Socket.IO bağlantısını, ardından
+backend logunu kontrol et:
+
+```powershell
+docker compose logs --tail 200 backend
+```
+
+Sayfayı yenilemeden önce iki hesabın da aynı güncel frontend build'ini
+kullandığından emin ol.
+
+## Ana Özellikler
+
+- JWT ile register, login, profil ve parola yönetimi
+- Birebir sohbet, grup, owner/manager/member rolleri ve grup politikaları
+- Gruplara bağlı özel yönetici sohbeti
+- Socket.IO ile mesaj, typing, read receipt, presence ve reconnect sync
+- Reply, forward, edit, delete, arama, bookmark ve arşiv
+- Kalıcı görsel, dosya ve sesli mesaj ekleri
+- WebRTC birebir sesli arama ve kalıcı çağrı geçmişi
+- Contact invitation ve çoklu admin destek ticket havuzu
+- BOT API ve Spring Boot ticket webhook adaptörü
+- LLM kullanmayan deterministik conversation catch-up özeti
+- Grup üyelerini kullanıcı adı veya e-posta ile `@` mention etme
+- Türkçe ve İngilizce arayüz
+- Admin operasyon özeti, maskeli mesaj inceleme ve gerekçeli erişim kaydı
+- Mesaj raporlama, moderasyon ve adminin kendisiyle ilgili rapordan ayrılması
+
+## Güvenlik Notları
+
+- `.env`, JWT, parola ve webhook secret değerlerini commit etme.
+- `x-bot-secret` frontend bundle'ına konmamalıdır.
+- Production'da `DEMO_USERS_ENABLED`, `DEV_ROUTES_ENABLED` ve
+  `SERVE_DEMO_UI` kapalı olmalıdır.
+- Production CORS değeri wildcard olmamalıdır.
+- Farklı ağlar arasında güvenilir WebRTC için kimlik doğrulamalı TURN sunucusu
+  gerekir.
+- Quick Tunnel yalnızca geliştirme ve kısa süreli test içindir.
+
+## Dokümanlar
+
+| Konu | Dosya |
+| --- | --- |
+| API + Java webhook detaylı referans | [docs/api-java-webhook-reference.md](docs/api-java-webhook-reference.md) |
+| API + Java webhook PDF | [output/pdf/ello-api-java-webhook-dokumani.pdf](output/pdf/ello-api-java-webhook-dokumani.pdf) |
+| Backend kontratları | [docs/backend-contracts.md](docs/backend-contracts.md) |
+| BOT API örnekleri | [docs/bot-api-examples.md](docs/bot-api-examples.md) |
+| Docker full stack | [docs/full-stack-docker.md](docs/full-stack-docker.md) |
+| Database kurulum ve operasyon | [docs/database-setup.md](docs/database-setup.md) |
+| Database veri modeli | [docs/database-data-model.md](docs/database-data-model.md) |
+| Demo sunum akışı | [docs/demo-runbook.md](docs/demo-runbook.md) |
+| Geçici internet sunucusu | [docs/temporary-public-server.md](docs/temporary-public-server.md) |
+| Release kontrol listesi | [docs/release-v0.1.md](docs/release-v0.1.md) |
+| Release notları | [docs/release-notes-v0.1.md](docs/release-notes-v0.1.md) |

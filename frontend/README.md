@@ -1,46 +1,54 @@
-# Getting Started with Create React App
+# ellO Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+ellO frontend, React ve TypeScript ile geliştirilmiştir. REST API, Socket.IO
+realtime olayları ve WebRTC sesli arama akışlarını kullanır.
 
-## Available Scripts
+Tam sistemi ilk kez kuruyorsan repo kökündeki
+[README.md](../README.md) içindeki Docker Compose adımlarını kullan.
 
-In the project directory, you can run:
+## Yerel Çalıştırma
 
-### `yarn start`
+Gereksinimler:
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- Node.js 20 veya daha yeni LTS
+- Çalışan ellO backend (`http://localhost:3000`)
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+```powershell
+Copy-Item .env.example .env
+npm.cmd install
+npm.cmd start
+```
 
-### `yarn test`
+Frontend `http://localhost:5173` adresinde açılır.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Ortam Değişkenleri
 
-### `yarn build`
+```dotenv
+REACT_APP_API_URL=http://localhost:3000/api
+REACT_APP_SOCKET_URL=http://localhost:3000/chat
+REACT_APP_WEBRTC_ICE_SERVERS=[{"urls":"stun:stun.l.google.com:19302"}]
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Docker build'inde API ve Socket.IO aynı origin üzerindeki `/api` ve `/chat`
+adreslerini kullanır. Production WebRTC bağlantıları için
+`REACT_APP_WEBRTC_ICE_SERVERS` içine kimlik doğrulamalı TURN sunucusu
+eklenmelidir.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Komutlar
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```powershell
+npm.cmd start
+npm.cmd run typecheck
+npm.cmd run test:ci
+npm.cmd run build
+```
 
-### `yarn eject`
+Playwright:
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+```powershell
+npx.cmd playwright install chromium
+npm.cmd run test:e2e
+```
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+Playwright testleri kendi test backend'ini kullanır ve normal yerel PostgreSQL
+verisini değiştirmez.

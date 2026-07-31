@@ -3,6 +3,20 @@
 Bu akis PostgreSQL, migration, NestJS backend, Java webhook ve frontend
 servislerini ayni Docker Compose projesinde calistirir.
 
+Sifirdan clone, Docker Desktop ve environment hazirligi dahil tam yeni makine
+akisi repo kokundeki `README.md` dosyasindadir. Bu belge Compose servislerinin
+davranisini ve operasyon komutlarini detaylandirir.
+
+## Gereksinimler
+
+- Git
+- Docker Desktop veya Docker Engine + Compose v2
+- Calisan Docker engine
+- Bos `5173`, `3000`, `8080` ve `5432` portlari
+
+Windows'ta Docker Desktop icin WSL 2 ve BIOS/UEFI virtualization destegi acik
+olmalidir.
+
 ## Ilk Kurulum
 
 Repo kokunde ornek environment dosyasini kopyala:
@@ -37,6 +51,9 @@ kapanir. Diger servislerin `healthy` olmasi beklenir.
 `built-in-users-bootstrap` servisi alti yerel test hesabini sabit Bot ID ve
 parolalarla backend baslamadan once otomatik olarak hazirlar. Islem idempotenttir;
 stack yeniden baslatildiginda ayni hesaplar tekrar kullanilir.
+
+Temiz clone sonrasi conversation listesi bos olabilir. Bootstrap yalnizca
+hesaplari hazirlar; demo grup veya mesaj uretmez.
 
 Adresler:
 

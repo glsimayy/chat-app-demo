@@ -1,52 +1,72 @@
 # ellO Java Webhook
 
-Bu servis dis ticket webhook'unu dogrular ve NestJS backend'deki
-`POST /api/bot/create-group` endpoint'ine iletir.
+Bu Spring Boot servisi dış bir ticket sisteminden gelen webhook isteğini
+doğrular, ellO BOT API formatına dönüştürür ve NestJS backend'deki
+`POST /api/bot/create-group` endpointine iletir.
+
+Tam sistemi ilk kez kuruyorsan repo kökündeki [README.md](../README.md)
+içindeki Docker Compose adımlarını kullan. Docker kurulumunda Java veya
+Maven'i host makineye ayrıca kurmak gerekmez.
 
 ## Gereksinimler
 
-- Java 17 veya daha yeni bir JDK
-- Calisan ellO NestJS backend
+Docker kullanmadan geliştirme için:
 
-## Calistirma
+- Java 17 veya daha yeni JDK
+- Çalışan ellO NestJS backend
+
+Repo Maven Wrapper içerir; ayrı Maven kurulumu zorunlu değildir.
+
+## Docker ile Çalıştırma
+
+Repo kökünde:
+
+```powershell
+Copy-Item .env.compose.example .env
+docker compose up -d --build
+```
+
+Java webhook container'ı otomatik başlar:
+
+- Liveness: `http://localhost:8080/health`
+- Readiness: `http://localhost:8080/ready`
+- Ticket webhook: `POST http://localhost:8080/webhook/ticket-created`
+
+## Yerel Çalıştırma
 
 PowerShell:
 
 ```powershell
-$env:WEBHOOK_SECRET = "local-webhook-secret"
-$env:BOT_WEBHOOK_SECRET = "NestJS ile ayni bot secret"
+$env:WEBHOOK_SECRET = "<dis sistem ile paylasilan secret>"
+$env:BOT_WEBHOOK_SECRET = "<NestJS ile ayni bot secret>"
 $env:CHAT_BACKEND_BASE_URL = "http://localhost:3000"
 .\mvnw.cmd spring-boot:run
 ```
 
-Java servis health endpoint'i `http://localhost:8080/health` adresindedir.
-Secret degerleri kaynak koda veya repoya yazilmaz.
+Secret değerleri kaynak koda veya repoya yazılmaz.
 
-- `GET /health`: Yalnizca Java servisinin ayakta oldugunu bildirir.
-- `GET /ready`: NestJS backend bagimliligini ayrica kontrol eder. Backend kapaliysa
-  Java servisi calismaya devam eder, fakat bu endpoint `503` doner.
+## Health ve Readiness
 
-Backend istemcisi varsayilan olarak 1 saniye connection timeout, 3 saniye read
-timeout ve toplam 2 deneme kullanir. Degerler `CHAT_BACKEND_CONNECT_TIMEOUT`,
-`CHAT_BACKEND_READ_TIMEOUT`, `CHAT_BACKEND_MAX_ATTEMPTS` ve
-`CHAT_BACKEND_RETRY_DELAY` ortam degiskenleriyle ayarlanabilir. Maksimum deneme
-sayisi 3 ile sinirlidir.
+- `GET /health`: Yalnızca Java servisinin çalıştığını bildirir.
+- `GET /ready`: NestJS backend bağımlılığını ayrıca kontrol eder.
 
-## Production Image
+Backend kapalıysa Java prosesi çalışmaya devam eder, `/health` başarılı olur
+ancak `/ready` `503 Service Unavailable` döner.
 
-```powershell
-docker build -t ello-java-webhook:0.1 ./java-webhook
-docker run --rm -p 8080:8080 `
-  -e WEBHOOK_SECRET="local-webhook-secret" `
-  -e BOT_WEBHOOK_SECRET="NestJS ile ayni bot secret" `
-  -e CHAT_BACKEND_BASE_URL="http://host.docker.internal:3000" `
-  ello-java-webhook:0.1
-```
+## Ortam Değişkenleri
 
-Production image non-root kullanici ile calisir; build araclari, kaynak kod ve
-secret degerleri runtime katmanina kopyalanmaz.
+| Değişken | Zorunlu | Varsayılan | Açıklama |
+| --- | --- | --- | --- |
+| `WEBHOOK_SECRET` | Evet | Yok | Dış sistemin `X-Webhook-Token` değeri |
+| `BOT_WEBHOOK_SECRET` | Evet | Yok | NestJS `x-bot-secret` değeri |
+| `CHAT_BACKEND_BASE_URL` | Hayır | `http://localhost:3000` | NestJS taban adresi |
+| `JAVA_WEBHOOK_PORT` | Hayır | `8080` | Java servis portu |
+| `CHAT_BACKEND_CONNECT_TIMEOUT` | Hayır | `1s` | Bağlantı timeout |
+| `CHAT_BACKEND_READ_TIMEOUT` | Hayır | `3s` | Response okuma timeout |
+| `CHAT_BACKEND_MAX_ATTEMPTS` | Hayır | `2` | Toplam deneme; en fazla 3 |
+| `CHAT_BACKEND_RETRY_DELAY` | Hayır | `100ms` | Denemeler arası bekleme |
 
-## Webhook Sozlesmesi
+## Webhook Sözleşmesi
 
 ```http
 POST /webhook/ticket-created
@@ -58,11 +78,61 @@ Content-Type: application/json
 {
   "eventType": "ticket.created",
   "ticketId": "TICKET-42",
-  "ownerId": "00000000-0000-4000-8000-000000000001",
+  "ownerId": "1",
   "title": "Support Room",
-  "participantIds": ["00000000-0000-4000-8000-000000000002"]
+  "participantIds": ["2", "4"]
 }
 ```
 
-NestJS istegi basarisiz olursa servis `502 Bad Gateway` doner; webhook'u
-basarili gibi isaretlemez.
+`ticketId`, NestJS tarafına `externalRef` olarak gönderilir. Aynı ticket
+yeniden iletilirse backend aynı otomasyon grubunu döndürür; duplicate grup
+oluşturmaz.
+
+Java -> NestJS çağrısı:
+
+```http
+POST /api/bot/create-group
+x-bot-secret: <BOT_WEBHOOK_SECRET>
+Content-Type: application/json
+```
+
+NestJS isteği timeout olur veya başarısız dönerse Java servis kontrollü retry
+uygular. Son deneme de başarısızsa dış sisteme `502 Bad Gateway` döner;
+webhook başarılı gibi işaretlenmez.
+
+## Production Image
+
+```powershell
+docker build -t ello-java-webhook:0.1 ./java-webhook
+docker run --rm -p 8080:8080 `
+  -e WEBHOOK_SECRET="<webhook-secret>" `
+  -e BOT_WEBHOOK_SECRET="<backend-bot-secret>" `
+  -e CHAT_BACKEND_BASE_URL="http://host.docker.internal:3000" `
+  ello-java-webhook:0.1
+```
+
+Production image non-root kullanıcı ile çalışır; build araçları, kaynak kod ve
+secret değerleri runtime katmanına kopyalanmaz.
+
+## Test
+
+Windows:
+
+```powershell
+.\mvnw.cmd test
+```
+
+macOS veya Linux:
+
+```bash
+./mvnw test
+```
+
+Timeout, retry, readiness, secret doğrulama ve backend hata çevirme davranışları
+test kapsamındadır.
+
+## Ayrıntılı Referans
+
+- [API ve Java webhook teknik referansı](../docs/api-java-webhook-reference.md)
+- [API ve Java webhook PDF](../output/pdf/ello-api-java-webhook-dokumani.pdf)
+- [BOT API örnekleri](../docs/bot-api-examples.md)
